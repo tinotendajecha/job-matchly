@@ -1,0 +1,93 @@
+// Prisma schema for JobMatchly — v0.1 (User & Resume)
+// Postgres + Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Make sure DATABASE_URL is set in your env
+// Example: postgres://user:password@localhost:5432/jobmatchly
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ResumeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ResumeSource {
+  UPLOADED   // user uploaded a file
+  GENERATED  // created from scratch in-app
+  IMPORTED   // imported from LinkedIn or other source (future)
+}
+
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  email         String   @unique
+  name          String?
+  role          UserRole @default(USER)
+
+  // Optional profile fields (used as defaults when creating new resumes)
+  avatarUrl     String?
+  phone         String?
+  location      String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  isVerified  Boolean  @default(false) // for email verification (future)
+
+  resumes       Resume[]
+}
+
+model Resume {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String        @db.Uuid
+
+  // A human-friendly label the user sets, e.g. "Product Manager — v1"
+  label           String
+
+  status          ResumeStatus  @default(DRAFT)
+  source          ResumeSource  @default(GENERATED)
+
+  // If the resume started as an upload
+  originalFileUrl String?
+  extractedText   String?       @db.Text   // canonical plain text from upload/import
+
+  atsScore        Int?
+  lastAnalyzedAt  DateTime?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // === Main section (header/contact) ===
+  fullName        String?
+  headline        String?       // professional title
+  email           String?
+  phone           String?
+  location        String?
+  website         String?
+
+  // === Core content ===
+  summary         String?       @db.Text   // Professional Summary
+
+  // TODO (next iterations):
+  // experiences      Experience[]   // 1‑to‑many Work Experience items
+  // educations       Education[]    // 1‑to‑many Education items
+  // skills           Skill[]        // tag-like with optional proficiency
+  // links            ResumeLink[]   // portfolio, GitHub, LinkedIn, etc.
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}

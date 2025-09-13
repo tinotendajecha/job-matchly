@@ -57,7 +57,7 @@ export default function DashboardPage() {
             <motion.div {...fadeInUp}>
               <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
                 <CardContent className="p-6">
-                  <h1 className="text-2xl font-bold mb-2">Welcome back, John! 👋</h1>
+                  <h1 className="text-2xl font-bold mb-2">Welcome back, Tino! 👋</h1>
                   <p className="text-muted-foreground mb-4">
                     You have 127 credits remaining. Ready to tailor your next application?
                   </p>

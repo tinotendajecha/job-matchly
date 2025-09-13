@@ -1,93 +1,137 @@
-// Prisma schema for JobMatchly — v0.1 (User & Resume)
-// Postgres + Prisma
-
-generator client {
-  provider = "prisma-client-js"
-}
-
-// Make sure DATABASE_URL is set in your env
-// Example: postgres://user:password@localhost:5432/jobmatchly
+// prisma/schema.prisma
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  USER
-  ADMIN
+generator client {
+  provider = "prisma-client-js"
 }
 
-enum ResumeStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
+enum DocumentKind {
+  TAILORED_RESUME
+  CREATED_RESUME
+  COVER_LETTER
 }
 
-enum ResumeSource {
-  UPLOADED   // user uploaded a file
-  GENERATED  // created from scratch in-app
-  IMPORTED   // imported from LinkedIn or other source (future)
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELED
 }
 
 model User {
-  id            String   @id @default(uuid()) @db.Uuid
-  email         String   @unique
+  id            String   @id @default(cuid())
   name          String?
-  role          UserRole @default(USER)
+  email         String?  @unique
+  passwordHash  String?              // for custom email+password auth
+  emailVerified DateTime?            // null until verified
+  image         String?
+  credits       Int      @default(0)
 
-  // Optional profile fields (used as defaults when creating new resumes)
-  avatarUrl     String?
-  phone         String?
-  location      String?
+  // relationships
+  sessions      Session[]
+  documents     Document[]
+  purchases     Purchase[]
+  verifications EmailVerification[]
+  resets        PasswordReset[]
+  oauthAccounts OAuthAccount[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-
-  isVerified  Boolean  @default(false) // for email verification (future)
-
-  resumes       Resume[]
 }
 
-model Resume {
-  id              String        @id @default(uuid()) @db.Uuid
-  userId          String        @db.Uuid
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique             // opaque session token
+  expires   DateTime
+  createdAt DateTime @default(now())
 
-  // A human-friendly label the user sets, e.g. "Product Manager — v1"
-  label           String
-
-  status          ResumeStatus  @default(DRAFT)
-  source          ResumeSource  @default(GENERATED)
-
-  // If the resume started as an upload
-  originalFileUrl String?
-  extractedText   String?       @db.Text   // canonical plain text from upload/import
-
-  atsScore        Int?
-  lastAnalyzedAt  DateTime?
-
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  // === Main section (header/contact) ===
-  fullName        String?
-  headline        String?       // professional title
-  email           String?
-  phone           String?
-  location        String?
-  website         String?
-
-  // === Core content ===
-  summary         String?       @db.Text   // Professional Summary
-
-  // TODO (next iterations):
-  // experiences      Experience[]   // 1‑to‑many Work Experience items
-  // educations       Education[]    // 1‑to‑many Education items
-  // skills           Skill[]        // tag-like with optional proficiency
-  // links            ResumeLink[]   // portfolio, GitHub, LinkedIn, etc.
-
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
+  @@index([expires])
+}
+
+model Document {
+  id         String       @id @default(cuid())
+  userId     String
+  kind       DocumentKind
+  title      String       @default("")
+  markdown   String                       // full content
+  sections   Json                         // parsed sections for editor/preview
+  sourceMeta Json?                        // snapshot of jd/resume/env
+
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  user       User         @relation(fields: [userId], references: [id])
+  @@index([userId, kind, createdAt])
+}
+
+model Purchase {
+  id           String        @id @default(cuid())
+  userId       String
+  provider     String        @default("PESEPAY") // keep simple, future providers optional
+  amount       Int                           // minor units (e.g., cents)
+  currency     String        @default("USD")
+  credits      Int                           // how many credits this purchase grants
+  status       PaymentStatus @default(PENDING)
+  providerRef  String?       @unique         // e.g., pesepay reference/transaction id
+  meta         Json?                         // raw payloads / fields from provider
+
+  createdAt    DateTime      @default(now())
+  user         User          @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
   @@index([status])
+}
+
+/** Email verification flow (code-based or link-based) **/
+model EmailVerification {
+  id         String   @id @default(cuid())
+  userId     String
+  email      String
+  // Either store a 6-digit code (hashed) or a random token (hashed). We’ll use codeHash for MVP.
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+  @@index([email])
+}
+
+/** Password reset via token (optional but handy) **/
+model PasswordReset {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String
+  expiresAt  DateTime
+  usedAt     DateTime?
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+}
+
+/** Optional future: OAuth accounts (keeps door open for Google later) **/
+model OAuthAccount {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+
+  accessToken       String?
+  refreshToken      String?
+  expiresAt         Int?
+
+  user              User    @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
 }

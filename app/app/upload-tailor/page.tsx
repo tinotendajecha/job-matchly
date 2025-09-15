@@ -457,9 +457,6 @@ export default function UploadTailorWizardPage() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
             Tailor your resume in 3 easy steps <Sparkles className="inline h-6 w-6 text-primary ml-1" />
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Mobile-friendly wizard: upload ➝ add JD ➝ preview & download
-          </p>
         </div>
 
         {/* Top: stepper + pipeline badges */}
@@ -518,6 +515,7 @@ export default function UploadTailorWizardPage() {
                     Back
                   </Button>
                   <Button
+                  className=''
                     onClick={() => {
                       if (!resumeParsed) {
                         toast.info('Upload your resume first');

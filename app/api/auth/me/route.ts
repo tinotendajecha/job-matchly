@@ -11,7 +11,7 @@ export async function GET() {
   if (!u) return NextResponse.json({ ok: false }, { status: 401 });
   return NextResponse.json({
     ok: true,
-    user: { id: u.id, email: u.email, name: u.name, credits: u.credits },
+    user: { id: u.id, email: u.email, name: u.name, credits: u.credits, emailVerified: u.emailVerified },
   }, {
     headers: { "Cache-Control": "no-store" },
   });

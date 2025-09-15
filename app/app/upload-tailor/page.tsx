@@ -1,6 +1,9 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,14 +20,15 @@ import {
   CheckCircle,
   AlertTriangle,
   TrendingUp,
-  Zap,
   Link as LinkIcon,
   Loader2,
   Clipboard,
   ExternalLink,
   FileEdit,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
 } from 'lucide-react';
-import { Header } from '@/components/layout/header';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import ReactMarkdown from 'react-markdown';
@@ -40,27 +44,34 @@ type Analysis = {
 };
 
 type StepStatus = 'idle' | 'loading' | 'done' | 'error';
+type WizardStep = 1 | 2 | 3;
 
-export default function UploadTailorPage() {
-  // -------- Source-of-truth state --------
-  const [resumeUploaded, setResumeUploaded] = useState(false);
-  const [resumeFileName, setResumeFileName] = useState<string>('');
-  const [resumeText, setResumeText] = useState<string>('');
+export default function UploadTailorWizardPage() {
+  const router = useRouter();
+
+  // -------------- wizard state --------------
+  const [step, setStep] = useState<WizardStep>(1);
+  const [resumeParsed, setResumeParsed] = useState(false);
+  const [jdProvided, setJdProvided] = useState(false);
+  const [tailoredReady, setTailoredReady] = useState(false);
+
+  // -------------- core data --------------
+  const [resumeFileName, setResumeFileName] = useState('');
+  const [resumeText, setResumeText] = useState('');
   const [resumeJson, setResumeJson] = useState<any>(null);
 
   const [jobDescription, setJobDescription] = useState('');
   const [jobUrl, setJobUrl] = useState('');
+  const [activeTab, setActiveTab] = useState<'text' | 'upload' | 'url'>('text');
 
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [atsScore, setAtsScore] = useState(0);
-  const [showResults, setShowResults] = useState(false);
-  const [activeTab, setActiveTab] = useState<'text' | 'upload' | 'url'>('text');
 
-  const [tailoredMarkdown, setTailoredMarkdown] = useState<string>('');
+  const [tailoredMarkdown, setTailoredMarkdown] = useState('');
   const [downloading, setDownloading] = useState(false);
 
-  // pipeline step status
-  const [steps, setSteps] = useState<Record<'parse'|'normalize'|'analyze'|'tailor'|'export', StepStatus>>({
+  // pipeline indicators
+  const [steps, setSteps] = useState<Record<'parse' | 'normalize' | 'analyze' | 'tailor' | 'export', StepStatus>>({
     parse: 'idle',
     normalize: 'idle',
     analyze: 'idle',
@@ -68,7 +79,7 @@ export default function UploadTailorPage() {
     export: 'idle',
   });
 
-  // -------- Refs for hidden inputs --------
+  // refs
   const resumeInputRef = useRef<HTMLInputElement | null>(null);
   const jdFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -77,6 +88,13 @@ export default function UploadTailorPage() {
     const fd = new FormData();
     fd.append('file', file);
     const res = await fetch('/api/parse-resume', { method: 'POST', body: fd });
+
+    // credit gate is enforced server-side; 402 -> pricing
+    if (res.status === 402) {
+      router.push('/pricing');
+      throw new Error('You are out of credits.');
+    }
+
     const ct = res.headers.get('content-type') || '';
     if (ct.includes('application/json')) {
       const data = await res.json();
@@ -126,7 +144,7 @@ export default function UploadTailorPage() {
     return res.json() as Promise<Analysis>;
   }
 
-  async function apiTailor(payload: { resumeJson: any; resumeText: string; jdText: string; }) {
+  async function apiTailor(payload: { resumeJson: any; resumeText: string; jdText: string }) {
     const res = await fetch('/api/tailor', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -147,7 +165,8 @@ export default function UploadTailorPage() {
   }
 
   // ------------------- helpers -------------------
-  const setStep = (k: keyof typeof steps, v: StepStatus) => setSteps(prev => ({ ...prev, [k]: v }));
+  const setStepStatus = (k: keyof typeof steps, v: StepStatus) =>
+    setSteps(prev => ({ ...prev, [k]: v }));
 
   function splitChanges(md: string) {
     if (!md) return { body: '', changes: '' };
@@ -159,24 +178,83 @@ export default function UploadTailorPage() {
 
   const { body: previewMarkdown, changes: changesMarkdown } = splitChanges(tailoredMarkdown);
 
-  // ------------------- UI Handlers -------------------
-  const handleResumeUploadClick = () => resumeInputRef.current?.click();
+  function flatten(children: any): string {
+    if (Array.isArray(children)) return children.map(flatten).join('');
+    if (typeof children === 'string' || typeof children === 'number') return String(children);
+    if (children && typeof children === 'object' && 'props' in children) {
+      return flatten((children as any).props?.children);
+    }
+    return '';
+  }
+
+  const MarkdownPreview = ({ value }: { value: string }) => (
+    <div className="px-4 py-3">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: (props) => (
+            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mb-1 text-[#0f2a43]" {...props} />
+          ),
+          h2: (props) => {
+            const txt = flatten(props.children).trim().toLowerCase();
+            const isExperience = txt === 'experience';
+            return (
+              <h2
+                className={[
+                  'font-semibold border-b pb-1 mt-6 mb-3',
+                  isExperience
+                    ? 'text-[20px] md:text-[22px] text-[#0e6ba8]'
+                    : 'text-[19px] md:text-[20px] text-[#12467F]',
+                ].join(' ')}
+                {...props}
+              />
+            );
+          },
+          p:  (props) => <p className="text-sm md:text-base leading-6 text-foreground/90" {...props} />,
+          ul: (props) => <ul className="list-disc pl-5 space-y-1.5" {...props} />,
+          li: (props) => <li className="text-sm md:text-base leading-6" {...props} />,
+          a:  (props) => (
+            <a className="text-[#1155cc] underline underline-offset-2 hover:no-underline" target="_blank" rel="noreferrer" {...props} />
+          ),
+          hr: (props) => <hr className="my-6 border-muted" {...props} />,
+          strong: (props) => <strong className="font-semibold text-[#0e6ba8]" {...props} />,
+          em: (props) => <em className="italic" {...props} />,
+          code: (props: any) =>
+            props.inline ? (
+              <code className="rounded bg-muted px-1.5 py-0.5 text-xs" {...props} />
+            ) : (
+              <pre>
+                <code className="block rounded bg-muted px-3 py-2 text-xs" {...props} />
+              </pre>
+            ),
+        }}
+      >
+        {value}
+      </ReactMarkdown>
+    </div>
+  );
+
+  // ------------------- Handlers -------------------
+  const onResumeClick = () => resumeInputRef.current?.click();
 
   const onResumeFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      setStep('parse', 'loading');
+      setStepStatus('parse', 'loading');
       const data = await apiParseResume(file);
-      setResumeUploaded(true);
       setResumeFileName(file.name);
       setResumeText(data.resumeText || '');
       setResumeJson(data.resumeJson || null);
-      setStep('parse', 'done');
-      toast.success('Resume parsed successfully!');
+      setResumeParsed(true);
+      setTailoredReady(false);
+      setStepStatus('parse', 'done');
+      toast.success('Resume parsed successfully! ✅');
+      // move forward automatically
+      setStep(2);
     } catch (err: any) {
       console.error(err);
-      setStep('parse', 'error');
+      setStepStatus('parse', 'error');
       toast.error(err.message || 'Could not parse resume.');
     }
   };
@@ -185,15 +263,16 @@ export default function UploadTailorPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      setStep('normalize', 'loading');
+      setStepStatus('normalize', 'loading');
       const { jdText } = await apiNormalizeJDFromFile(file);
       setJobDescription(jdText || '');
       setActiveTab('text');
-      setStep('normalize', 'done');
-      toast.success('Job description loaded!');
+      setStepStatus('normalize', 'done');
+      setJdProvided(true);
+      toast.success('Job description loaded! 📥');
     } catch (err: any) {
       console.error(err);
-      setStep('normalize', 'error');
+      setStepStatus('normalize', 'error');
       toast.error(err.message || 'Could not read JD file.');
     }
   };
@@ -201,50 +280,70 @@ export default function UploadTailorPage() {
   const importFromUrl = async () => {
     if (!jobUrl.trim()) return toast.error('Enter a URL first');
     try {
-      setStep('normalize', 'loading');
+      setStepStatus('normalize', 'loading');
       const { jdText } = await apiNormalizeJDFromUrl(jobUrl.trim());
       setJobDescription(jdText || '');
       setActiveTab('text');
-      setStep('normalize', 'done');
-      toast.success('Imported job description from URL');
+      setStepStatus('normalize', 'done');
+      setJdProvided(true);
+      toast.success('Imported job description from URL 🌐');
     } catch (err: any) {
       console.error(err);
-      setStep('normalize', 'error');
+      setStepStatus('normalize', 'error');
       toast.error(err.message || 'URL import failed.');
     }
   };
 
-  const handleTailor = async () => {
-    if (!resumeUploaded || !jobDescription.trim()) {
-      toast.error('Please upload a resume and add a job description');
+  const cleanAndFlagJD = async () => {
+    if (!jobDescription.trim()) {
+      toast.error('Paste or import a job description first');
       return;
     }
     try {
-      // 1) Analyze
-      setStep('analyze', 'loading');
+      setStepStatus('normalize', 'loading');
+      const { jdText } = await apiNormalizeJDFromText(jobDescription);
+      setJobDescription(jdText || jobDescription);
+      setStepStatus('normalize', 'done');
+      setJdProvided(true);
+      toast.success('JD normalized 🧼');
+    } catch (e: any) {
+      setStepStatus('normalize', 'error');
+      toast.error(e.message || 'Normalize failed');
+    }
+  };
+
+  const runTailoring = async () => {
+    if (!resumeParsed || !jobDescription.trim()) {
+      toast.error('Complete steps 1 and 2 first');
+      return;
+    }
+    try {
+      // analyze
+      setStepStatus('analyze', 'loading');
       const analysisRes = await apiAnalyze(resumeText, jobDescription);
       setAnalysis(analysisRes);
-      setStep('analyze', 'done');
+      setStepStatus('analyze', 'done');
 
-      // animate ATS score to LLM fit score (fallback to 75 if missing)
+      // lil’ score animation
       const targetScore = Math.max(0, Math.min(100, analysisRes.llmFitScore ?? 75));
-      setShowResults(true);
-      let score = 0;
+      let s = 0;
       const tick = setInterval(() => {
-        score = Math.min(targetScore, score + 2);
-        setAtsScore(score);
-        if (score >= targetScore) clearInterval(tick);
-      }, 30);
+        s = Math.min(targetScore, s + 2);
+        setAtsScore(s);
+        if (s >= targetScore) clearInterval(tick);
+      }, 22);
 
-      // 2) Tailor
-      setStep('tailor', 'loading');
+      // tailor
+      setStepStatus('tailor', 'loading');
       const tailored = await apiTailor({ resumeJson, resumeText, jdText: jobDescription });
       setTailoredMarkdown(tailored.tailoredMarkdown || '');
-      setStep('tailor', 'done');
-      toast.success('Resume tailored successfully! 🎯');
+      setTailoredReady(true);
+      setStepStatus('tailor', 'done');
+      toast.success('Tailored and ready! ✨');
+      setStep(3);
     } catch (err: any) {
       console.error(err);
-      setStep('tailor', 'error');
+      setStepStatus('tailor', 'error');
       toast.error(err.message || 'Tailoring failed. Try again.');
     }
   };
@@ -252,7 +351,7 @@ export default function UploadTailorPage() {
   const handleExportDocx = async () => {
     if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
     try {
-      setStep('export', 'loading');
+      setStepStatus('export', 'loading');
       setDownloading(true);
       const blob = await apiExportDocx(tailoredMarkdown);
       const url = URL.createObjectURL(blob);
@@ -261,11 +360,11 @@ export default function UploadTailorPage() {
       a.download = 'resume.docx';
       a.click();
       URL.revokeObjectURL(url);
-      setStep('export', 'done');
-      toast.success('DOCX downloaded');
+      setStepStatus('export', 'done');
+      toast.success('DOCX downloaded 📥');
     } catch (err: any) {
       console.error(err);
-      setStep('export', 'error');
+      setStepStatus('export', 'error');
       toast.error('Download failed.');
     } finally {
       setDownloading(false);
@@ -275,10 +374,10 @@ export default function UploadTailorPage() {
   const copyMarkdown = async () => {
     if (!previewMarkdown) return;
     await navigator.clipboard.writeText(previewMarkdown);
-    toast.success('Markdown copied');
+    toast.success('Markdown copied 📋');
   };
 
-  // Build keyword list for “Keyword Analysis” card
+  // keyword rows
   const keywordRows = (() => {
     if (!analysis) return [];
     const matched = analysis.matchedKeywords.map(w => ({ word: w, matched: true, frequency: 1 }));
@@ -286,7 +385,7 @@ export default function UploadTailorPage() {
     return [...matched, ...missing].slice(0, 12);
   })();
 
-  // ------------------- Subcomponents -------------------
+  // ------------------- UI bits -------------------
   const StepPill = ({ label, status }: { label: string; status: StepStatus }) => {
     const icon =
       status === 'loading' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> :
@@ -300,131 +399,95 @@ export default function UploadTailorPage() {
                              'bg-muted text-muted-foreground';
     return (
       <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ${tone}`}>
-        {icon}
-        {label}
+        {icon}{label}
       </span>
     );
   };
 
-  // helper to read visible text from ReactMarkdown children
-function flattenText(children: any): string {
-  if (Array.isArray(children)) return children.map(flattenText).join('');
-  if (typeof children === 'string' || typeof children === 'number') return String(children);
-  if (children && typeof children === 'object' && 'props' in children) {
-    return flattenText((children as any).props?.children);
-  }
-  return '';
-}
+  const WizardStepper = () => {
+    const items = [
+      { id: 1, label: 'Upload Resume 📄', done: resumeParsed },
+      { id: 2, label: 'Job Description 🎯', done: jdProvided },
+      { id: 3, label: 'Tailor & Preview ✨', done: tailoredReady },
+    ] as const;
 
-const MarkdownPreview = ({ value }: { value: string }) => (
-  <div className="px-4 py-3">
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        h1: ({ node, ...props }) => (
-          <h1
-            className="text-3xl md:text-4xl font-semibold tracking-tight mb-1 text-[#0f2a43]"
-            {...props}
-          />
-        ),
-        h2: ({ node, ...props }) => {
-          const txt = flattenText(props.children).trim().toLowerCase();
-          const isExperience = txt === 'experience';
-          return (
-            <h2
-              className={[
-                // base H2 (+~1pt over your old preview)
-                'font-semibold border-b pb-1 mt-6 mb-3',
-                // size & color
-                isExperience
-                  ? 'text-[20px] md:text-[22px] text-[#0e6ba8]'
-                  : 'text-[19px] md:text-[20px] text-[#12467F]',
-              ].join(' ')}
-              {...props}
-            />
-          );
-        },
-        p:  ({ node, ...props }) => (
-          <p className="text-sm md:text-base leading-6 text-foreground/90" {...props} />
-        ),
-        ul: ({ node, ...props }) => <ul className="list-disc pl-5 space-y-1.5" {...props} />,
-        li: ({ node, ...props }) => <li className="text-sm md:text-base leading-6" {...props} />,
-        a:  ({ node, ...props }) => (
-          <a
-            className="text-[#1155cc] underline underline-offset-2 hover:no-underline"
-            target="_blank"
-            rel="noreferrer"
-            {...props}
-          />
-        ),
-        hr: ({ node, ...props }) => <hr className="my-6 border-muted" {...props} />,
-        strong: ({node, ...props}) => <strong className="font-semibold text-[#0e6ba8]" {...props} />,
-        em: ({ node, ...props }) => <em className="italic" {...props} />,
-        code: ({ node, ...props }) => {
-          // 'inline' is passed as a direct prop, not inside 'props'
-          const inline = (props as any).inline;
-          return inline ? (
-            <code className="rounded bg-muted px-1.5 py-0.5 text-xs" {...props} />
-          ) : (
-            <pre>
-              <code className="block rounded bg-muted px-3 py-2 text-xs" {...props} />
-            </pre>
-          );
-        },
-      }}
-    >
-      {value}
-    </ReactMarkdown>
-  </div>
-);
+    return (
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              <StepPill label="Parsing"   status={steps.parse} />
+              <StepPill label="Normalizing" status={steps.normalize} />
+              <StepPill label="Analyzing" status={steps.analyze} />
+              <StepPill label="Tailoring" status={steps.tailor} />
+              <StepPill label="Exporting" status={steps.export} />
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              {items.map((it, idx) => {
+                const isActive = step === it.id;
+                const canGo = it.id < step; // allow going back only
+                return (
+                  <button
+                    key={it.id}
+                    onClick={() => canGo && setStep(it.id as WizardStep)}
+                    className={[
+                      'rounded-full px-3 py-1 border',
+                      isActive ? 'bg-primary text-primary-foreground border-primary' : 'bg-background',
+                      canGo ? 'hover:bg-muted' : 'opacity-60 cursor-default',
+                    ].join(' ')}
+                  >
+                    {it.done ? '✅ ' : ''}{it.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
-  // ------------------- UI -------------------
+  // ------------------- Render -------------------
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      <div className="container mx-auto p-4 py-6 md:py-8">
-        <div className="mb-6 md:mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Upload & Tailor</h1>
-          <p className="text-muted-foreground mt-1">Upload your resume and job description. Preview and download a clean, ATS-safe tailored version.</p>
+      <div className="container mx-auto p-4 py-6 md:py-8 max-w-6xl">
+        <div className="mb-6 md:mb-8 text-center">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+            Tailor your resume in 3 easy steps <Sparkles className="inline h-6 w-6 text-primary ml-1" />
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Mobile-friendly wizard: upload ➝ add JD ➝ preview & download
+          </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-start">
-          {/* LEFT: Inputs */}
-          <div className="space-y-6 lg:sticky lg:top-4 lg:self-start">
-            {/* Pipeline */}
-            <Card>
-              <CardContent className="py-4">
-                <div className="flex flex-wrap gap-2">
-                  <StepPill label="Parsing Resume"    status={steps.parse} />
-                  <StepPill label="Normalizing JD"     status={steps.normalize} />
-                  <StepPill label="Analyzing"          status={steps.analyze} />
-                  <StepPill label="Tailoring"          status={steps.tailor} />
-                  <StepPill label="Exporting"          status={steps.export} />
-                </div>
-              </CardContent>
-            </Card>
+        {/* Top: stepper + pipeline badges */}
+        <WizardStepper />
 
-            {/* Resume Upload */}
-            <Card>
+        {/* STEP 1 — Upload Resume */}
+        {step === 1 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="mt-6">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2">
                   <Upload className="h-5 w-5" />
-                  Upload Resume
+                  Upload your resume 📄
                 </CardTitle>
+                <p className="text-muted-foreground text-sm">
+                  We currently support <strong>DOCX</strong> and <strong>TXT</strong> (PDF coming soon).
+                </p>
               </CardHeader>
               <CardContent className="pt-0">
-                {!resumeUploaded ? (
+                {!resumeParsed ? (
                   <motion.div
                     className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                    whileHover={{ scale: 1.02 }}
-                    onClick={handleResumeUploadClick}
+                    whileHover={{ scale: 1.01 }}
+                    onClick={onResumeClick}
                   >
                     <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="font-semibold mb-2">Drop your resume here</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Supports DOCX and TXT (PDF coming soon)
-                    </p>
+                    <h3 className="font-semibold mb-2">Drop your resume here or click to choose</h3>
+                    <p className="text-sm text-muted-foreground mb-4">We’ll parse it and prep it for tailoring.</p>
                     <Button variant="outline">Choose File</Button>
                     <input
                       ref={resumeInputRef}
@@ -435,33 +498,55 @@ const MarkdownPreview = ({ value }: { value: string }) => (
                     />
                   </motion.div>
                 ) : (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.97 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex items-center gap-4 p-4 rounded-lg bg-green-50 dark:bg-green-950/20"
-                  >
+                  <div className="flex flex-wrap items-center gap-3 rounded-lg bg-green-50 dark:bg-green-950/20 p-4">
                     <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full grid place-items-center">
                       <FileText className="h-5 w-5 text-green-600" />
                     </div>
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">{resumeFileName}</p>
-                      <p className="text-xs text-muted-foreground">Uploaded & parsed</p>
+                      <p className="text-xs text-muted-foreground">Parsed successfully</p>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={handleResumeUploadClick}>
-                      <Upload className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" onClick={onResumeClick}>
+                      Replace
                     </Button>
-                  </motion.div>
+                  </div>
                 )}
+
+                <div className="mt-6 flex justify-between">
+                  <Button variant="outline" disabled>
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (!resumeParsed) {
+                        toast.info('Upload your resume first');
+                        return;
+                      }
+                      setStep(2);
+                    }}
+                  >
+                    Next: Job Description
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
+          </motion.div>
+        )}
 
-            {/* Job Description */}
-            <Card>
+        {/* STEP 2 — Job Description */}
+        {step === 2 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="mt-6">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2">
                   <Target className="h-5 w-5" />
-                  Job Description
+                  Add the Job Description 🎯
                 </CardTitle>
+                <p className="text-muted-foreground text-sm">
+                  Paste, upload or import from a URL — we’ll clean it up for best results.
+                </p>
               </CardHeader>
               <CardContent className="pt-0">
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
@@ -473,40 +558,35 @@ const MarkdownPreview = ({ value }: { value: string }) => (
 
                   <TabsContent value="text" className="space-y-4 pt-4">
                     <Textarea
-                      placeholder="Paste the job description here..."
+                      placeholder="Paste the job description here…"
                       value={jobDescription}
-                      onChange={async (e) => setJobDescription(e.target.value)}
+                      onChange={(e) => {
+                        setJobDescription(e.target.value);
+                        setJdProvided(!!e.target.value.trim());
+                      }}
                       rows={8}
                       className="resize-none"
                     />
-                    <div className="flex justify-between text-xs text-muted-foreground">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
                       <span>{jobDescription.length} characters</span>
-                      <span>Min 100 characters recommended</span>
-                    </div>
-                    <div className="flex gap-3">
-                      <Button
-                        onClick={async () => {
-                          try {
-                            setStep('normalize', 'loading');
-                            const { jdText } = await apiNormalizeJDFromText(jobDescription);
-                            setJobDescription(jdText || '');
-                            setStep('normalize', 'done');
-                            toast.success('JD normalized');
-                          } catch (e: any) {
-                            setStep('normalize', 'error');
-                            toast.error(e.message || 'Normalize failed');
-                          }
-                        }}
-                        variant="secondary"
-                        disabled={!jobDescription.trim()}
-                      >
-                        <Loader2 className="h-4 w-4 mr-2" />
-                        Clean & Normalize
-                      </Button>
-                      <Button onClick={handleTailor} disabled={!resumeUploaded || !jobDescription.trim()}>
-                        <Target className="h-4 w-4 mr-2" />
-                        Generate Tailored Resume
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={cleanAndFlagJD}
+                          variant="secondary"
+                          size="sm"
+                          disabled={!jobDescription.trim()}
+                        >
+                          <Loader2 className="h-4 w-4 mr-2" />
+                          Clean & Normalize
+                        </Button>
+                        <Button
+                          onClick={() => setStep(1)}
+                          variant="ghost"
+                          size="sm"
+                        >
+                          Back to Resume
+                        </Button>
+                      </div>
                     </div>
                   </TabsContent>
 
@@ -550,13 +630,29 @@ const MarkdownPreview = ({ value }: { value: string }) => (
                     </div>
                   </TabsContent>
                 </Tabs>
+
+                <div className="mt-6 flex justify-between">
+                  <Button variant="outline" onClick={() => setStep(1)}>
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                  <Button
+                    onClick={runTailoring}
+                    disabled={!resumeParsed || !jdProvided}
+                  >
+                    Tailor my resume
+                    <Sparkles className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-          </div>
+          </motion.div>
+        )}
 
-          {/* RIGHT: Preview + actions */}
-          <div className="space-y-6">
-            <Card className="overflow-hidden">
+        {/* STEP 3 — Tailor & Preview */}
+        {step === 3 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="mt-6 overflow-hidden">
               {/* sticky toolbar */}
               <div className="sticky top-0 z-10 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 border-b">
                 <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
@@ -565,6 +661,10 @@ const MarkdownPreview = ({ value }: { value: string }) => (
                     {steps.tailor === 'loading' && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setStep(2)}>
+                      <ChevronLeft className="h-4 w-4 mr-1.5" />
+                      Back to JD
+                    </Button>
                     <Button variant="outline" size="sm" onClick={copyMarkdown} disabled={!previewMarkdown}>
                       <Clipboard className="h-4 w-4 mr-1.5" />
                       Copy Markdown
@@ -593,9 +693,9 @@ const MarkdownPreview = ({ value }: { value: string }) => (
               </CardContent>
             </Card>
 
-            {/* Changes Summary card (not exported) */}
+            {/* Changes Summary (not exported) */}
             {changesMarkdown && (
-              <Card>
+              <Card className="mt-6">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2">
                     <ExternalLink className="h-5 w-5" />
@@ -606,9 +706,9 @@ const MarkdownPreview = ({ value }: { value: string }) => (
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      ul: ({...props}) => <ul className="list-disc pl-5 space-y-1.5" {...props} />,
-                      li: ({...props}) => <li className="text-sm leading-6" {...props} />,
-                      p:  ({...props}) => <p className="text-sm leading-6" {...props} />,
+                      ul: (p) => <ul className="list-disc pl-5 space-y-1.5" {...p} />,
+                      li: (p) => <li className="text-sm leading-6" {...p} />,
+                      p:  (p) => <p className="text-sm leading-6" {...p} />,
                     }}
                   >
                     {changesMarkdown}
@@ -617,10 +717,9 @@ const MarkdownPreview = ({ value }: { value: string }) => (
               </Card>
             )}
 
-            {/* Insights moved to bottom */}
-            {showResults && (
-              <div className="space-y-6">
-                {/* ATS Score */}
+            {/* Optional info accordion-ish cards */}
+            {analysis && (
+              <div className="mt-6 grid gap-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -633,61 +732,72 @@ const MarkdownPreview = ({ value }: { value: string }) => (
                       <div className="text-3xl font-bold text-green-600">{atsScore}%</div>
                       <Progress value={atsScore} className="h-2.5" />
                       <p className="text-sm text-muted-foreground">
-                        {analysis ? `Fit score: ${analysis.llmFitScore}/100` : 'Analyzing…'}
+                        Fit score: {analysis.llmFitScore}/100
                       </p>
                     </div>
-                    {analysis && (
-                      <div className="space-y-3 mt-6">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">Keyword overlap {(analysis.keywordOverlapScore * 100).toFixed(0)}%</span>
-                        </div>
-                        {analysis.notes?.[0] && (
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                            <span className="text-sm">{analysis.notes[0]}</span>
-                          </div>
-                        )}
+                    <div className="space-y-3 mt-6">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="text-sm">
+                          Keyword overlap {(analysis.keywordOverlapScore * 100).toFixed(0)}%
+                        </span>
                       </div>
-                    )}
+                      {analysis.notes?.[0] && (
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                          <span className="text-sm">{analysis.notes[0]}</span>
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
 
-                {/* Keyword Analysis */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5" />
-                      Keyword Analysis
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {keywordRows.map((k, idx) => (
-                        <div
-                          key={`${k.word}-${idx}`}
-                          className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            {k.matched ? (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                            )}
-                            <span className="text-sm font-medium">{k.word}</span>
+                {keywordRows.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Target className="h-5 w-5" />
+                        Keyword Analysis
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {keywordRows.map((k, idx) => (
+                          <div
+                            key={`${k.word}-${idx}`}
+                            className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              {k.matched ? (
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                              )}
+                              <span className="text-sm font-medium">{k.word}</span>
+                            </div>
+                            <Badge variant={k.matched ? 'default' : 'secondary'}>
+                              {k.matched ? `${k.frequency}x` : 'Missing'}
+                            </Badge>
                           </div>
-                          <Badge variant={k.matched ? 'default' : 'secondary'}>
-                            {k.matched ? `${k.frequency}x` : 'Missing'}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             )}
-          </div>
-        </div>
+
+            <div className="mt-6 flex justify-between">
+              <Button variant="outline" onClick={() => setStep(2)}>
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <Button variant="ghost" onClick={() => { setStep(1); setTailoredReady(false); }}>
+                Start Over
+              </Button>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

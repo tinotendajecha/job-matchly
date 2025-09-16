@@ -31,6 +31,7 @@ model User {
   image               String?
   credits             Int      @default(0)
   onboardingComplete  Boolean  @default(false)
+  // Added new changes
 
   // relations
   sessions      Session[]

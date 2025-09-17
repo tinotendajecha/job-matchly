@@ -1,32 +1,47 @@
-// app/api/auth/verify/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const { email, code } = await req.json();
-  if (!email || !code) return NextResponse.json({ ok: false, error: "Email & code required" }, { status: 400 });
+  try {
+    const { email, code } = await req.json();
+    if (!email || !code) {
+      return NextResponse.json({ ok: false, error: "Email and code are required" }, { status: 400 });
+    }
 
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return NextResponse.json({ ok: false, error: "User not found" }, { status: 404 });
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return NextResponse.json({ ok: false, error: "User not found" }, { status: 404 });
+    if (user.emailVerified) return NextResponse.json({ ok: true, alreadyVerified: true });
 
-  // get latest active verification
-  const v = await prisma.emailVerification.findFirst({
-    where: { userId: user.id, consumedAt: null, expiresAt: { gt: new Date() } },
-    orderBy: { expiresAt: "desc" },
-  });
-  if (!v) return NextResponse.json({ ok: false, error: "No active verification code" }, { status: 400 });
+    // Find any unconsumed, unexpired code
+    const rec = await prisma.emailVerification.findFirst({
+      where: { userId: user.id, consumedAt: null, expiresAt: { gt: new Date() } },
+    });
+    if (!rec) {
+      return NextResponse.json({ ok: false, error: "Code expired or not found" }, { status: 400 });
+    }
 
-  const ok = await bcrypt.compare(String(code), v.codeHash);
-  if (!ok) return NextResponse.json({ ok: false, error: "Invalid code" }, { status: 400 });
+    const ok = await bcrypt.compare(String(code), rec.codeHash);
+    if (!ok) {
+      return NextResponse.json({ ok: false, error: "Invalid code" }, { status: 400 });
+    }
 
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { emailVerified: new Date() } }),
-    prisma.emailVerification.update({ where: { id: v.id }, data: { consumedAt: new Date() } }),
-    prisma.emailVerification.deleteMany({ where: { userId: user.id, id: { not: v.id } } }), // clean others
-  ]);
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerified: new Date() },
+      }),
+      prisma.emailVerification.update({
+        where: { id: rec.id },
+        data: { consumedAt: new Date() },
+      }),
+    ]);
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, verified: true });
+  } catch (e: any) {
+    console.error("verify confirm fatal:", e?.message || e);
+    return NextResponse.json({ ok: false, error: "Could not verify email" }, { status: 500 });
+  }
 }

@@ -22,6 +22,8 @@ export default function VerifyEmailPage() {
   const [email, setEmail] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
+  const [resending, setResending] = useState(false);
+
   // 6 separate inputs for OTP
   const [codes, setCodes] = useState<string[]>(['', '', '', '', '', '']);
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
@@ -31,12 +33,12 @@ export default function VerifyEmailPage() {
     const q = params.get('email');
     if (q) {
       setEmail(q);
-      try { localStorage.setItem('pendingVerifyEmail', q); } catch {}
+      try { localStorage.setItem('pendingVerifyEmail', q); } catch { }
     } else {
       try {
         const saved = localStorage.getItem('pendingVerifyEmail') || '';
         if (saved) setEmail(saved);
-      } catch {}
+      } catch { }
     }
   }, [params]);
 
@@ -82,20 +84,20 @@ export default function VerifyEmailPage() {
       });
 
       let data: any = null;
-      try { data = await res.json(); } catch {}
+      try { data = await res.json(); } catch { }
 
       if (!res.ok || !data?.ok) {
         const msg =
           data?.error ||
           (res.status === 400 ? 'Invalid or expired code' :
-           res.status === 404 ? 'User not found' :
-           'Verification failed');
+            res.status === 404 ? 'User not found' :
+              'Verification failed');
         toast.error(msg);
         return;
       }
 
       toast.success('Email verified! You can sign in now.');
-      try { localStorage.removeItem('pendingVerifyEmail'); } catch {}
+      try { localStorage.removeItem('pendingVerifyEmail'); } catch { }
       router.push('/auth/signin');
     } catch (err) {
       console.error(err);
@@ -187,15 +189,31 @@ export default function VerifyEmailPage() {
               </Link>
               <button
                 type="button"
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
                 onClick={async () => {
-                  // Optional: wire this to /api/auth/resend later.
-                  // For now, just inform the user.
-                  toast.info('Resend is coming soon.');
+                  if (!isValidEmail(email) || resending) return;
+                  try {
+                    setResending(true);
+                    const res = await fetch('/api/auth/verify/request', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data?.ok) {
+                      toast.error(data?.error || 'Could not resend code');
+                      return;
+                    }
+                    toast.success('Verification code sent! Check your inbox.');
+                  } catch (e) {
+                    toast.error('Network error. Try again.');
+                  } finally {
+                    setResending(false);
+                  }
                 }}
-                disabled={isVerifying || !isValidEmail(email)}
+                disabled={isVerifying || !isValidEmail(email) || resending}
               >
-                Resend code
+                {resending ? 'Sending…' : 'Resend code'}
               </button>
             </div>
           </CardContent>

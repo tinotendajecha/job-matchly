@@ -23,6 +23,9 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useEffect, useState } from 'react';
+import { set } from 'date-fns';
+import { toast } from 'react-toastify';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -45,6 +48,46 @@ const comingSoonFeatures = [
 ];
 
 export default function DashboardPage() {
+
+  interface user {
+    name: String;
+  }
+
+  const [userData, setUserData] = useState<user>({name: ""});
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [isError, setIsError] = useState<boolean>(false)
+
+  // Fetch user data from /api/auth/me 
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
+        const data = await res.json();
+        if (data.ok) {
+          setUserData(data.user);
+          setIsLoading(false);
+        } else {
+          setIsError(true);
+          setIsLoading(false);
+          toast.error("Failed to fetch user data");
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    }
+    fetchUserData();
+  },[])
+
+  if(isLoading) {
+    // Make a fancy loader here
+    return(
+      <div>
+        Loading page..
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -57,7 +100,7 @@ export default function DashboardPage() {
             <motion.div {...fadeInUp}>
               <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
                 <CardContent className="p-6">
-                  <h1 className="text-2xl font-bold mb-2">Welcome back, Tino! 👋</h1>
+                  <h1 className="text-2xl font-bold mb-2">Welcome back, {userData.name}👋</h1>
                   <p className="text-muted-foreground mb-4">
                     You have 127 credits remaining. Ready to tailor your next application?
                   </p>

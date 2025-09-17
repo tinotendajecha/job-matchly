@@ -23,7 +23,6 @@ function verifyEmailHTML(code: string) {
 
 // keep the same signature your signup route already calls
 export async function sendVerificationEmail(to: string, code: string) {
-  console.log(process.env.RESEND_API_KEY);
   if (!process.env.RESEND_API_KEY) {
     console.log(`[DEV] Verification code for ${to}: ${code}`);
     return;

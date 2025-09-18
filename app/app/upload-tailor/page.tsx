@@ -85,6 +85,7 @@ export default function UploadTailorWizardPage() {
 
   // ------------------- API helpers -------------------
   async function apiParseResume(file: File) {
+    toast.success('Uploading your resume 🙃')
     const fd = new FormData();
     fd.append('file', file);
     const res = await fetch('/api/parse-resume', { method: 'POST', body: fd });
@@ -135,6 +136,7 @@ export default function UploadTailorWizardPage() {
   }
 
   async function apiAnalyze(resumeText: string, jdText: string) {
+    toast.success('We are analyzing your resume 🙃')
     const res = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -405,11 +405,11 @@ export default function UploadTailorWizardPage() {
   };
 
   const WizardStepper = () => {
-    const items = [
-      { id: 1, label: 'Upload Resume 📄', done: resumeParsed },
-      { id: 2, label: 'Job Description 🎯', done: jdProvided },
-      { id: 3, label: 'Tailor & Preview ✨', done: tailoredReady },
-    ] as const;
+    // const items = [
+    //   { id: 1, label: 'Upload Resume 📄', done: resumeParsed },
+    //   { id: 2, label: 'Job Description 🎯', done: jdProvided },
+    //   { id: 3, label: 'Tailor & Preview ✨', done: tailoredReady },
+    // ] as const;
 
     return (
       <Card>
@@ -422,25 +422,7 @@ export default function UploadTailorWizardPage() {
               <StepPill label="Tailoring" status={steps.tailor} />
               <StepPill label="Exporting" status={steps.export} />
             </div>
-            <div className="flex items-center gap-2 text-xs">
-              {items.map((it, idx) => {
-                const isActive = step === it.id;
-                const canGo = it.id < step; // allow going back only
-                return (
-                  <button
-                    key={it.id}
-                    onClick={() => canGo && setStep(it.id as WizardStep)}
-                    className={[
-                      'rounded-full px-3 py-1 border',
-                      isActive ? 'bg-primary text-primary-foreground border-primary' : 'bg-background',
-                      canGo ? 'hover:bg-muted' : 'opacity-60 cursor-default',
-                    ].join(' ')}
-                  >
-                    {it.done ? '✅ ' : ''}{it.label}
-                  </button>
-                );
-              })}
-            </div>
+            
           </div>
         </CardContent>
       </Card>
@@ -460,7 +442,7 @@ export default function UploadTailorWizardPage() {
         </div>
 
         {/* Top: stepper + pipeline badges */}
-        {/* <WizardStepper /> */}
+        <WizardStepper />
 
         {/* STEP 1 — Upload Resume */}
         {step === 1 && (

@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  FileText, 
-  Upload, 
-  Target, 
+import {
+  FileText,
+  Upload,
+  Target,
   Plus,
   TrendingUp,
   Clock,
@@ -51,9 +51,10 @@ export default function DashboardPage() {
 
   interface user {
     name: String;
+    credits: number
   }
 
-  const [userData, setUserData] = useState<user>({name: ""});
+  const [userData, setUserData] = useState<user>({ name: "", credits: 0 });
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [isError, setIsError] = useState<boolean>(false)
 
@@ -77,11 +78,11 @@ export default function DashboardPage() {
       }
     }
     fetchUserData();
-  },[])
+  }, [])
 
-  if(isLoading) {
+  if (isLoading) {
     // Make a fancy loader here
-    return(
+    return (
       <div>
         Loading page..
       </div>
@@ -91,7 +92,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <div className="container mx-auto p-4 py-8">
         <div className="grid lg:grid-cols-4 gap-6">
           {/* Main Content */}
@@ -102,7 +103,7 @@ export default function DashboardPage() {
                 <CardContent className="p-6">
                   <h1 className="text-2xl font-bold mb-2">Welcome back, {userData.name}👋</h1>
                   <p className="text-muted-foreground mb-4">
-                    You have 127 credits remaining. Ready to tailor your next application?
+                    You have {userData.credits} credits remaining. Ready to tailor your next application?
                   </p>
                   <Button asChild>
                     <Link href="/app/builder/new">
@@ -115,14 +116,21 @@ export default function DashboardPage() {
             </motion.div>
 
             {/* Primary Actions */}
-            <motion.div 
+            <motion.div
               className="grid md:grid-cols-3 gap-6"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.5 }}
             >
-              <motion.div whileHover={{ y: -5 }} className="group">
-                <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300">
+              <motion.div whileHover={{ y: -5 }} className="group relative">
+                {/* Coming Soon badge */}
+                <div className="absolute top-2 right-2 z-10">
+                  <span className="bg-yellow-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
+                    Coming Soon
+                  </span>
+                </div>
+
+                <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300 opacity-70 pointer-events-none">
                   <CardHeader className="text-center pb-4">
                     <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
                       <FileText className="h-8 w-8 text-primary" />
@@ -133,14 +141,21 @@ export default function DashboardPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <Button className="w-full" asChild>
-                      <Link href="/app/builder/new">Start Building</Link>
+                    <Button className="w-full" disabled>
+                      Start Building
                     </Button>
                   </CardContent>
                 </Card>
               </motion.div>
 
-              <motion.div whileHover={{ y: -5 }} className="group">
+              <motion.div whileHover={{ y: -5 }} className="group relative">
+                {/* Live badge */}
+                <div className="absolute top-2 right-2 z-10">
+                  <span className="bg-green-600 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
+                    Live
+                  </span>
+                </div>
+
                 <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300">
                   <CardHeader className="text-center pb-4">
                     <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
@@ -159,8 +174,15 @@ export default function DashboardPage() {
                 </Card>
               </motion.div>
 
-              <motion.div whileHover={{ y: -5 }} className="group">
-                <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300">
+              <motion.div whileHover={{ y: -5 }} className="group relative">
+                {/* Coming Soon badge */}
+                <div className="absolute top-2 right-2 z-10">
+                  <span className="bg-yellow-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
+                    Coming Soon
+                  </span>
+                </div>
+
+                <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300 opacity-70 pointer-events-none">
                   <CardHeader className="text-center pb-4">
                     <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
                       <Target className="h-8 w-8 text-primary" />
@@ -171,8 +193,8 @@ export default function DashboardPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <Button className="w-full" variant="outline" asChild>
-                      <Link href="/app/upload-tailor">Check ATS</Link>
+                    <Button className="w-full" variant="outline" disabled>
+                      Check ATS
                     </Button>
                   </CardContent>
                 </Card>
@@ -239,7 +261,7 @@ export default function DashboardPage() {
                     </div>
                     <Progress value={15.3} className="h-2" />
                   </div>
-                  
+
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Resume builds</span>
@@ -254,7 +276,7 @@ export default function DashboardPage() {
                       <span>3</span>
                     </div>
                   </div>
-                  
+
                   <Button variant="outline" size="sm" className="w-full" asChild>
                     <Link href="/app/billing">Add Credits</Link>
                   </Button>
@@ -302,7 +324,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    Use action verbs like "increased," "improved," and "led" to start your resume bullets. 
+                    Use action verbs like "increased," "improved," and "led" to start your resume bullets.
                     They're more impactful than passive language.
                   </p>
                 </CardContent>

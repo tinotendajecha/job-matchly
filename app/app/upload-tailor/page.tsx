@@ -460,7 +460,7 @@ export default function UploadTailorWizardPage() {
         </div>
 
         {/* Top: stepper + pipeline badges */}
-        <WizardStepper />
+        {/* <WizardStepper /> */}
 
         {/* STEP 1 — Upload Resume */}
         {step === 1 && (
@@ -468,7 +468,7 @@ export default function UploadTailorWizardPage() {
             <Card className="mt-6">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2">
-                  <Upload className="h-5 w-5" />
+                  <Upload className="h-5 w-7" />
                   Upload your resume 📄
                 </CardTitle>
                 <p className="text-muted-foreground text-sm">
@@ -652,33 +652,76 @@ export default function UploadTailorWizardPage() {
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="mt-6 overflow-hidden">
               {/* sticky toolbar */}
-              <div className="sticky top-0 z-10 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 border-b">
-                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">Tailored Resume Preview</span>
-                    {steps.tailor === 'loading' && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setStep(2)}>
-                      <ChevronLeft className="h-4 w-4 mr-1.5" />
-                      Back to JD
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={copyMarkdown} disabled={!previewMarkdown}>
-                      <Clipboard className="h-4 w-4 mr-1.5" />
-                      Copy Markdown
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => toast.info('Editor coming soon')}>
-                      <FileEdit className="h-4 w-4 mr-1.5" />
-                      Open in Editor
-                    </Button>
-                    <Button size="sm" onClick={handleExportDocx} disabled={!tailoredMarkdown || downloading}>
-                      {downloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-                      Download DOCX
-                    </Button>
-                  </div>
-                </div>
-              </div>
+      <div className="sticky top-0 z-10 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+        <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5">
+          {/* Left: title */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Tailored Resume Preview</span>
+            {steps.tailor === "loading" && (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+          </div>
 
+          {/* Right: actions — scrollable on mobile */}
+          <div
+             className="flex w-full gap-2 overflow-x-auto pb-1 no-scrollbar sm:w-auto sm:overflow-visible"
+            // prevent children from shrinking out of view
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setStep(2)}
+              className="shrink-0"
+              aria-label="Back to Job Description"
+              title="Back to JD"
+            >
+              <ChevronLeft className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Back to JD</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyMarkdown}
+              disabled={!previewMarkdown}
+              className="shrink-0"
+              aria-label="Copy Markdown"
+              title="Copy Markdown"
+            >
+              <Clipboard className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Copy Markdown</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => toast.info("Editor coming soon")}
+              className="shrink-0"
+              aria-label="Open in Editor (coming soon)"
+              title="Open in Editor (coming soon)"
+            >
+              <FileEdit className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Open in Editor</span>
+            </Button>
+
+            <Button
+              size="sm"
+              onClick={handleExportDocx}
+              disabled={!tailoredMarkdown || downloading}
+              className="shrink-0"
+              aria-label="Download DOCX"
+              title="Download DOCX"
+            >
+              {downloading ? (
+                <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+              ) : (
+                <Download className="h-4 w-4 sm:mr-2" />
+              )}
+              <span className="hidden sm:inline">Download DOCX</span>
+            </Button>
+          </div>
+        </div>
+      </div>
               <CardContent className="p-0">
                 {!previewMarkdown ? (
                   <div className="p-8 text-center text-muted-foreground">

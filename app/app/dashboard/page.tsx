@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { set } from 'date-fns';
 import { toast } from 'react-toastify';
+import DashboardLoader from '@/components/dashboard-loader';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -84,7 +85,7 @@ export default function DashboardPage() {
     // Make a fancy loader here
     return (
       <div>
-        Loading page..
+        <DashboardLoader />
       </div>
     )
   }

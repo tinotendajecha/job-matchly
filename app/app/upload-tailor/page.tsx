@@ -570,119 +570,133 @@ export default function UploadTailorWizardPage() {
           </motion.div>
         )}
 
-        {/* STEP 2 — Job Description */}
-        {step === 2 && (
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="mt-6">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Add the Job Description 🎯
-                </CardTitle>
-                <p className="text-muted-foreground text-sm">
-                  Paste, upload or import from a URL — we’ll clean it up for best results.
-                </p>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="text">Paste Text</TabsTrigger>
-                    <TabsTrigger value="upload">Upload File</TabsTrigger>
-                    <TabsTrigger value="url">URL</TabsTrigger>
-                  </TabsList>
+       {/* STEP 2 — Job Description */}
+{step === 2 && (
+  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+    <Card className="mt-6">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 whitespace-nowrap">
+          <Target className="h-5 w-5 shrink-0" />
+          <span className="text-lg sm:text-xl font-semibold">
+            Add the job description <span className="hidden xs:inline">🎯</span>
+          </span>
+        </CardTitle>
+        <p className="text-muted-foreground text-xs sm:text-sm">
+          Paste the JD text below. Upload/URL are coming soon.
+        </p>
+      </CardHeader>
 
-                  <TabsContent value="text" className="space-y-4 pt-4">
-                    <Textarea
-                      placeholder="Paste the job description here…"
-                      value={jobDescription}
-                      onChange={(e) => {
-                        setJobDescription(e.target.value);
-                        setJdProvided(!!e.target.value.trim());
-                      }}
-                      rows={8}
-                      className="resize-none"
-                    />
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
-                      <span>{jobDescription.length} characters</span>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={cleanAndFlagJD}
-                          variant="secondary"
-                          size="sm"
-                          disabled={!jobDescription.trim()}
-                        >
-                          <Loader2 className="h-4 w-4 mr-2" />
-                          Clean & Normalize
-                        </Button>
-                        <Button
-                          onClick={() => setStep(1)}
-                          variant="ghost"
-                          size="sm"
-                        >
-                          Back to Resume
-                        </Button>
-                      </div>
-                    </div>
-                  </TabsContent>
+      <CardContent className="pt-0">
+        {/* Force Paste Text as the only active option for now */}
+        <Tabs value="text">
+          <TabsList className="w-full flex flex-wrap gap-2 justify-start">
+            <TabsTrigger
+              value="text"
+              className="px-3 py-1.5 text-xs sm:text-sm data-[state=active]:font-medium"
+            >
+              Paste Text
+            </TabsTrigger>
 
-                  <TabsContent value="upload" className="space-y-4 pt-4">
-                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-                      <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">Upload job posting (DOCX or TXT)</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => jdFileInputRef.current?.click()}
-                      >
-                        Choose File
-                      </Button>
-                      <input
-                        ref={jdFileInputRef}
-                        type="file"
-                        accept=".docx,.txt"
-                        className="hidden"
-                        onChange={onJDFileChange}
-                      />
-                    </div>
-                  </TabsContent>
+            <TabsTrigger
+              value="upload"
+              disabled
+              className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed"
+              title="Coming soon"
+            >
+              Upload File
+            </TabsTrigger>
 
-                  <TabsContent value="url" className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="jobUrl">Job Posting URL</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="jobUrl"
-                          placeholder="https://company.com/careers/job-id"
-                          className="flex-1"
-                          value={jobUrl}
-                          onChange={(e) => setJobUrl(e.target.value)}
-                        />
-                        <Button variant="outline" onClick={importFromUrl} disabled={!jobUrl}>
-                          <LinkIcon className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
+            <TabsTrigger
+              value="url"
+              disabled
+              className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed"
+              title="Coming soon"
+            >
+              URL
+            </TabsTrigger>
+          </TabsList>
 
-                <div className="mt-6 flex justify-between">
-                  <Button variant="outline" onClick={() => setStep(1)}>
-                    <ChevronLeft className="h-4 w-4 mr-2" />
-                    Back
-                  </Button>
-                  <Button
-                    onClick={runTailoring}
-                    disabled={!resumeParsed || !jdProvided}
-                  >
-                    Tailor my resume
-                    <Sparkles className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+          <TabsContent value="text" className="space-y-4 pt-4">
+            <div className="relative">
+              <Textarea
+                placeholder="Paste the job description here…"
+                value={jobDescription}
+                onChange={(e) => {
+                  setJobDescription(e.target.value);
+                  setJdProvided(!!e.target.value.trim());
+                }}
+                rows={8}
+                className="resize-none min-h-40 text-sm sm:text-base"
+              />
+              {/* Dim/lock while normalizing */}
+              <LoadingOverlay
+                show={steps.normalize === 'loading'}
+                label="Cleaning JD…"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-muted-foreground">
+              <span>{jobDescription.length} characters</span>
+
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Button
+                  onClick={cleanAndFlagJD}
+                  variant="secondary"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  disabled={!jobDescription.trim() || steps.normalize === 'loading'}
+                >
+                  <Loader2 className="h-4 w-4 mr-2" />
+                  Clean & Normalize
+                </Button>
+
+                <Button
+                  onClick={() => setStep(1)}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  disabled={steps.normalize === 'loading'}
+                >
+                  Back to Resume
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Optional placeholders (won't be reachable due to disabled triggers) */}
+          <TabsContent value="upload" className="pt-4">
+            <div className="rounded-lg border bg-muted/50 p-6 text-center text-sm text-muted-foreground">
+              Upload from file is coming soon.
+            </div>
+          </TabsContent>
+
+          <TabsContent value="url" className="pt-4">
+            <div className="rounded-lg border bg-muted/50 p-6 text-center text-sm text-muted-foreground">
+              Import from URL is coming soon.
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Nav buttons — stacked on mobile, comfy spacing */}
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+          <Button variant="outline" onClick={() => setStep(1)} className="w-full sm:w-auto">
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <Button
+            onClick={runTailoring}
+            disabled={!resumeParsed || !jdProvided || steps.normalize === 'loading'}
+            className="w-full sm:w-auto"
+          >
+            Tailor my resume
+            <Sparkles className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  </motion.div>
+)}
+
 
         {/* STEP 3 — Tailor & Preview */}
         {step === 3 && (

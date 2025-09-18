@@ -212,10 +212,10 @@ export default function UploadTailorWizardPage() {
               />
             );
           },
-          p:  (props) => <p className="text-sm md:text-base leading-6 text-foreground/90" {...props} />,
+          p: (props) => <p className="text-sm md:text-base leading-6 text-foreground/90" {...props} />,
           ul: (props) => <ul className="list-disc pl-5 space-y-1.5" {...props} />,
           li: (props) => <li className="text-sm md:text-base leading-6" {...props} />,
-          a:  (props) => (
+          a: (props) => (
             <a className="text-[#1155cc] underline underline-offset-2 hover:no-underline" target="_blank" rel="noreferrer" {...props} />
           ),
           hr: (props) => <hr className="my-6 border-muted" {...props} />,
@@ -391,14 +391,14 @@ export default function UploadTailorWizardPage() {
   const StepPill = ({ label, status }: { label: string; status: StepStatus }) => {
     const icon =
       status === 'loading' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> :
-      status === 'done'    ? <CheckCircle className="h-3.5 w-3.5 text-green-600" /> :
-      status === 'error'   ? <AlertTriangle className="h-3.5 w-3.5 text-yellow-600" /> :
-                             <div className="h-3.5 w-3.5 rounded-full bg-muted" />;
+        status === 'done' ? <CheckCircle className="h-3.5 w-3.5 text-green-600" /> :
+          status === 'error' ? <AlertTriangle className="h-3.5 w-3.5 text-yellow-600" /> :
+            <div className="h-3.5 w-3.5 rounded-full bg-muted" />;
     const tone =
-      status === 'done'    ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' :
-      status === 'loading' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' :
-      status === 'error'   ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300' :
-                             'bg-muted text-muted-foreground';
+      status === 'done' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' :
+        status === 'loading' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' :
+          status === 'error' ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300' :
+            'bg-muted text-muted-foreground';
     return (
       <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ${tone}`}>
         {icon}{label}
@@ -418,18 +418,30 @@ export default function UploadTailorWizardPage() {
         <CardContent className="py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex flex-wrap gap-2">
-              <StepPill label="Parsing"   status={steps.parse} />
+              <StepPill label="Parsing" status={steps.parse} />
               <StepPill label="Normalizing" status={steps.normalize} />
               <StepPill label="Analyzing" status={steps.analyze} />
               <StepPill label="Tailoring" status={steps.tailor} />
               <StepPill label="Exporting" status={steps.export} />
             </div>
-            
+
           </div>
         </CardContent>
       </Card>
     );
   };
+
+  function LoadingOverlay({ show, label }: { show: boolean; label?: string }) {
+    if (!show) return null;
+    return (
+      <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-background/70 backdrop-blur-sm">
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>{label || "Working…"}</span>
+        </div>
+      </div>
+    );
+  }
 
   // ------------------- Render -------------------
   return (
@@ -451,55 +463,95 @@ export default function UploadTailorWizardPage() {
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="mt-6">
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Upload className="h-5 w-7" />
-                  Upload your resume 📄
+                <CardTitle className="flex items-center gap-2 whitespace-nowrap">
+                  <Upload className="h-5 w-5 shrink-0" />
+                  <span className='text-xl md:text-2xl'>Upload your resume 📄</span>
                 </CardTitle>
                 <p className="text-muted-foreground text-sm">
                   We currently support <strong>DOCX</strong> and <strong>TXT</strong> (PDF coming soon).
                 </p>
               </CardHeader>
+
               <CardContent className="pt-0">
+                {/* Upload area */}
                 {!resumeParsed ? (
-                  <motion.div
-                    className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                    whileHover={{ scale: 1.01 }}
-                    onClick={onResumeClick}
-                  >
-                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="font-semibold mb-2">Drop your resume here or click to choose</h3>
-                    <p className="text-sm text-muted-foreground mb-4">We’ll parse it and prep it for tailoring.</p>
-                    <Button variant="outline">Choose File</Button>
-                    <input
-                      ref={resumeInputRef}
-                      type="file"
-                      accept=".docx,.txt"
-                      className="hidden"
-                      onChange={onResumeFileChange}
-                    />
-                  </motion.div>
+                  <div className="relative">
+                    <motion.div
+                      role="button"
+                      tabIndex={0}
+                      aria-busy={steps.parse === 'loading'}
+                      aria-disabled={steps.parse === 'loading'}
+                      className={[
+                        "border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition",
+                        steps.parse === 'loading'
+                          ? "opacity-70 pointer-events-none"
+                          : "cursor-pointer hover:border-primary/50 border-muted-foreground/25"
+                      ].join(" ")}
+                      whileHover={steps.parse === 'loading' ? {} : { scale: 1.01 }}
+                      onClick={() => steps.parse !== 'loading' && onResumeClick()}
+                      onKeyDown={(e) => {
+                        if (steps.parse === 'loading') return;
+                        if (e.key === 'Enter' || e.key === ' ') onResumeClick();
+                      }}
+                    >
+                      <FileText className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+                      <h3 className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">
+                        Drop your resume here or tap to choose
+                      </h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
+                        We’ll parse it and prep it for tailoring.
+                      </p>
+                      <Button variant="outline" size="sm" disabled={steps.parse === 'loading'}>
+                        Choose File
+                      </Button>
+
+                      {/* Hidden input */}
+                      <input
+                        ref={resumeInputRef}
+                        type="file"
+                        accept=".docx,.txt"
+                        className="sr-only"
+                        onChange={onResumeFileChange}
+                      />
+
+                      {/* Dim/lock overlay while parsing */}
+                      <LoadingOverlay show={steps.parse === 'loading'} label="Parsing your resume…" />
+                    </motion.div>
+                  </div>
                 ) : (
-                  <div className="flex flex-wrap items-center gap-3 rounded-lg bg-green-50 dark:bg-green-950/20 p-4">
-                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full grid place-items-center">
-                      <FileText className="h-5 w-5 text-green-600" />
+                  <div className="relative">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg bg-green-50 dark:bg-green-950/20 p-4">
+                      <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full grid place-items-center shrink-0">
+                        <FileText className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{resumeFileName}</p>
+                        <p className="text-xs text-muted-foreground">Parsed successfully</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onResumeClick}
+                        className="w-full sm:w-auto"
+                      >
+                        Replace
+                      </Button>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">{resumeFileName}</p>
-                      <p className="text-xs text-muted-foreground">Parsed successfully</p>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={onResumeClick}>
-                      Replace
-                    </Button>
+
+                    {/* If you want to show parsing state here too (e.g., when re-uploading) */}
+                    <LoadingOverlay show={steps.parse === 'loading'} label="Parsing your resume…" />
                   </div>
                 )}
 
-                <div className="mt-6 flex justify-between">
-                  <Button variant="outline" disabled>
+                {/* Nav buttons — stacked on mobile with spacing */}
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                  <Button variant="outline" disabled className="w-full sm:w-auto">
                     <ChevronLeft className="h-4 w-4 mr-2" />
                     Back
                   </Button>
+
                   <Button
-                  className=''
+                    className="w-full sm:w-auto"
                     onClick={() => {
                       if (!resumeParsed) {
                         toast.info('Upload your resume first');
@@ -507,6 +559,7 @@ export default function UploadTailorWizardPage() {
                       }
                       setStep(2);
                     }}
+                    disabled={steps.parse === 'loading'}
                   >
                     Next: Job Description
                     <ChevronRight className="h-4 w-4 ml-2" />
@@ -636,76 +689,76 @@ export default function UploadTailorWizardPage() {
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="mt-6 overflow-hidden">
               {/* sticky toolbar */}
-      <div className="sticky top-0 z-10 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5">
-          {/* Left: title */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Tailored Resume Preview</span>
-            {steps.tailor === "loading" && (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            )}
-          </div>
+              <div className="sticky top-0 z-10 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+                <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5">
+                  {/* Left: title */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Tailored Resume Preview</span>
+                    {steps.tailor === "loading" && (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
 
-          {/* Right: actions — scrollable on mobile */}
-          <div
-             className="flex w-full gap-2 overflow-x-auto pb-1 no-scrollbar sm:w-auto sm:overflow-visible"
-            // prevent children from shrinking out of view
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setStep(2)}
-              className="shrink-0"
-              aria-label="Back to Job Description"
-              title="Back to JD"
-            >
-              <ChevronLeft className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Back to JD</span>
-            </Button>
+                  {/* Right: actions — scrollable on mobile */}
+                  <div
+                    className="flex w-full gap-2 overflow-x-auto pb-1 no-scrollbar sm:w-auto sm:overflow-visible"
+                  // prevent children from shrinking out of view
+                  >
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setStep(2)}
+                      className="shrink-0"
+                      aria-label="Back to Job Description"
+                      title="Back to JD"
+                    >
+                      <ChevronLeft className="h-4 w-4 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Back to JD</span>
+                    </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={copyMarkdown}
-              disabled={!previewMarkdown}
-              className="shrink-0"
-              aria-label="Copy Markdown"
-              title="Copy Markdown"
-            >
-              <Clipboard className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Copy Markdown</span>
-            </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={copyMarkdown}
+                      disabled={!previewMarkdown}
+                      className="shrink-0"
+                      aria-label="Copy Markdown"
+                      title="Copy Markdown"
+                    >
+                      <Clipboard className="h-4 w-4 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Copy Markdown</span>
+                    </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => toast.info("Editor coming soon")}
-              className="shrink-0"
-              aria-label="Open in Editor (coming soon)"
-              title="Open in Editor (coming soon)"
-            >
-              <FileEdit className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Open in Editor</span>
-            </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toast.info("Editor coming soon")}
+                      className="shrink-0"
+                      aria-label="Open in Editor (coming soon)"
+                      title="Open in Editor (coming soon)"
+                    >
+                      <FileEdit className="h-4 w-4 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Open in Editor</span>
+                    </Button>
 
-            <Button
-              size="sm"
-              onClick={handleExportDocx}
-              disabled={!tailoredMarkdown || downloading}
-              className="shrink-0"
-              aria-label="Download DOCX"
-              title="Download DOCX"
-            >
-              {downloading ? (
-                <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
-              ) : (
-                <Download className="h-4 w-4 sm:mr-2" />
-              )}
-              <span className="hidden sm:inline">Download DOCX</span>
-            </Button>
-          </div>
-        </div>
-      </div>
+                    <Button
+                      size="sm"
+                      onClick={handleExportDocx}
+                      disabled={!tailoredMarkdown || downloading}
+                      className="shrink-0"
+                      aria-label="Download DOCX"
+                      title="Download DOCX"
+                    >
+                      {downloading ? (
+                        <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+                      ) : (
+                        <Download className="h-4 w-4 sm:mr-2" />
+                      )}
+                      <span className="hidden sm:inline">Download DOCX</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
               <CardContent className="p-0">
                 {!previewMarkdown ? (
                   <div className="p-8 text-center text-muted-foreground">
@@ -733,7 +786,7 @@ export default function UploadTailorWizardPage() {
                     components={{
                       ul: (p) => <ul className="list-disc pl-5 space-y-1.5" {...p} />,
                       li: (p) => <li className="text-sm leading-6" {...p} />,
-                      p:  (p) => <p className="text-sm leading-6" {...p} />,
+                      p: (p) => <p className="text-sm leading-6" {...p} />,
                     }}
                   >
                     {changesMarkdown}

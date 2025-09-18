@@ -165,9 +165,10 @@ export async function POST(req: Request) {
     const cleaned = stripChangesSummary(markdown);
     const html = `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${mdToHtml(cleaned)}</body></html>`;
 
-    // ✅ use traceable dynamic import so Next bundles the lib
-    const mod = await import("html-docx-js");
-    const api: any = (mod as any).default ?? mod;
+    // runtime require avoids Next strict-mode issues
+    const reqFn = eval("require") as NodeRequire;
+    const mod: any = reqFn("html-docx-js");
+    const api: any = mod?.default ?? mod;
 
     let buf: Buffer | null = null;
     if (api?.asBlob) {
@@ -175,9 +176,6 @@ export async function POST(req: Request) {
       buf = Buffer.from(await blob.arrayBuffer());
     } else if (api?.asBase64) {
       buf = Buffer.from(api.asBase64(html), "base64");
-    } else if (api?.asBuffer) {
-      // if you upgrade html-docx-js to >=0.4.x
-      buf = api.asBuffer(html);
     } else {
       return NextResponse.json({ ok: false, error: "html-docx-js API not found" }, { status: 500 });
     }
@@ -186,7 +184,6 @@ export async function POST(req: Request) {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "Content-Disposition": `attachment; filename="${(filename && String(filename).trim()) || "resume.docx"}"`,
-        "Cache-Control": "no-store"
       },
     });
   } catch (err: any) {

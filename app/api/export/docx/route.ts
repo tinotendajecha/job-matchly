@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 
-export const runtime = "nodejs";
+export const runtime = "nodejs"; // keep Node runtime
 
 // Remove "## Changes Summary" section (keep it for UI only)
 function stripChangesSummary(md: string) {
@@ -165,29 +167,36 @@ export async function POST(req: Request) {
     const cleaned = stripChangesSummary(markdown);
     const html = `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${mdToHtml(cleaned)}</body></html>`;
 
-    // runtime require avoids Next strict-mode issues
-    const reqFn = eval("require") as NodeRequire;
-    const mod: any = reqFn("html-docx-js");
+    // ✅ static, traceable require left for runtime (because we externalized it)
+    const mod = require("html-docx-js");
     const api: any = mod?.default ?? mod;
 
     let buf: Buffer | null = null;
-    if (api?.asBlob) {
-      const blob: Blob = api.asBlob(html);
+
+    if (typeof api.asBuffer === "function") {
+      // if you move to html-docx-js >= 0.4.x
+      buf = api.asBuffer(html);
+    } else if (typeof api.asBlob === "function") {
+      const blob: Blob = api.asBlob(html); // 0.3.x API
       buf = Buffer.from(await blob.arrayBuffer());
-    } else if (api?.asBase64) {
+    } else if (typeof api.asBase64 === "function") {
       buf = Buffer.from(api.asBase64(html), "base64");
     } else {
       return NextResponse.json({ ok: false, error: "html-docx-js API not found" }, { status: 500 });
     }
 
-    return new Response(buf ? new Uint8Array(buf) : null, {
+    if (!buf) {
+      return NextResponse.json({ ok: false, error: "Failed to generate DOCX buffer." }, { status: 500 });
+    }
+    return new Response(new Uint8Array(buf), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "Content-Disposition": `attachment; filename="${(filename && String(filename).trim()) || "resume.docx"}"`,
+        "Cache-Control": "no-store",
       },
     });
   } catch (err: any) {
-    console.error("export/docx fatal:", err?.message || err);
+    console.error("export/docx fatal:", err?.stack || err?.message || err);
     return NextResponse.json({ ok: false, error: "Failed to export DOCX." }, { status: 500 });
   }
 }

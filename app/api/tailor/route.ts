@@ -63,7 +63,7 @@ Experience formatting (IMPORTANT):
 
 For Summary, you can add 1-2 lines about the JD, showing motivation for the job and also including the company name so they can see you put your time for tailoring for the job.
 
-You can also add projects the user have done before in their dedicated section Projects, if they are relevant to the JD.
+Make sure to add projects the user have done before in their dedicated section Projects, if they are relevant to the JD. You can extract these from the resume they upload, but also you can invent new ones if you think they are relevant to the JD, as long as they are plausible and consistent with the rest of the resume. If the resume JSON has a "projects" section, you can use that as a base to add more projects if needed. Also this depends on the type of profession of the user and if projects are relevant for that profession.
 
 Sections & order:
 ## Professional Summary

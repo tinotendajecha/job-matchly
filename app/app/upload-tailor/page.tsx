@@ -456,6 +456,10 @@ export default function UploadTailorWizardPage() {
         ? 'Tailoring your resume…'
         : 'Cleaning JD…';
 
+  const tailoringBusy =
+    steps.analyze === 'loading' || steps.tailor === 'loading' || steps.export === 'loading';
+
+
   // ------------------- Render -------------------
   return (
     <div className="min-h-screen bg-background">
@@ -713,17 +717,35 @@ export default function UploadTailorWizardPage() {
 
                 {/* Nav buttons — stacked on mobile, comfy spacing */}
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-                  <Button variant="outline" onClick={() => setStep(1)} className="w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    onClick={() => setStep(1)}
+                    className="w-full sm:w-auto"
+                    disabled={jdBusy || tailoringBusy}
+                  >
                     <ChevronLeft className="h-4 w-4 mr-2" />
                     Back
                   </Button>
+
                   <Button
                     onClick={runTailoring}
-                    disabled={!resumeParsed || !jdProvided || steps.normalize === 'loading'}
-                    className="w-full sm:w-auto"
+                    disabled={!resumeParsed || !jdProvided || steps.normalize === 'loading' || tailoringBusy}
+                    aria-disabled={!resumeParsed || !jdProvided || steps.normalize === 'loading' || tailoringBusy}
+                    data-busy={tailoringBusy ? 'true' : 'false'}
+                    className={`w-full sm:w-auto ${tailoringBusy ? 'opacity-60 pointer-events-none' : ''
+                      }`}
                   >
-                    Tailor my resume
-                    <Sparkles className="h-4 w-4 ml-2" />
+                    {tailoringBusy ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Tailoring your resume…
+                      </>
+                    ) : (
+                      <>
+                        Tailor my resume
+                        <Sparkles className="h-4 w-4 ml-2" />
+                      </>
+                    )}
                   </Button>
                 </div>
               </CardContent>

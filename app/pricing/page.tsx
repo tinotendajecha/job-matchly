@@ -1,33 +1,43 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Input } from '@/components/ui/input';
 import { 
   CheckCircle,
-  Star,
-  Zap,
-  Shield,
-  Download,
-  Target,
-  FileText,
-  Users,
-  Sparkles
+  Sparkles,
+  Calculator
 } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { toast } from 'react-toastify';
 
-const plans = [
+type Plan = {
+  name: string;
+  description: string;
+  price: string;
+  period: 'month' | 'forever';
+  credits: string;
+  features: string[];
+  limitations: string[];
+  cta: string;
+  popular?: boolean;
+  color?: string;
+};
+
+const plans: Plan[] = [
   {
     name: 'Free',
     description: 'Perfect for trying out JobMatchly',
-    price: 'R0',
+    price: '$0',
     period: 'forever',
-    credits: '10 credits/month',
+    credits: '3 credits/month',
     features: [
       '1 resume build',
       'Basic templates access',
@@ -47,11 +57,11 @@ const plans = [
   {
     name: 'Starter',
     description: 'For active job seekers',
-    price: 'R149',
+    price: '$5',
     period: 'month',
-    credits: '50 credits/month',
+    credits: '10 credits/month',
     features: [
-      '5 resume builds',
+      'Up to 5 resume builds',
       'All premium templates',
       'JD tailoring with keyword highlighting',
       'Cover letter generation',
@@ -67,9 +77,9 @@ const plans = [
   {
     name: 'Pro',
     description: 'For power users and professionals',
-    price: 'R299',
+    price: '$10',
     period: 'month',
-    credits: '200 credits/month',
+    credits: '25 credits/month',
     features: [
       'Unlimited resume builds',
       'All templates + early access',
@@ -91,31 +101,60 @@ const plans = [
 const faqs = [
   {
     question: 'How do credits work?',
-    answer: 'Credits are consumed when you use AI features like resume building, JD tailoring, or cover letter generation. Basic edits and downloads don\'t use credits.'
+    answer: '1 credit = 1 tailored resume. Credits are consumed by AI actions like resume builds, JD tailoring, or cover letters. Basic edits and downloads don\'t use credits.'
   },
   {
     question: 'Can I cancel my subscription anytime?',
-    answer: 'Yes, you can cancel your subscription at any time. You\'ll continue to have access to paid features until your current billing period ends.'
+    answer: 'Yes. Cancel anytime; you keep access until the billing period ends.'
   },
   {
     question: 'What file formats do you support?',
-    answer: 'We support PDF, DOCX uploads and can export to PDF, DOCX, and plain text formats. All templates are designed to be ATS-compatible.'
+    answer: 'Uploads: PDF, DOCX, text; Exports: PDF, DOCX, TXT. Templates are ATS-compatible.'
   },
   {
     question: 'Is my data secure?',
-    answer: 'Absolutely. We use bank-level encryption and never share your personal information. Your resumes and data belong to you.'
+    answer: 'Yes. We use bank-level encryption and never share personal info. Your resumes belong to you.'
   },
   {
     question: 'Do you offer refunds?',
-    answer: 'We offer a 30-day money-back guarantee for all paid plans. If you\'re not satisfied, contact support for a full refund.'
+    answer: '30-day money-back guarantee for paid plans. Contact support if unhappy.'
   },
   {
     question: 'Can I use my own templates?',
-    answer: 'Currently, we provide curated, ATS-tested templates. Custom template upload is on our roadmap for Pro users.'
+    answer: 'Curated, ATS-tested templates for now. Custom template upload is on the Pro roadmap.'
   }
 ];
 
+// price ladder for Custom plan (per credit, monthly)
+function pricePerCreditMonthly(count: number) {
+  if (count >= 50) return 0.30;
+  if (count >= 25) return 0.40;
+  return 0.50; // 10–24 credits
+}
+
 export default function PricingPage() {
+  // Custom plan state
+  const [customCredits, setCustomCredits] = useState<number>(10);
+  const customCalc = useMemo(() => {
+    const credits = Math.max(10, Math.floor(customCredits || 10));
+    const ppc = pricePerCreditMonthly(credits);
+    const subtotal = +(credits * ppc).toFixed(2);
+    // optional processor fees placeholder (shown but not charged here)
+    const estFees = +(Math.max(0.3, subtotal * 0.025)).toFixed(2);
+    const total = +(subtotal + estFees).toFixed(2);
+    return { credits, ppc, subtotal, estFees, total };
+  }, [customCredits]);
+
+  const onSubscribe = (planName: string) => {
+    toast.info(`${planName} subscription checkout coming soon`);
+  };
+
+  const onCustomSubscribe = () => {
+    toast.info(
+      `Custom plan: ${customCalc.credits} credits/month for $${customCalc.subtotal.toFixed(2)} (est. total $${customCalc.total.toFixed(2)})`
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header isPublic={true} />
@@ -136,18 +175,18 @@ export default function PricingPage() {
               Simple, transparent pricing
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Choose the plan that fits your job search needs. Start free, upgrade when you're ready.
+              Choose the plan that fits your job search needs. Start free, upgrade when you&apos;re ready.
             </p>
           </div>
 
-          {/* Pricing Cards */}
-          <div className="grid lg:grid-cols-3 gap-8 mb-20">
+          {/* Pricing Cards (3 preset + 1 custom) */}
+          <div className="grid lg:grid-cols-4 gap-8 mb-20">
             {plans.map((plan, index) => (
               <motion.div
                 key={plan.name}
                 initial={{ opacity: 0, y: 50 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.2 }}
+                transition={{ duration: 0.5, delay: index * 0.15 }}
                 className="relative"
               >
                 {plan.popular && (
@@ -201,14 +240,81 @@ export default function PricingPage() {
                       className="w-full" 
                       size="lg"
                       variant={plan.popular ? "default" : "outline"}
-                      asChild
+                      onClick={() => onSubscribe(plan.name)}
                     >
-                      <Link href="/auth/signup">{plan.cta}</Link>
+                      {plan.cta}
                     </Button>
                   </CardContent>
                 </Card>
               </motion.div>
             ))}
+
+            {/* Custom Plan Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: plans.length * 0.15 }}
+              className="relative"
+            >
+              <Card className="h-full relative overflow-hidden ring-1 ring-muted">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/60 to-primary/30" />
+                <CardHeader className="text-center pb-6">
+                  <CardTitle className="text-2xl flex items-center justify-center gap-2">
+                    <Calculator className="h-5 w-5" /> Custom
+                  </CardTitle>
+                  <p className="text-muted-foreground">Pick your credits/month</p>
+                  <div className="pt-3">
+                    <span className="text-3xl font-bold">
+                      ${customCalc.subtotal.toFixed(2)}
+                    </span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Est. fees ${customCalc.estFees.toFixed(2)} • ${customCalc.ppc.toFixed(2)}/credit
+                  </p>
+                </CardHeader>
+
+                <CardContent className="space-y-5">
+                  <div>
+                    <label className="text-sm text-muted-foreground">Credits / month (min 10)</label>
+                    <div className="flex gap-2 mt-2">
+                      <Input
+                        type="number"
+                        min={10}
+                        value={customCredits}
+                        onChange={(e) => setCustomCredits(parseInt(e.target.value || '10', 10))}
+                      />
+                      <Button variant="outline" onClick={() => setCustomCredits(10)}>10</Button>
+                      <Button variant="outline" onClick={() => setCustomCredits(25)}>25</Button>
+                      <Button variant="outline" onClick={() => setCustomCredits(50)}>50</Button>
+                    </div>
+                  </div>
+
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
+                      All Starter features
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
+                      Flexible credits that roll over 1 month
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
+                      Upgrade/downgrade anytime
+                    </li>
+                  </ul>
+
+                  <Button className="w-full" size="lg" onClick={onCustomSubscribe}>
+                    Build Custom Plan
+                  </Button>
+
+                  <p className="text-xs text-muted-foreground text-center">
+                    Card payments now. Paystack & EcoCash coming soon.
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
           </div>
 
           {/* Features Comparison */}
@@ -218,14 +324,14 @@ export default function PricingPage() {
             transition={{ duration: 0.8 }}
             className="mb-20"
           >
-            <h2 className="text-3xl font-bold text-center mb-12">What's included</h2>
+            <h2 className="text-3xl font-bold text-center mb-12">What&apos;s included</h2>
             
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { icon: FileText, title: 'Resume Builder', description: 'Drag-and-drop editor with live preview' },
-                { icon: Target, title: 'JD Tailoring', description: 'AI-powered keyword matching and optimization' },
-                { icon: Zap, title: 'Cover Letters', description: 'Auto-generated, personalized cover letters' },
-                { icon: Shield, title: 'ATS Optimization', description: 'Ensures your resume passes tracking systems' },
+                { title: 'Resume Builder', description: 'Drag-and-drop editor with live preview' },
+                { title: 'JD Tailoring', description: 'AI keyword alignment & optimization' },
+                { title: 'Cover Letters', description: 'Auto-generated, personalized letters' },
+                { title: 'ATS Optimization', description: 'Formatted to pass applicant tracking' },
               ].map((feature, index) => (
                 <motion.div
                   key={feature.title}
@@ -236,7 +342,7 @@ export default function PricingPage() {
                   <Card className="h-full text-center group hover:shadow-lg transition-shadow duration-300">
                     <CardContent className="p-6">
                       <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors duration-300">
-                        <feature.icon className="h-6 w-6 text-primary" />
+                        <CheckCircle className="h-6 w-6 text-primary" />
                       </div>
                       <h3 className="font-semibold mb-2">{feature.title}</h3>
                       <p className="text-sm text-muted-foreground">{feature.description}</p>
@@ -281,7 +387,7 @@ export default function PricingPage() {
           >
             <h2 className="text-3xl font-bold mb-4">Ready to get started?</h2>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Join thousands of job seekers who've transformed their applications with JobMatchly
+              Join early users transforming their applications with JobMatchly
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="text-lg px-8 py-6" asChild>

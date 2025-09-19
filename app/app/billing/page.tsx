@@ -1,9 +1,11 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
 import { 
   CreditCard,
   Coins,
@@ -16,24 +18,63 @@ import { Header } from '@/components/layout/header';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 
-const creditPacks = [
-  { credits: 50, price: 'R49', bonus: 0, popular: false },
-  { credits: 100, price: 'R89', bonus: 10, popular: true },
-  { credits: 250, price: 'R199', bonus: 50, popular: false },
-  { credits: 500, price: 'R349', bonus: 150, popular: false },
+type Pack = { credits: number; priceUsd: number; bonus?: number; popular?: boolean };
+
+const creditPacks: Pack[] = [
+  { credits: 3,   priceUsd: 2,   popular: true },             // Starter
+  { credits: 10,  priceUsd: 5 },                               // Standard
+  { credits: 25,  priceUsd: 10 },                              // Pro
+  { credits: 50,  priceUsd: 15,  bonus: 0 },                   // Volume (effective $0.30/credit)
 ];
 
+// Fake invoices (USD now)
 const invoices = [
-  { date: '2025-01-01', description: 'Starter Plan - January', amount: 'R149', status: 'Paid' },
-  { date: '2024-12-01', description: 'Starter Plan - December', amount: 'R149', status: 'Paid' },
-  { date: '2024-11-15', description: '100 Credit Pack', amount: 'R89', status: 'Paid' },
+  { date: '2025-01-01', description: 'Starter Pack (3 credits)', amount: '$2.00', status: 'Paid' },
+  { date: '2024-12-01', description: 'Standard Pack (10 credits)', amount: '$5.00', status: 'Paid' },
+  { date: '2024-11-15', description: 'Pro Pack (25 credits)', amount: '$10.00', status: 'Paid' },
 ];
+
+// pricing ladder for custom credits
+function pricePerCreditFor(count: number) {
+  if (count >= 50) return 0.30;
+  if (count >= 25) return 0.40;
+  if (count >= 10) return 0.50;
+  return 0.67; // 3–9 credits ties to $2→3 baseline
+}
 
 export default function BillingPage() {
+  // Custom credits
+  const [customCredits, setCustomCredits] = useState<number>(3);
+
+  const customPricing = useMemo(() => {
+    const credits = Math.max(3, Math.floor(customCredits || 3));
+    const ppc = pricePerCreditFor(credits);
+    const subtotal = +(credits * ppc).toFixed(2);
+
+    // placeholder processor fee (configurable later)
+    const fees = +(Math.max(0.3, subtotal * 0.025)).toFixed(2);
+    const total = +(subtotal + fees).toFixed(2);
+
+    return { credits, ppc, subtotal, fees, total };
+  }, [customCredits]);
+
+  const handleBuyPack = (pack: Pack) => {
+    // Hook this to Paystack/Stripe later
+    toast.info(
+      `Checkout coming soon: ${pack.credits} credits for $${pack.priceUsd.toFixed(2)}`
+    );
+  };
+
+  const handleCustomCheckout = () => {
+    toast.info(
+      `Checkout coming soon: ${customPricing.credits} credits • $${customPricing.total.toFixed(2)}`
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <div className="container mx-auto p-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -43,34 +84,26 @@ export default function BillingPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Billing & Credits</h1>
             <p className="text-muted-foreground">
-              Manage your subscription and credit usage
+              Buy credits and track your usage. 1 credit = 1 tailored resume.
             </p>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Current Plan */}
+              {/* Current Plan / Balance */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5" />
-                    Current Plan
+                    Current Status
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="text-2xl font-bold">Starter Plan</h3>
-                      <p className="text-muted-foreground">R149/month • Next billing: Feb 1, 2025</p>
-                    </div>
-                    <Badge className="bg-primary text-primary-foreground">Active</Badge>
-                  </div>
-                  
                   <div className="grid md:grid-cols-3 gap-4 mb-6">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-primary">50</div>
-                      <p className="text-sm text-muted-foreground">Credits/month</p>
+                      <div className="text-2xl font-bold text-primary">—</div>
+                      <p className="text-sm text-muted-foreground">Subscription</p>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-green-600">127</div>
@@ -81,19 +114,19 @@ export default function BillingPage() {
                       <p className="text-sm text-muted-foreground">Credits used</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1">
-                      Change Plan
+                    <Button variant="outline" className="flex-1" onClick={() => toast.info('Subscriptions coming soon!')}>
+                      Explore Subscriptions
                     </Button>
-                    <Button variant="outline" onClick={() => toast.info('Cancel feature coming soon!')}>
-                      Cancel Plan
+                    <Button variant="outline" onClick={() => toast.info('Cancel coming soon!')}>
+                      Cancel
                     </Button>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Usage Chart */}
+              {/* Usage */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -105,10 +138,10 @@ export default function BillingPage() {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Credits Used</span>
-                      <span className="text-sm font-medium">23 / 50</span>
+                      <span className="text-sm font-medium">23 / —</span>
                     </div>
                     <Progress value={46} className="h-2" />
-                    
+
                     <div className="grid grid-cols-3 gap-4 pt-4 text-sm">
                       <div className="text-center">
                         <div className="font-bold text-lg">8</div>
@@ -127,7 +160,7 @@ export default function BillingPage() {
                 </CardContent>
               </Card>
 
-              {/* Invoices */}
+              {/* Billing history */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -142,7 +175,7 @@ export default function BillingPage() {
                         key={index}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
+                        transition={{ delay: index * 0.08 }}
                         className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors"
                       >
                         <div>
@@ -167,7 +200,7 @@ export default function BillingPage() {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Credits Balance */}
+              {/* Credit Balance */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -189,7 +222,7 @@ export default function BillingPage() {
                       127
                     </motion.div>
                     <p className="text-muted-foreground text-sm mb-4">
-                      Credits remaining this month
+                      Credits available
                     </p>
                     <Button className="w-full" onClick={() => toast.info('Top-up feature coming soon!')}>
                       Top Up Credits
@@ -198,63 +231,123 @@ export default function BillingPage() {
                 </Card>
               </motion.div>
 
-              {/* Credit Packs */}
+              {/* Quick Packs (USD) */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Buy Credits</CardTitle>
+                  <CardTitle>Buy Credits (USD)</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {creditPacks.map((pack, index) => (
-                    <motion.div
-                      key={pack.credits}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 + index * 0.1 }}
-                      className="relative"
-                    >
-                      {pack.popular && (
-                        <Badge className="absolute -top-2 -right-2 z-10 bg-primary text-primary-foreground">
-                          Popular
-                        </Badge>
-                      )}
-                      <Card className={pack.popular ? 'ring-2 ring-primary' : ''}>
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-center mb-2">
-                            <div>
-                              <span className="font-bold text-lg">{pack.credits}</span>
-                              {pack.bonus > 0 && (
-                                <span className="text-sm text-green-600 ml-1">
-                                  +{pack.bonus} bonus
-                                </span>
-                              )}
-                              <span className="text-sm text-muted-foreground block">credits</span>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-bold">{pack.price}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {pack.bonus > 0 ? 
-                                  `R${(parseInt(pack.price.slice(1)) / (pack.credits + pack.bonus)).toFixed(2)}/credit` :
-                                  `R${(parseInt(pack.price.slice(1)) / pack.credits).toFixed(2)}/credit`
-                                }
+                  {creditPacks.map((pack, index) => {
+                    const unit = (pack.priceUsd / pack.credits).toFixed(2);
+                    return (
+                      <motion.div
+                        key={pack.credits}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 + index * 0.08 }}
+                        className="relative"
+                      >
+                        {pack.popular && (
+                          <Badge className="absolute -top-2 -right-2 z-10 bg-primary text-primary-foreground">
+                            Popular
+                          </Badge>
+                        )}
+                        <Card className={pack.popular ? 'ring-2 ring-primary' : ''}>
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-center mb-2">
+                              <div>
+                                <span className="font-bold text-lg">{pack.credits}</span>
+                                <span className="text-sm text-muted-foreground block">credits</span>
+                                {pack.bonus ? (
+                                  <span className="text-xs text-green-600">+{pack.bonus} bonus</span>
+                                ) : null}
+                              </div>
+                              <div className="text-right">
+                                <div className="font-bold">${pack.priceUsd.toFixed(2)}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  ${unit}/credit
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <Button 
-                            size="sm" 
-                            className="w-full" 
-                            variant={pack.popular ? "default" : "outline"}
-                            onClick={() => toast.info('Purchase feature coming soon!')}
-                          >
-                            Buy Now
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
+                            <Button 
+                              size="sm" 
+                              className="w-full" 
+                              variant={pack.popular ? "default" : "outline"}
+                              onClick={() => handleBuyPack(pack)}
+                            >
+                              Buy Now
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    );
+                  })}
                 </CardContent>
               </Card>
 
-              {/* Payment Method */}
+              {/* Custom Credits */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Custom Credits</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="text-sm text-muted-foreground">Credits (min 3)</label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        type="number"
+                        min={3}
+                        value={customCredits}
+                        onChange={(e) => setCustomCredits(parseInt(e.target.value || '3', 10))}
+                      />
+                      <Button variant="outline" onClick={() => setCustomCredits(10)}>10</Button>
+                      <Button variant="outline" onClick={() => setCustomCredits(25)}>25</Button>
+                      <Button variant="outline" onClick={() => setCustomCredits(50)}>50</Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="flex justify-between">
+                      <span>Price/credit</span>
+                      <span className="font-medium">
+                        ${customPricing.ppc.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Credits</span>
+                      <span className="font-medium">{customPricing.credits}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span className="font-medium">
+                        ${customPricing.subtotal.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Fees (est.)</span>
+                      <span className="font-medium">
+                        ${customPricing.fees.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="col-span-2 h-px bg-muted/60 my-1" />
+                    <div className="flex justify-between text-base">
+                      <span className="font-semibold">Total</span>
+                      <span className="font-semibold">
+                        ${customPricing.total.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button className="w-full" onClick={handleCustomCheckout}>
+                    Continue to Pay <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Card payments supported. Paystack & EcoCash coming soon.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Payment Method (placeholder) */}
               <Card>
                 <CardHeader>
                   <CardTitle>Payment Method</CardTitle>
@@ -269,9 +362,14 @@ export default function BillingPage() {
                       <p className="text-xs text-muted-foreground">Expires 12/27</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" className="w-full">
-                    Update Payment Method
-                  </Button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="outline" size="sm" onClick={() => toast.info('Add card coming soon')}>
+                      Add Card
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => toast.info('Paystack coming soon')}>
+                      Connect Paystack
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>

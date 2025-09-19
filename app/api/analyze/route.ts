@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const keywordOverlapScore = inter.size / Math.max(1, union.size);
 
 
-    const llm = new ChatOpenAI({ model: "gpt-5" });
+    const llm = new ChatOpenAI({ model: "gpt-5-mini" });
     const prompt = [
         { role: "system", content: "You rate resume-to-job fit 0..100. Be strict; do not fabricate." },
         {

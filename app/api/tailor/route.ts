@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     }
 
     // --- LLM call (unchanged) ---
-    const llm = new ChatOpenAI({ model: "gpt-5" });
+    const llm = new ChatOpenAI({ model: "gpt-5-mini" });
 
     const prompt = [
       {
@@ -52,9 +52,6 @@ Rules:
 Header rules:
 - First line: "# Full Name".
 - Second line: contact: "Location · Phone · Email".
-- If socialLinks exist (resumeJson.socialLinks), add a third inline line using Markdown links:
-  Example: [Portfolio](https://...) | [GitHub](https://...) | [LinkedIn](https://...)
-  If a link string includes a label, use it as [Label](URL); if it's a bare URL, infer a short label (GitHub/LinkedIn/Portfolio) from the domain.
 
 Experience formatting (IMPORTANT):
 - For EACH role, put a single job header line (NOT a bullet) using:

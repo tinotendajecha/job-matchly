@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     catch { return NextResponse.json({ ok: false, error: "Insufficient credits" }, { status: 402 }); }
 
     // 2) generate cover letter
-    const llm = new ChatOpenAI({ model: "gpt-5" });
+    const llm = new ChatOpenAI({ model: "gpt-5-mini" });
     const out = await llm.invoke([
       { role: "system", content:
 `Write a concise, professional cover letter (350–450 words).

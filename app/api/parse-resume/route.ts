@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     }
 
     // ---- LLM structured extraction (no temperature override) ----
-    const llm = new ChatOpenAI({ model: "gpt-5" });
+    const llm = new ChatOpenAI({ model: "gpt-5-mini" });
     const parser = StructuredOutputParser.fromZodSchema(ResumeSchema);
 
     const system = `Extract the resume into the JSON schema below.

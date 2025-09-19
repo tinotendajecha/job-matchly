@@ -154,7 +154,7 @@ useEffect(() => {
               <Button variant="ghost" asChild>
                 <Link href="/auth/signin">Sign in</Link>
               </Button>
-              <Button
+              {/* <Button
                 asChild
                 className={cn(
                   'bg-gradient-to-r font-medium',
@@ -163,7 +163,7 @@ useEffect(() => {
                 )}
               >
                 <Link href="/auth/signup">Start Free</Link>
-              </Button>
+              </Button> */}
             </div>
           ) : (
             <DropdownMenu>

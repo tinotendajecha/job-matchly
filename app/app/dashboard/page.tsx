@@ -107,7 +107,7 @@ export default function DashboardPage() {
                     You have {userData.credits} credits remaining. Ready to tailor your next application?
                   </p>
                   <Button asChild>
-                    <Link href="/app/upload-tailor">
+                    <Link href="/app/upload-tailor"> 
                       <Plus className="h-4 w-4 mr-2" />
                       Tailor Your First Resume
                     </Link>

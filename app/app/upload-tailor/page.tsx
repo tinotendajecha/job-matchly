@@ -584,152 +584,152 @@ export default function UploadTailorWizardPage() {
         )}
 
         {/* STEP 2 — Job Description */}
-       {step === 2 && (
-  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-    <Card className="mt-6">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 whitespace-nowrap">
-          <Target className="h-5 w-5 shrink-0" />
-          <span className="text-lg sm:text-xl font-semibold">
-            Add the job description <span className="hidden xs:inline">🎯</span>
-          </span>
-        </CardTitle>
-        <p className="text-muted-foreground text-xs sm:text-sm">
-          Paste the JD text below. Upload/URL are coming soon.
-        </p>
-      </CardHeader>
+        {step === 2 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="mt-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 whitespace-nowrap">
+                  <Target className="h-5 w-5 shrink-0" />
+                  <span className="text-lg sm:text-xl font-semibold">
+                    Add the job description <span className="hidden xs:inline">🎯</span>
+                  </span>
+                </CardTitle>
+                <p className="text-muted-foreground text-xs sm:text-sm">
+                  Paste the JD text below. Upload/URL are coming soon.
+                </p>
+              </CardHeader>
 
-      <CardContent className="pt-0">
-        {/* Force Paste Text as the only active option for now */}
-        <Tabs value="text">
-          <TabsList className="w-full flex flex-wrap gap-2 justify-start">
-            <TabsTrigger
-              value="text"
-              className="px-3 py-1.5 text-xs sm:text-sm data-[state=active]:font-medium"
-            >
-              Paste Text
-            </TabsTrigger>
+              <CardContent className="pt-0">
+                {/* Force Paste Text as the only active option for now */}
+                <Tabs value="text">
+                  <TabsList className="w-full flex flex-wrap gap-2 justify-start">
+                    <TabsTrigger
+                      value="text"
+                      className="px-3 py-1.5 text-xs sm:text-sm data-[state=active]:font-medium"
+                    >
+                      Paste Text
+                    </TabsTrigger>
 
-            <TabsTrigger
-              value="upload"
-              disabled
-              className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed"
-              title="Coming soon"
-            >
-              Upload File
-            </TabsTrigger>
+                    <TabsTrigger
+                      value="upload"
+                      disabled
+                      className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed"
+                      title="Coming soon"
+                    >
+                      Upload File
+                    </TabsTrigger>
 
-            <TabsTrigger
-              value="url"
-              disabled
-              className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed"
-              title="Coming soon"
-            >
-              URL
-            </TabsTrigger>
-          </TabsList>
+                    <TabsTrigger
+                      value="url"
+                      disabled
+                      className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed"
+                      title="Coming soon"
+                    >
+                      URL
+                    </TabsTrigger>
+                  </TabsList>
 
-          <TabsContent value="text" className="space-y-4 pt-4">
-            {/* Pro tip panel */}
-            <div className="rounded-lg border bg-muted/50 p-3 sm:p-4">
-              <div className="flex items-start gap-2 sm:gap-3">
-                <div className="mt-0.5 shrink-0">
-                  <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                  <TabsContent value="text" className="space-y-4 pt-4">
+                    {/* Pro tip panel */}
+                    <div className="rounded-lg border bg-muted/50 p-3 sm:p-4">
+                      <div className="flex items-start gap-2 sm:gap-3">
+                        <div className="mt-0.5 shrink-0">
+                          <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                        </div>
+                        <div className="text-xs sm:text-sm">
+                          <p className="font-medium">Pro tip</p>
+                          <p className="text-muted-foreground">
+                            If your JD is an <strong>image</strong>, <strong>PDF</strong>, or a <strong>web page</strong>,
+                            ask ChatGPT to <em>transcribe/extract the text</em> for you:
+                          </p>
+                          <ul className="mt-2 list-disc pl-4 space-y-1 text-muted-foreground">
+                            <li>Upload the screenshot/PDF or paste the JD page content into ChatGPT.</li>
+                            <li>Say: <em>“Please extract the job description text for my resume tailoring.”</em></li>
+                            <li>Copy the extracted text and paste it here.</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <Textarea
+                        placeholder="Paste the job description here…"
+                        value={jobDescription}
+                        onChange={(e) => {
+                          if (jdBusy) return; // ignore input while busy
+                          setJobDescription(e.target.value);
+                          setJdProvided(!!e.target.value.trim());
+                        }}
+                        rows={8}
+                        className="resize-none min-h-40 text-sm sm:text-base"
+                        aria-busy={jdBusy}
+                        disabled={jdBusy}
+                      />
+                      {/* Covers normalize + analyze (+ tailor for consistency) */}
+                      <LoadingOverlay show={jdBusy} label={jdLabel} />
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
+                      <span>{jobDescription.length} characters</span>
+
+                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <Button
+                          onClick={cleanAndFlagJD}
+                          variant="secondary"
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          disabled={!jobDescription.trim() || jdBusy}
+                        >
+                          <Loader2 className="h-4 w-4 mr-2" />
+                          Clean & Normalize
+                        </Button>
+
+                        <Button
+                          onClick={() => setStep(1)}
+                          variant="ghost"
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          disabled={jdBusy}
+                        >
+                          Back to Resume
+                        </Button>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* Optional placeholders (won't be reachable due to disabled triggers) */}
+                  <TabsContent value="upload" className="pt-4">
+                    <div className="rounded-lg border bg-muted/50 p-6 text-center text-sm text-muted-foreground">
+                      Upload from file is coming soon.
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="url" className="pt-4">
+                    <div className="rounded-lg border bg-muted/50 p-6 text-center text-sm text-muted-foreground">
+                      Import from URL is coming soon.
+                    </div>
+                  </TabsContent>
+                </Tabs>
+
+                {/* Nav buttons — stacked on mobile, comfy spacing */}
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                  <Button variant="outline" onClick={() => setStep(1)} className="w-full sm:w-auto">
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                  <Button
+                    onClick={runTailoring}
+                    disabled={!resumeParsed || !jdProvided || steps.normalize === 'loading'}
+                    className="w-full sm:w-auto"
+                  >
+                    Tailor my resume
+                    <Sparkles className="h-4 w-4 ml-2" />
+                  </Button>
                 </div>
-                <div className="text-xs sm:text-sm">
-                  <p className="font-medium">Pro tip</p>
-                  <p className="text-muted-foreground">
-                    If your JD is an <strong>image</strong>, <strong>PDF</strong>, or a <strong>web page</strong>,
-                    ask ChatGPT to <em>transcribe/extract the text</em> for you:
-                  </p>
-                  <ul className="mt-2 list-disc pl-4 space-y-1 text-muted-foreground">
-                    <li>Upload the screenshot/PDF or paste the JD page content into ChatGPT.</li>
-                    <li>Say: <em>“Please extract the job description text for my resume tailoring.”</em></li>
-                    <li>Copy the extracted text and paste it here.</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative">
-              <Textarea
-                placeholder="Paste the job description here…"
-                value={jobDescription}
-                onChange={(e) => {
-                  if (jdBusy) return; // ignore input while busy
-                  setJobDescription(e.target.value);
-                  setJdProvided(!!e.target.value.trim());
-                }}
-                rows={8}
-                className="resize-none min-h-40 text-sm sm:text-base"
-                aria-busy={jdBusy}
-                disabled={jdBusy}
-              />
-              {/* Covers normalize + analyze (+ tailor for consistency) */}
-              <LoadingOverlay show={jdBusy} label={jdLabel} />
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
-              <span>{jobDescription.length} characters</span>
-
-              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <Button
-                  onClick={cleanAndFlagJD}
-                  variant="secondary"
-                  size="sm"
-                  className="w-full sm:w-auto"
-                  disabled={!jobDescription.trim() || jdBusy}
-                >
-                  <Loader2 className="h-4 w-4 mr-2" />
-                  Clean & Normalize
-                </Button>
-
-                <Button
-                  onClick={() => setStep(1)}
-                  variant="ghost"
-                  size="sm"
-                  className="w-full sm:w-auto"
-                  disabled={jdBusy}
-                >
-                  Back to Resume
-                </Button>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Optional placeholders (won't be reachable due to disabled triggers) */}
-          <TabsContent value="upload" className="pt-4">
-            <div className="rounded-lg border bg-muted/50 p-6 text-center text-sm text-muted-foreground">
-              Upload from file is coming soon.
-            </div>
-          </TabsContent>
-
-          <TabsContent value="url" className="pt-4">
-            <div className="rounded-lg border bg-muted/50 p-6 text-center text-sm text-muted-foreground">
-              Import from URL is coming soon.
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        {/* Nav buttons — stacked on mobile, comfy spacing */}
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-          <Button variant="outline" onClick={() => setStep(1)} className="w-full sm:w-auto">
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <Button
-            onClick={runTailoring}
-            disabled={!resumeParsed || !jdProvided || steps.normalize === 'loading'}
-            className="w-full sm:w-auto"
-          >
-            Tailor my resume
-            <Sparkles className="h-4 w-4 ml-2" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </motion.div>
-)}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
 
 

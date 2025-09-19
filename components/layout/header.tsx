@@ -197,7 +197,7 @@ export function Header({ isPublic = false }: HeaderProps) {
               <Button variant="ghost" asChild className="h-9 px-3">
                 <Link href="/auth/signin">Sign in</Link>
               </Button>
-              <Button
+              {/* <Button
                 asChild
                 className={cn(
                   'h-9 px-3 bg-gradient-to-r font-medium',
@@ -206,7 +206,7 @@ export function Header({ isPublic = false }: HeaderProps) {
                 )}
               >
                 <Link href="/auth/signup">Start Free</Link>
-              </Button>
+              </Button> */}
             </div>
           ) : (
             <DropdownMenu>

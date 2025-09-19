@@ -28,6 +28,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Lightbulb
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';

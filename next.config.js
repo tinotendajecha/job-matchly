@@ -2,11 +2,19 @@
 const nextConfig = {
   // output: 'export',
   experimental: {
-    // tell Next to treat these packages as externals (don’t bundle them)
+    // Combine serverComponentsExternalPackages
     serverComponentsExternalPackages: ['html-docx-js', 'playwright-core'],
+    
+    // Add the Vercel-specific outputFileTracingIncludes
+    outputFileTracingIncludes: {
+      'app/api/export/pdf/route.ts': [
+        './node_modules/@sparticuz/chromium/**'
+      ],
+    },
   },
 
   webpack(config, { isServer }) {
+    // The webpack logic is already identical, so no changes are needed.
     if (isServer) {
       // Initialize externals if not present, then push new ones.
       config.externals = config.externals || [];

@@ -6,11 +6,11 @@ const nextConfig = {
     serverComponentsExternalPackages: ['html-docx-js', 'playwright-core'],
     
     // Add the Vercel-specific outputFileTracingIncludes
-    outputFileTracingIncludes: {
-      'app/api/export/pdf/route.ts': [
-        './node_modules/@sparticuz/chromium/**'
-      ],
-    },
+    // outputFileTracingIncludes: {
+    //   'app/api/export/pdf/route.ts': [
+    //     './node_modules/@sparticuz/chromium/**'
+    //   ],
+    // },
   },
 
   webpack(config, { isServer }) {

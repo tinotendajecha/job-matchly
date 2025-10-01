@@ -1,44 +1,45 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // output: 'export',
+  // Do NOT use `output: 'export'` (breaks API routes)
+
   experimental: {
-    // Combine serverComponentsExternalPackages
-    serverComponentsExternalPackages: ['html-docx-js', 'playwright-core'],
-    
-    // Add the Vercel-specific outputFileTracingIncludes
-    // outputFileTracingIncludes: {
-    //   'app/api/export/pdf/route.ts': [
-    //     './node_modules/@sparticuz/chromium/**'
-    //   ],
-    // },
+    // Keep these as externals so Next doesn't try to bundle them
+    serverComponentsExternalPackages: [
+      'html-docx-js',
+      'playwright-core',
+      '@sparticuz/chromium',
+    ],
+
+    // Ensure chromium brotli binaries are included in the serverless function
+    outputFileTracingIncludes: {
+      // Must match the route path for app router
+      '/api/export/pdf/route': ['node_modules/@sparticuz/chromium/bin/**'],
+    },
   },
 
   webpack(config, { isServer }) {
-    // The webpack logic is already identical, so no changes are needed.
     if (isServer) {
-      // Initialize externals if not present, then push new ones.
-      config.externals = config.externals || [];
-      
-      // Ensure html-docx-js is left as a runtime require in server output
-      if (!config.externals.includes('html-docx-js')) {
-        config.externals.push('html-docx-js');
-      }
+      // Ensure externals exists and is an array before pushing
+      if (!config.externals) config.externals = [];
+      if (Array.isArray(config.externals)) {
+        // Leave these to be required at runtime server-side
+        for (const pkg of ['html-docx-js', 'playwright-core', '@sparticuz/chromium']) {
+          if (!config.externals.includes(pkg)) config.externals.push(pkg);
+        }
 
-      // Add electron to the list of externals for the server build
-      config.externals.push({
-        electron: 'commonjs electron',
-      });
+        // (Optional) keep electron external if you reference it anywhere server-side
+        config.externals.push({ electron: 'commonjs electron' });
+      }
     }
-    
-    // belt-and-suspenders: if webpack ever sees the template files, don't parse them
+
+    // Don’t parse html-docx-js template files
     config.module.noParse = config.module.noParse || [];
     config.module.noParse.push(/html-docx-js[\\/]build[\\/]templates[\\/].*\.js$/);
+
     return config;
   },
 
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  eslint: { ignoreDuringBuilds: true },
   images: { unoptimized: true },
 };
 

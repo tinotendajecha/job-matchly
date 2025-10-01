@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import playwright from "playwright"; // Import full playwright for local development
 import playwrightCore from "playwright-core"; // Import core for serverless
-import chromiumServerless from "@sparticuz/chromium";
+import chromium from "@sparticuz/chromium";
 
 export const runtime = "nodejs";
 
@@ -166,9 +166,9 @@ export async function POST(req: Request) {
     // ** CONDITIONAL PLAYWRIGHT LOGIC **
     if (process.env.VERCEL) {
       // Logic for Vercel/serverless
-      const executablePath = await chromiumServerless.executablePath();
+      const executablePath = await chromium.executablePath();
       browser = await playwrightCore.chromium.launch({
-        args: chromiumServerless.args,
+        args: chromium.args,
         executablePath: executablePath,
         headless: true,
       });

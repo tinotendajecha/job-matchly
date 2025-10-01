@@ -71,6 +71,10 @@ export default function UploadTailorWizardPage() {
   const [tailoredMarkdown, setTailoredMarkdown] = useState('');
   const [downloading, setDownloading] = useState(false);
 
+  // near other state
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+
   // pipeline indicators
   const [steps, setSteps] = useState<Record<'parse' | 'normalize' | 'analyze' | 'tailor' | 'export', StepStatus>>({
     parse: 'idle',
@@ -83,6 +87,40 @@ export default function UploadTailorWizardPage() {
   // refs
   const resumeInputRef = useRef<HTMLInputElement | null>(null);
   const jdFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function apiExportPdf(markdown: string) {
+    const res = await fetch('/api/export/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ markdown }),
+    });
+    if (!res.ok) throw new Error('Export failed');
+    return res.blob(); // application/pdf
+  }
+
+  const handleExportPdf = async () => {
+    if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
+    try {
+      setStepStatus('export', 'loading');
+      setDownloadingPdf(true);
+      const blob = await apiExportPdf(tailoredMarkdown);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'resume.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+      setStepStatus('export', 'done');
+      toast.success('PDF downloaded 📥');
+    } catch (err: any) {
+      console.error(err);
+      setStepStatus('export', 'error');
+      toast.error('Download failed.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
 
   // ------------------- API helpers -------------------
   async function apiParseResume(file: File) {
@@ -485,7 +523,7 @@ export default function UploadTailorWizardPage() {
                   <span className='text-xl md:text-2xl'>Upload your resume 📄</span>
                 </CardTitle>
                 <p className="text-muted-foreground text-sm">
-                  We currently support <strong>DOCX</strong> and <strong>TXT</strong> (PDF coming soon).
+                  We currently support <strong>TXT</strong>, <strong>DOCX</strong> and <strong>PDF</strong> .
                 </p>
               </CardHeader>
 
@@ -526,7 +564,7 @@ export default function UploadTailorWizardPage() {
                       <input
                         ref={resumeInputRef}
                         type="file"
-                        accept=".docx,.txt"
+                        accept=".docx,.txt,.pdf"
                         className="sr-only"
                         onChange={onResumeFileChange}
                       />
@@ -827,6 +865,23 @@ export default function UploadTailorWizardPage() {
                       )}
                       <span className="hidden sm:inline">Download DOCX</span>
                     </Button>
+
+                    <Button
+                      size="sm"
+                      onClick={handleExportPdf}
+                      disabled={!tailoredMarkdown || downloadingPdf}
+                      className="shrink-0"
+                      aria-label="Download PDF"
+                      title="Download PDF"
+                    >
+                      {downloadingPdf ? (
+                        <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+                      ) : (
+                        <Download className="h-4 w-4 sm:mr-2" />
+                      )}
+                      <span className="hidden sm:inline">Download PDF</span>
+                    </Button>
+
                   </div>
                 </div>
               </div>

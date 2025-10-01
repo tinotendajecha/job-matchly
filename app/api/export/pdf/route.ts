@@ -1,7 +1,8 @@
-// app/api/export/docx/route.ts
+// app/api/export/pdf/route.ts
 import { NextResponse } from "next/server";
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
+import playwright from "playwright"; // Import full playwright for local development
+import playwrightCore from "playwright-core"; // Import core for serverless
+import chromiumServerless from "@sparticuz/chromium";
 
 export const runtime = "nodejs";
 
@@ -135,21 +136,20 @@ const CSS = `
   h1 + p { color: #333; margin-top: 2pt; }
 `;
 
+
 export async function POST(req: Request) {
+  let browser = null;
   try {
     const { markdown, filename } = await req.json();
 
+    // ... (Your existing markdown processing and HTML generation logic) ...
     if (!markdown || typeof markdown !== "string") {
       return NextResponse.json({ ok: false, error: "Missing 'markdown'." }, { status: 400 });
     }
 
-    // 1) Sanitize control characters that can break altChunk/Word
     const safeMd = markdown.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
-
-    // 2) Remove Changes Summary (UI-only), robustly
     let cleaned = stripChangesSummary(safeMd).trim();
 
-    // 3) Guard: don’t allow empty export
     if (!/\S/.test(cleaned)) {
       return NextResponse.json(
         { ok: false, error: "Nothing to export (main content missing)." },
@@ -157,50 +157,60 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4) Ensure a top-level H1 exists (prevents “blank-looking” docs)
     if (!/^#\s+/m.test(cleaned)) {
       cleaned = `# Resume\n\n${cleaned}`;
     }
 
-    // 5) Build HTML
     const html = `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${mdToHtml(cleaned)}</body></html>`;
 
-    // 6) Generate DOCX (defensive across html-docx-js versions)
-    const mod = require("html-docx-js");
-    const api: any = mod?.default ?? mod;
-    let buf: Buffer | null = null;
-
-    try {
-      if (typeof api.asBuffer === "function") {
-        buf = api.asBuffer(html);
-      } else if (typeof api.asBlob === "function") {
-        const blob: Blob = api.asBlob(html);
-        buf = Buffer.from(await blob.arrayBuffer());
-      } else if (typeof api.asBase64 === "function") {
-        buf = Buffer.from(api.asBase64(html), "base64");
-      }
-    } catch (e) {
-      console.error("html-docx-js failed:", (e as any)?.message || e);
-      return NextResponse.json({ ok: false, error: "DOCX generator error." }, { status: 500 });
+    // ** CONDITIONAL PLAYWRIGHT LOGIC **
+    if (process.env.VERCEL) {
+      // Logic for Vercel/serverless
+      const executablePath = await chromiumServerless.executablePath();
+      browser = await playwrightCore.chromium.launch({
+        args: chromiumServerless.args,
+        executablePath: executablePath,
+        headless: true,
+      });
+    } else {
+      // Logic for local development
+      browser = await playwright.chromium.launch({
+        headless: true,
+      });
     }
 
-    if (!buf || buf.length < 50) {
-      // <50 bytes is effectively empty for .docx; signal a clean error
-      return NextResponse.json({ ok: false, error: "Generated DOCX was empty." }, { status: 500 });
-    }
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle' });
 
-    const bytes = new Uint8Array(buf);
+    const pdfUint8Array = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '1cm',
+        right: '1cm',
+        bottom: '1cm',
+        left: '1cm',
+      },
+    });
+
+    const pdfBuffer = Buffer.from(pdfUint8Array);
+
+    const bytes = new Uint8Array(pdfBuffer);
     return new Response(bytes, {
       headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="${(filename && String(filename).trim()) || "resume.docx"}"`,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${(filename && String(filename).trim()) || "resume.pdf"}"`,
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
         "Content-Length": String(bytes.byteLength),
       },
     });
   } catch (err: any) {
-    console.error("export/docx fatal:", err?.stack || err?.message || err);
-    return NextResponse.json({ ok: false, error: "Failed to export DOCX." }, { status: 500 });
+    console.error("export/pdf fatal:", err?.stack || err?.message || err);
+    return NextResponse.json({ ok: false, error: "Failed to export PDF." }, { status: 500 });
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
   }
 }

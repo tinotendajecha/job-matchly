@@ -34,6 +34,9 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { ChevronDown, FileType2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { useEffect } from "react";
 
 type Analysis = {
   ok: boolean;
@@ -497,6 +500,30 @@ export default function UploadTailorWizardPage() {
   const tailoringBusy =
     steps.analyze === 'loading' || steps.tailor === 'loading' || steps.export === 'loading';
 
+  // inside your component (near other state)
+  const [downloadFmt, setDownloadFmt] = useState<'docx' | 'pdf'>('docx');
+  const isDownloading = downloading || downloadingPdf;
+
+  // persist selection (optional)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('downloadFmt') as 'docx' | 'pdf' | null;
+      if (saved) setDownloadFmt(saved);
+    } catch { }
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem('downloadFmt', downloadFmt); } catch { }
+  }, [downloadFmt]);
+
+  async function handlePrimaryDownload() {
+    if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
+    if (downloadFmt === 'docx') {
+      await handleExportDocx();
+    } else {
+      await handleExportPdf();
+    }
+  }
+
 
   // ------------------- Render -------------------
   return (
@@ -809,10 +836,8 @@ export default function UploadTailorWizardPage() {
                   </div>
 
                   {/* Right: actions — scrollable on mobile */}
-                  <div
-                    className="flex w-full gap-2 overflow-x-auto pb-1 no-scrollbar sm:w-auto sm:overflow-visible"
-                  // prevent children from shrinking out of view
-                  >
+                  {/* Right: actions — scrollable on mobile */}
+                  <div className="flex w-full gap-2 overflow-x-auto pb-1 no-scrollbar sm:w-auto sm:overflow-visible">
                     <Button
                       variant="outline"
                       size="sm"
@@ -850,38 +875,62 @@ export default function UploadTailorWizardPage() {
                       <span className="hidden sm:inline">Open in Editor</span>
                     </Button>
 
-                    <Button
-                      size="sm"
-                      onClick={handleExportDocx}
-                      disabled={!tailoredMarkdown || downloading}
-                      className="shrink-0"
-                      aria-label="Download DOCX"
-                      title="Download DOCX"
-                    >
-                      {downloading ? (
-                        <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
-                      ) : (
-                        <Download className="h-4 w-4 sm:mr-2" />
-                      )}
-                      <span className="hidden sm:inline">Download DOCX</span>
-                    </Button>
+                    {/* --- Split Download --- */}
+                    <div className="inline-flex items-stretch shrink-0">
+                      {/* Primary: downloads current format */}
+                      <Button
+                        size="sm"
+                        onClick={handlePrimaryDownload}
+                        disabled={!tailoredMarkdown || isDownloading}
+                        className="rounded-r-none relative pr-10"
+                        aria-label={`Download ${downloadFmt.toUpperCase()}`}
+                        title={`Download ${downloadFmt.toUpperCase()}`}
+                      >
+                        {isDownloading ? (
+                          <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+                        ) : (
+                          <Download className="h-4 w-4 sm:mr-2" />
+                        )}
+                        <span className="hidden sm:inline">Download</span>
+                        {/* Tiny always-visible format pill (visible on mobile too) */}
+                        <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-foreground">
+                          {downloadFmt.toUpperCase()}
+                        </span>
+                      </Button>
 
-                    <Button
-                      size="sm"
-                      onClick={handleExportPdf}
-                      disabled={!tailoredMarkdown || downloadingPdf}
-                      className="shrink-0"
-                      aria-label="Download PDF"
-                      title="Download PDF"
-                    >
-                      {downloadingPdf ? (
-                        <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
-                      ) : (
-                        <Download className="h-4 w-4 sm:mr-2" />
-                      )}
-                      <span className="hidden sm:inline">Download PDF</span>
-                    </Button>
-
+                      {/* Caret: opens format picker (DOCX/PDF) */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="-ml-px rounded-l-none px-2"
+                            aria-label="Change download format"
+                            title="Change format"
+                            disabled={!tailoredMarkdown || isDownloading}
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem
+                            onClick={() => setDownloadFmt('docx')}
+                            className="flex items-center gap-2"
+                          >
+                            <FileText className="h-4 w-4" />
+                            <span>DOCX</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setDownloadFmt('pdf')}
+                            className="flex items-center gap-2"
+                          >
+                            <FileType2 className="h-4 w-4" />
+                            <span>PDF</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    {/* --- /Split Download --- */}
                   </div>
                 </div>
               </div>

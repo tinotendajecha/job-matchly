@@ -36,9 +36,8 @@ import { ChevronDown, FileType2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import Tesseract from 'tesseract.js';
 
-// ---- NEW: Zustand store (persist progress across refreshes)
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { useTailorStore } from '@/lib/zustand/store';
+
 
 type Analysis = {
   ok: boolean;
@@ -52,127 +51,6 @@ type Analysis = {
 type StepStatus = 'idle' | 'loading' | 'done' | 'error';
 type WizardStep = 1 | 2 | 3;
 
-type Store = {
-  // wizard
-  step: WizardStep;
-  setStep: (s: WizardStep) => void;
-
-  // resume
-  resumeParsed: boolean;
-  setResumeParsed: (v: boolean) => void;
-  resumeFileName: string;
-  setResumeFileName: (s: string) => void;
-  resumeText: string;
-  setResumeText: (s: string) => void;
-  resumeJson: any;
-  setResumeJson: (v: any) => void;
-
-  // JD
-  jobDescription: string;
-  setJobDescription: (s: string) => void;
-  jdProvided: boolean;
-  setJdProvided: (v: boolean) => void;
-  activeTab: 'text' | 'image' | 'upload' | 'url';
-  setActiveTab: (v: 'text' | 'image' | 'upload' | 'url') => void;
-
-  // OCR success
-  imageOCRDone: boolean;
-  setImageOCRDone: (v: boolean) => void;
-  jdImageName: string;
-  setJdImageName: (s: string) => void;
-
-  // results
-  analysis: Analysis | null;
-  setAnalysis: (a: Analysis | null) => void;
-  atsScore: number;
-  setAtsScore: (n: number) => void;
-  tailoredMarkdown: string;
-  setTailoredMarkdown: (s: string) => void;
-
-  // pipeline badges
-  steps: Record<'parse' | 'normalize' | 'analyze' | 'tailor' | 'export', StepStatus>;
-  setStepStatus: (k: keyof Store['steps'], v: StepStatus) => void;
-
-  // download format
-  downloadFmt: 'docx' | 'pdf';
-  setDownloadFmt: (v: 'docx' | 'pdf') => void;
-
-  // resets
-  resetOCR: () => void;
-  resetAll: () => void;
-};
-
-const useTailorStore = create<Store>()(
-  persist(
-    (set, get) => ({
-      step: 1,
-      setStep: (s) => set({ step: s }),
-
-      resumeParsed: false,
-      setResumeParsed: (v) => set({ resumeParsed: v }),
-      resumeFileName: '',
-      setResumeFileName: (s) => set({ resumeFileName: s }),
-      resumeText: '',
-      setResumeText: (s) => set({ resumeText: s }),
-      resumeJson: null,
-      setResumeJson: (v) => set({ resumeJson: v }),
-
-      jobDescription: '',
-      setJobDescription: (s) => set({ jobDescription: s }),
-      jdProvided: false,
-      setJdProvided: (v) => set({ jdProvided: v }),
-      activeTab: 'text',
-      setActiveTab: (v) => set({ activeTab: v }),
-
-      imageOCRDone: false,
-      setImageOCRDone: (v) => set({ imageOCRDone: v }),
-      jdImageName: '',
-      setJdImageName: (s) => set({ jdImageName: s }),
-
-      analysis: null,
-      setAnalysis: (a) => set({ analysis: a }),
-      atsScore: 0,
-      setAtsScore: (n) => set({ atsScore: n }),
-      tailoredMarkdown: '',
-      setTailoredMarkdown: (s) => set({ tailoredMarkdown: s }),
-
-      steps: { parse: 'idle', normalize: 'idle', analyze: 'idle', tailor: 'idle', export: 'idle' },
-      setStepStatus: (k, v) => set({ steps: { ...get().steps, [k]: v } }),
-
-      downloadFmt: 'docx',
-      setDownloadFmt: (v) => set({ downloadFmt: v }),
-
-      resetOCR: () =>
-        set({
-          imageOCRDone: false,
-          jdImageName: '',
-          jobDescription: '',
-          jdProvided: false,
-          activeTab: 'image',
-        }),
-
-      resetAll: () =>
-        set({
-          step: 1,
-          resumeParsed: false,
-          resumeFileName: '',
-          resumeText: '',
-          resumeJson: null,
-          jobDescription: '',
-          jdProvided: false,
-          activeTab: 'text',
-          imageOCRDone: false,
-          jdImageName: '',
-          analysis: null,
-          atsScore: 0,
-          tailoredMarkdown: '',
-          steps: { parse: 'idle', normalize: 'idle', analyze: 'idle', tailor: 'idle', export: 'idle' },
-          downloadFmt: 'docx',
-        }),
-    }),
-    { name: 'tailor-wizard' }
-  )
-);
 
 // ------------------ API helpers ------------------
 async function apiExportPdf(markdown: string) {
@@ -184,6 +62,8 @@ async function apiExportPdf(markdown: string) {
   if (!res.ok) throw new Error('Export failed');
   return res.blob();
 }
+
+
 
 async function apiParseResume(file: File, router: ReturnType<typeof useRouter>) {
   toast.success('Uploading your resume 🙃');
@@ -269,7 +149,7 @@ export default function UploadTailorWizardPage() {
   const [ocrProgress, setOcrProgress] = useState(0);
   const [ocrLang] = useState<'eng'>('eng');
 
-  const[tailoredReady, setTailoredReady] = useState(false)
+  const [tailoredReady, setTailoredReady] = useState(false)
 
   // refs
   const resumeInputRef = useRef<HTMLInputElement | null>(null);
@@ -408,6 +288,14 @@ export default function UploadTailorWizardPage() {
 
   // handlers
   const onResumeClick = () => resumeInputRef.current?.click();
+
+  const triggerResumePicker = () => {
+    const el = resumeInputRef.current;
+    if (!el) return;
+    // allow re-selecting the same file
+    el.value = '';
+    el.click();
+  };
 
   const onResumeFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -601,6 +489,7 @@ export default function UploadTailorWizardPage() {
         <WizardStepper />
 
         {/* STEP 1 — Upload Resume */}
+        {/* STEP 1 — Upload Resume */}
         {step === 1 && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="mt-6">
@@ -615,6 +504,16 @@ export default function UploadTailorWizardPage() {
               </CardHeader>
 
               <CardContent className="pt-0">
+                {/* Hidden input — ALWAYS MOUNTED */}
+                <input
+                  ref={resumeInputRef}
+                  type="file"
+                  accept=".docx,.txt,.pdf"
+                  className="sr-only"
+                  onChange={onResumeFileChange}
+                />
+
+                {/* Upload area */}
                 {!resumeParsed ? (
                   <div className="relative">
                     <motion.div
@@ -629,10 +528,10 @@ export default function UploadTailorWizardPage() {
                           : "cursor-pointer hover:border-primary/50 border-muted-foreground/25"
                       ].join(" ")}
                       whileHover={steps.parse === 'loading' ? {} : { scale: 1.01 }}
-                      onClick={() => steps.parse !== 'loading' && onResumeClick()}
+                      onClick={() => steps.parse !== 'loading' && triggerResumePicker()}
                       onKeyDown={(e) => {
                         if (steps.parse === 'loading') return;
-                        if (e.key === 'Enter' || e.key === ' ') onResumeClick();
+                        if (e.key === 'Enter' || e.key === ' ') triggerResumePicker();
                       }}
                     >
                       <FileText className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
@@ -645,14 +544,6 @@ export default function UploadTailorWizardPage() {
                       <Button variant="outline" size="sm" disabled={steps.parse === 'loading'}>
                         Choose File
                       </Button>
-
-                      <input
-                        ref={resumeInputRef}
-                        type="file"
-                        accept=".docx,.txt,.pdf"
-                        className="sr-only"
-                        onChange={onResumeFileChange}
-                      />
 
                       <LoadingOverlay show={steps.parse === 'loading'} label="Parsing your resume…" />
                     </motion.div>
@@ -670,7 +561,7 @@ export default function UploadTailorWizardPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => resumeInputRef.current?.click()}
+                        onClick={triggerResumePicker}
                         className="w-full sm:w-auto"
                       >
                         Replace
@@ -681,6 +572,7 @@ export default function UploadTailorWizardPage() {
                   </div>
                 )}
 
+                {/* Nav buttons — stacked on mobile with spacing */}
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
                   <Button variant="outline" disabled className="w-full sm:w-auto">
                     <ChevronLeft className="h-4 w-4 mr-2" />
@@ -905,6 +797,15 @@ export default function UploadTailorWizardPage() {
         {/* STEP 3 — Tailor & Preview */}
         {step === 3 && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="mt-6 flex justify-between">
+              <Button variant="outline" onClick={() => setStep(2)}>
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <Button variant="ghost" onClick={() => { resetAll(); }}>
+                Start Over
+              </Button>
+            </div>
             <Card className="mt-6 overflow-hidden">
               <div className="sticky top-0 z-10 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
                 <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5">
@@ -1122,15 +1023,7 @@ export default function UploadTailorWizardPage() {
               </div>
             )}
 
-            <div className="mt-6 flex justify-between">
-              <Button variant="outline" onClick={() => setStep(2)}>
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-              <Button variant="ghost" onClick={() => { resetAll(); }}>
-                Start Over
-              </Button>
-            </div>
+
           </motion.div>
         )}
       </div>

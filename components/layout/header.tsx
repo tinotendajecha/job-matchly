@@ -28,6 +28,8 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-toastify';
 
+import { useTailorStore } from '@/lib/zustand/store';
+
 interface HeaderProps {
   isPublic?: boolean;
 }
@@ -53,6 +55,9 @@ function initialsFrom(name?: string | null, email?: string | null) {
 export function Header({ isPublic = false }: HeaderProps) {
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
+
+  // get resetAll from store
+  const resetAll = useTailorStore((s) => s.resetAll);
 
   // ---- Dark/Light toggle (no system) ----
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -115,6 +120,7 @@ export function Header({ isPublic = false }: HeaderProps) {
       const res = await fetch('/api/auth/logout', { method: 'POST' });
       if (!res.ok) throw new Error('Logout failed');
       toast.success('Logged out');
+      resetAll();
       setMe(null);
       router.push('/');
       router.refresh();

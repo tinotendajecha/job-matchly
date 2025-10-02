@@ -1,12 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,7 +18,6 @@ import {
   CheckCircle,
   AlertTriangle,
   TrendingUp,
-  Link as LinkIcon,
   Loader2,
   Clipboard,
   ExternalLink,
@@ -28,7 +25,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Lightbulb
+  Lightbulb,
+  CheckCheck
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
@@ -36,7 +34,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChevronDown, FileType2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { useEffect } from "react";
+import Tesseract from 'tesseract.js';
+
+// ---- NEW: Zustand store (persist progress across refreshes)
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 type Analysis = {
   ok: boolean;
@@ -50,57 +52,229 @@ type Analysis = {
 type StepStatus = 'idle' | 'loading' | 'done' | 'error';
 type WizardStep = 1 | 2 | 3;
 
+type Store = {
+  // wizard
+  step: WizardStep;
+  setStep: (s: WizardStep) => void;
+
+  // resume
+  resumeParsed: boolean;
+  setResumeParsed: (v: boolean) => void;
+  resumeFileName: string;
+  setResumeFileName: (s: string) => void;
+  resumeText: string;
+  setResumeText: (s: string) => void;
+  resumeJson: any;
+  setResumeJson: (v: any) => void;
+
+  // JD
+  jobDescription: string;
+  setJobDescription: (s: string) => void;
+  jdProvided: boolean;
+  setJdProvided: (v: boolean) => void;
+  activeTab: 'text' | 'image' | 'upload' | 'url';
+  setActiveTab: (v: 'text' | 'image' | 'upload' | 'url') => void;
+
+  // OCR success
+  imageOCRDone: boolean;
+  setImageOCRDone: (v: boolean) => void;
+  jdImageName: string;
+  setJdImageName: (s: string) => void;
+
+  // results
+  analysis: Analysis | null;
+  setAnalysis: (a: Analysis | null) => void;
+  atsScore: number;
+  setAtsScore: (n: number) => void;
+  tailoredMarkdown: string;
+  setTailoredMarkdown: (s: string) => void;
+
+  // pipeline badges
+  steps: Record<'parse' | 'normalize' | 'analyze' | 'tailor' | 'export', StepStatus>;
+  setStepStatus: (k: keyof Store['steps'], v: StepStatus) => void;
+
+  // download format
+  downloadFmt: 'docx' | 'pdf';
+  setDownloadFmt: (v: 'docx' | 'pdf') => void;
+
+  // resets
+  resetOCR: () => void;
+  resetAll: () => void;
+};
+
+const useTailorStore = create<Store>()(
+  persist(
+    (set, get) => ({
+      step: 1,
+      setStep: (s) => set({ step: s }),
+
+      resumeParsed: false,
+      setResumeParsed: (v) => set({ resumeParsed: v }),
+      resumeFileName: '',
+      setResumeFileName: (s) => set({ resumeFileName: s }),
+      resumeText: '',
+      setResumeText: (s) => set({ resumeText: s }),
+      resumeJson: null,
+      setResumeJson: (v) => set({ resumeJson: v }),
+
+      jobDescription: '',
+      setJobDescription: (s) => set({ jobDescription: s }),
+      jdProvided: false,
+      setJdProvided: (v) => set({ jdProvided: v }),
+      activeTab: 'text',
+      setActiveTab: (v) => set({ activeTab: v }),
+
+      imageOCRDone: false,
+      setImageOCRDone: (v) => set({ imageOCRDone: v }),
+      jdImageName: '',
+      setJdImageName: (s) => set({ jdImageName: s }),
+
+      analysis: null,
+      setAnalysis: (a) => set({ analysis: a }),
+      atsScore: 0,
+      setAtsScore: (n) => set({ atsScore: n }),
+      tailoredMarkdown: '',
+      setTailoredMarkdown: (s) => set({ tailoredMarkdown: s }),
+
+      steps: { parse: 'idle', normalize: 'idle', analyze: 'idle', tailor: 'idle', export: 'idle' },
+      setStepStatus: (k, v) => set({ steps: { ...get().steps, [k]: v } }),
+
+      downloadFmt: 'docx',
+      setDownloadFmt: (v) => set({ downloadFmt: v }),
+
+      resetOCR: () =>
+        set({
+          imageOCRDone: false,
+          jdImageName: '',
+          jobDescription: '',
+          jdProvided: false,
+          activeTab: 'image',
+        }),
+
+      resetAll: () =>
+        set({
+          step: 1,
+          resumeParsed: false,
+          resumeFileName: '',
+          resumeText: '',
+          resumeJson: null,
+          jobDescription: '',
+          jdProvided: false,
+          activeTab: 'text',
+          imageOCRDone: false,
+          jdImageName: '',
+          analysis: null,
+          atsScore: 0,
+          tailoredMarkdown: '',
+          steps: { parse: 'idle', normalize: 'idle', analyze: 'idle', tailor: 'idle', export: 'idle' },
+          downloadFmt: 'docx',
+        }),
+    }),
+    { name: 'tailor-wizard' }
+  )
+);
+
+// ------------------ API helpers ------------------
+async function apiExportPdf(markdown: string) {
+  const res = await fetch('/api/export/pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ markdown }),
+  });
+  if (!res.ok) throw new Error('Export failed');
+  return res.blob();
+}
+
+async function apiParseResume(file: File, router: ReturnType<typeof useRouter>) {
+  toast.success('Uploading your resume 🙃');
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch('/api/parse-resume', { method: 'POST', body: fd });
+
+  if (res.status === 402) {
+    router.push('/pricing');
+    throw new Error('You are out of credits.');
+  }
+
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('application/json')) {
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to parse resume');
+    return data;
+  } else {
+    const txt = await res.text().catch(() => '');
+    throw new Error(txt || 'Failed to parse resume');
+  }
+}
+
+async function apiNormalizeJDFromText(text: string) {
+  const res = await fetch('/api/normalize-jd', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error || 'Failed to normalize JD');
+  return res.json();
+}
+
+async function apiAnalyze(resumeText: string, jdText: string) {
+  toast.success('We are analyzing your resume 🙃');
+  const res = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resumeText, jdText }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error || 'Analyze failed');
+  return res.json() as Promise<Analysis>;
+}
+
+async function apiTailor(payload: { resumeJson: any; resumeText: string; jdText: string }) {
+  const res = await fetch('/api/tailor', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error((await res.json()).error || 'Tailor failed');
+  return res.json() as Promise<{ ok: boolean; tailoredMarkdown: string }>;
+}
+
+// ------------------- Component -------------------
 export default function UploadTailorWizardPage() {
   const router = useRouter();
 
-  // -------------- wizard state --------------
-  const [step, setStep] = useState<WizardStep>(1);
-  const [resumeParsed, setResumeParsed] = useState(false);
-  const [jdProvided, setJdProvided] = useState(false);
-  const [tailoredReady, setTailoredReady] = useState(false);
+  // pull everything we need from the store
+  const {
+    step, setStep,
+    resumeParsed, setResumeParsed,
+    resumeFileName, setResumeFileName,
+    resumeText, setResumeText,
+    resumeJson, setResumeJson,
+    jobDescription, setJobDescription,
+    jdProvided, setJdProvided,
+    activeTab, setActiveTab,
+    imageOCRDone, setImageOCRDone,
+    jdImageName, setJdImageName,
+    analysis, setAnalysis,
+    atsScore, setAtsScore,
+    tailoredMarkdown, setTailoredMarkdown,
+    steps, setStepStatus,
+    downloadFmt, setDownloadFmt,
+    resetOCR, resetAll,
+  } = useTailorStore();
 
-  // -------------- core data --------------
-  const [resumeFileName, setResumeFileName] = useState('');
-  const [resumeText, setResumeText] = useState('');
-  const [resumeJson, setResumeJson] = useState<any>(null);
-
-  const [jobDescription, setJobDescription] = useState('');
-  const [jobUrl, setJobUrl] = useState('');
-  const [activeTab, setActiveTab] = useState<'text' | 'upload' | 'url'>('text');
-
-  const [analysis, setAnalysis] = useState<Analysis | null>(null);
-  const [atsScore, setAtsScore] = useState(0);
-
-  const [tailoredMarkdown, setTailoredMarkdown] = useState('');
+  // transient (not persisted)
   const [downloading, setDownloading] = useState(false);
-
-  // near other state
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [ocrLang] = useState<'eng'>('eng');
 
-
-  // pipeline indicators
-  const [steps, setSteps] = useState<Record<'parse' | 'normalize' | 'analyze' | 'tailor' | 'export', StepStatus>>({
-    parse: 'idle',
-    normalize: 'idle',
-    analyze: 'idle',
-    tailor: 'idle',
-    export: 'idle',
-  });
+  const[tailoredReady, setTailoredReady] = useState(false)
 
   // refs
   const resumeInputRef = useRef<HTMLInputElement | null>(null);
-  const jdFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  async function apiExportPdf(markdown: string) {
-    const res = await fetch('/api/export/pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ markdown }),
-    });
-    if (!res.ok) throw new Error('Export failed');
-    return res.blob(); // application/pdf
-  }
-
+  // export helpers
   const handleExportPdf = async () => {
     if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
     try {
@@ -124,80 +298,6 @@ export default function UploadTailorWizardPage() {
     }
   };
 
-
-  // ------------------- API helpers -------------------
-  async function apiParseResume(file: File) {
-    toast.success('Uploading your resume 🙃')
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await fetch('/api/parse-resume', { method: 'POST', body: fd });
-
-    // credit gate is enforced server-side; 402 -> pricing
-    if (res.status === 402) {
-      router.push('/pricing');
-      throw new Error('You are out of credits.');
-    }
-
-    const ct = res.headers.get('content-type') || '';
-    if (ct.includes('application/json')) {
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to parse resume');
-      return data;
-    } else {
-      const txt = await res.text().catch(() => '');
-      throw new Error(txt || 'Failed to parse resume');
-    }
-  }
-
-  async function apiNormalizeJDFromText(text: string) {
-    const res = await fetch('/api/normalize-jd', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) throw new Error((await res.json()).error || 'Failed to normalize JD');
-    return res.json();
-  }
-
-  async function apiNormalizeJDFromFile(file: File) {
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await fetch('/api/normalize-jd', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error((await res.json()).error || 'Failed to read JD file');
-    return res.json();
-  }
-
-  async function apiNormalizeJDFromUrl(url: string) {
-    const res = await fetch('/api/normalize-jd', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    });
-    if (!res.ok) throw new Error((await res.json()).error || 'Failed to fetch JD URL');
-    return res.json();
-  }
-
-  async function apiAnalyze(resumeText: string, jdText: string) {
-    toast.success('We are analyzing your resume 🙃')
-    const res = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resumeText, jdText }),
-    });
-    if (!res.ok) throw new Error((await res.json()).error || 'Analyze failed');
-    return res.json() as Promise<Analysis>;
-  }
-
-  async function apiTailor(payload: { resumeJson: any; resumeText: string; jdText: string }) {
-    const res = await fetch('/api/tailor', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error((await res.json()).error || 'Tailor failed');
-    return res.json() as Promise<{ ok: boolean; tailoredMarkdown: string }>;
-  }
-
   async function apiExportDocx(markdown: string) {
     const res = await fetch('/api/export/docx', {
       method: 'POST',
@@ -208,10 +308,39 @@ export default function UploadTailorWizardPage() {
     return res.blob();
   }
 
-  // ------------------- helpers -------------------
-  const setStepStatus = (k: keyof typeof steps, v: StepStatus) =>
-    setSteps(prev => ({ ...prev, [k]: v }));
+  const handleExportDocx = async () => {
+    if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
+    try {
+      setStepStatus('export', 'loading');
+      setDownloading(true);
+      const blob = await apiExportDocx(tailoredMarkdown);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'resume.docx';
+      a.click();
+      URL.revokeObjectURL(url);
+      setStepStatus('export', 'done');
+      toast.success('DOCX downloaded 📥');
+    } catch (err: any) {
+      console.error(err);
+      setStepStatus('export', 'error');
+      toast.error('Download failed.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
+  async function handlePrimaryDownload() {
+    if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
+    if (downloadFmt === 'docx') {
+      await handleExportDocx();
+    } else {
+      await handleExportPdf();
+    }
+  }
+
+  // markdown helpers
   function splitChanges(md: string) {
     if (!md) return { body: '', changes: '' };
     const m = md.match(/^##\s*Changes\s+Summary\s*$/mi);
@@ -219,7 +348,6 @@ export default function UploadTailorWizardPage() {
     const [pre, ...rest] = md.split(/^##\s*Changes\s+Summary\s*$/mi);
     return { body: pre.trim(), changes: rest.join('\n').trim() };
   }
-
   const { body: previewMarkdown, changes: changesMarkdown } = splitChanges(tailoredMarkdown);
 
   function flatten(children: any): string {
@@ -278,7 +406,7 @@ export default function UploadTailorWizardPage() {
     </div>
   );
 
-  // ------------------- Handlers -------------------
+  // handlers
   const onResumeClick = () => resumeInputRef.current?.click();
 
   const onResumeFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -286,7 +414,7 @@ export default function UploadTailorWizardPage() {
     if (!file) return;
     try {
       setStepStatus('parse', 'loading');
-      const data = await apiParseResume(file);
+      const data = await apiParseResume(file, router);
       setResumeFileName(file.name);
       setResumeText(data.resumeText || '');
       setResumeJson(data.resumeJson || null);
@@ -294,7 +422,6 @@ export default function UploadTailorWizardPage() {
       setTailoredReady(false);
       setStepStatus('parse', 'done');
       toast.success('Resume parsed successfully! ✅');
-      // move forward automatically
       setStep(2);
     } catch (err: any) {
       console.error(err);
@@ -303,85 +430,74 @@ export default function UploadTailorWizardPage() {
     }
   };
 
-  const onJDFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // OCR (client)
+  async function ocrImageInBrowser(file: File) {
+    setActiveTab('image');
+    setOcrBusy(true);
+    setOcrProgress(0);
     try {
-      setStepStatus('normalize', 'loading');
-      const { jdText } = await apiNormalizeJDFromFile(file);
-      setJobDescription(jdText || '');
-      setActiveTab('text');
-      setStepStatus('normalize', 'done');
-      setJdProvided(true);
-      toast.success('Job description loaded! 📥');
-    } catch (err: any) {
-      console.error(err);
-      setStepStatus('normalize', 'error');
-      toast.error(err.message || 'Could not read JD file.');
-    }
-  };
+      const { data } = await Tesseract.recognize(file, ocrLang, {
+        logger: (m) => {
+          if (m.status === 'recognizing text' && typeof m.progress === 'number') {
+            setOcrProgress(Math.round(m.progress * 100));
+          }
+        },
+      });
+      const raw = (data?.text || '').trim();
+      if (!raw) throw new Error('No text detected in the image');
 
-  const importFromUrl = async () => {
-    if (!jobUrl.trim()) return toast.error('Enter a URL first');
-    try {
-      setStepStatus('normalize', 'loading');
-      const { jdText } = await apiNormalizeJDFromUrl(jobUrl.trim());
-      setJobDescription(jdText || '');
-      setActiveTab('text');
-      setStepStatus('normalize', 'done');
+      // (Optional) keep this normalization here; runTailoring also normalizes (idempotent)
+      const { jdText } = await apiNormalizeJDFromText(raw);
+      setJobDescription(jdText || raw);
       setJdProvided(true);
-      toast.success('Imported job description from URL 🌐');
-    } catch (err: any) {
-      console.error(err);
-      setStepStatus('normalize', 'error');
-      toast.error(err.message || 'URL import failed.');
-    }
-  };
+      setImageOCRDone(true);
+      setJdImageName(file.name);
+      toast.success('Extracted text from image 🪄');
 
-  const cleanAndFlagJD = async () => {
-    if (!jobDescription.trim()) {
-      toast.error('Paste or import a job description first');
-      return;
-    }
-    try {
-      setStepStatus('normalize', 'loading');
-      const { jdText } = await apiNormalizeJDFromText(jobDescription);
-      setJobDescription(jdText || jobDescription);
-      setStepStatus('normalize', 'done');
-      setJdProvided(true);
-      toast.success('JD normalized 🧼');
+      setActiveTab('text'); // go back to text with filled JD
     } catch (e: any) {
-      setStepStatus('normalize', 'error');
-      toast.error(e.message || 'Normalize failed');
+      console.error(e);
+      toast.error(e.message || 'OCR failed. Try a clearer image.');
+    } finally {
+      setOcrBusy(false);
+      setOcrProgress(0);
     }
-  };
+  }
 
+  // abstracted flow: normalize happens inside tailor
   const runTailoring = async () => {
     if (!resumeParsed || !jobDescription.trim()) {
       toast.error('Complete steps 1 and 2 first');
       return;
     }
     try {
-      // analyze
+      // 1) normalize JD automatically
+      setStepStatus('normalize', 'loading');
+      const { jdText } = await apiNormalizeJDFromText(jobDescription);
+      const finalJD = jdText || jobDescription;
+      setJobDescription(finalJD);
+      setStepStatus('normalize', 'done');
+      setJdProvided(true);
+
+      // 2) analyze
       setStepStatus('analyze', 'loading');
-      const analysisRes = await apiAnalyze(resumeText, jobDescription);
+      const analysisRes = await apiAnalyze(resumeText, finalJD);
       setAnalysis(analysisRes);
       setStepStatus('analyze', 'done');
 
-      // lil’ score animation
+      // score animation
       const targetScore = Math.max(0, Math.min(100, analysisRes.llmFitScore ?? 75));
       let s = 0;
-      const tick = setInterval(() => {
+      const timer = setInterval(() => {
         s = Math.min(targetScore, s + 2);
         setAtsScore(s);
-        if (s >= targetScore) clearInterval(tick);
+        if (s >= targetScore) clearInterval(timer);
       }, 22);
 
-      // tailor
+      // 3) tailor
       setStepStatus('tailor', 'loading');
-      const tailored = await apiTailor({ resumeJson, resumeText, jdText: jobDescription });
+      const tailored = await apiTailor({ resumeJson, resumeText, jdText: finalJD });
       setTailoredMarkdown(tailored.tailoredMarkdown || '');
-      setTailoredReady(true);
       setStepStatus('tailor', 'done');
       toast.success('Tailored and ready! ✨');
       setStep(3);
@@ -392,44 +508,30 @@ export default function UploadTailorWizardPage() {
     }
   };
 
-  const handleExportDocx = async () => {
-    if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
-    try {
-      setStepStatus('export', 'loading');
-      setDownloading(true);
-      const blob = await apiExportDocx(tailoredMarkdown);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'resume.docx';
-      a.click();
-      URL.revokeObjectURL(url);
-      setStepStatus('export', 'done');
-      toast.success('DOCX downloaded 📥');
-    } catch (err: any) {
-      console.error(err);
-      setStepStatus('export', 'error');
-      toast.error('Download failed.');
-    } finally {
-      setDownloading(false);
-    }
-  };
-
   const copyMarkdown = async () => {
     if (!previewMarkdown) return;
     await navigator.clipboard.writeText(previewMarkdown);
     toast.success('Markdown copied 📋');
   };
 
-  // keyword rows
-  const keywordRows = (() => {
-    if (!analysis) return [];
-    const matched = analysis.matchedKeywords.map(w => ({ word: w, matched: true, frequency: 1 }));
-    const missing = analysis.missingKeywords.map(w => ({ word: w, matched: false, frequency: 0 }));
-    return [...matched, ...missing].slice(0, 12);
-  })();
+  // ui helpers
+  const jdBusy =
+    steps.normalize === 'loading' ||
+    steps.analyze === 'loading' ||
+    steps.tailor === 'loading';
 
-  // ------------------- UI bits -------------------
+  const jdLabel =
+    steps.analyze === 'loading'
+      ? 'Analyzing your resume & JD…'
+      : steps.tailor === 'loading'
+        ? 'Tailoring your resume…'
+        : 'Cleaning JD…';
+
+  const tailoringBusy =
+    steps.analyze === 'loading' || steps.tailor === 'loading' || steps.export === 'loading';
+
+  const isDownloading = downloading || downloadingPdf;
+
   const StepPill = ({ label, status }: { label: string; status: StepStatus }) => {
     const icon =
       status === 'loading' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> :
@@ -448,30 +550,21 @@ export default function UploadTailorWizardPage() {
     );
   };
 
-  const WizardStepper = () => {
-    // const items = [
-    //   { id: 1, label: 'Upload Resume 📄', done: resumeParsed },
-    //   { id: 2, label: 'Job Description 🎯', done: jdProvided },
-    //   { id: 3, label: 'Tailor & Preview ✨', done: tailoredReady },
-    // ] as const;
-
-    return (
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
-              <StepPill label="Parsing" status={steps.parse} />
-              <StepPill label="Normalizing" status={steps.normalize} />
-              <StepPill label="Analyzing" status={steps.analyze} />
-              <StepPill label="Tailoring" status={steps.tailor} />
-              <StepPill label="Exporting" status={steps.export} />
-            </div>
-
+  const WizardStepper = () => (
+    <Card>
+      <CardContent className="py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <StepPill label="Parsing" status={steps.parse} />
+            <StepPill label="Normalizing" status={steps.normalize} />
+            <StepPill label="Analyzing" status={steps.analyze} />
+            <StepPill label="Tailoring" status={steps.tailor} />
+            <StepPill label="Exporting" status={steps.export} />
           </div>
-        </CardContent>
-      </Card>
-    );
-  };
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   function LoadingOverlay({ show, label }: { show: boolean; label?: string }) {
     if (!show) return null;
@@ -485,45 +578,13 @@ export default function UploadTailorWizardPage() {
     );
   }
 
-  const jdBusy =
-    steps.normalize === 'loading' ||
-    steps.analyze === 'loading' ||
-    steps.tailor === 'loading';
-
-  const jdLabel =
-    steps.analyze === 'loading'
-      ? 'Analyzing your resume & JD…'
-      : steps.tailor === 'loading'
-        ? 'Tailoring your resume…'
-        : 'Cleaning JD…';
-
-  const tailoringBusy =
-    steps.analyze === 'loading' || steps.tailor === 'loading' || steps.export === 'loading';
-
-  // inside your component (near other state)
-  const [downloadFmt, setDownloadFmt] = useState<'docx' | 'pdf'>('docx');
-  const isDownloading = downloading || downloadingPdf;
-
-  // persist selection (optional)
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('downloadFmt') as 'docx' | 'pdf' | null;
-      if (saved) setDownloadFmt(saved);
-    } catch { }
-  }, []);
-  useEffect(() => {
-    try { localStorage.setItem('downloadFmt', downloadFmt); } catch { }
-  }, [downloadFmt]);
-
-  async function handlePrimaryDownload() {
-    if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
-    if (downloadFmt === 'docx') {
-      await handleExportDocx();
-    } else {
-      await handleExportPdf();
-    }
-  }
-
+  // keyword rows
+  const keywordRows = (() => {
+    if (!analysis) return [];
+    const matched = analysis.matchedKeywords.map(w => ({ word: w, matched: true, frequency: 1 }));
+    const missing = analysis.missingKeywords.map(w => ({ word: w, matched: false, frequency: 0 }));
+    return [...matched, ...missing].slice(0, 12);
+  })();
 
   // ------------------- Render -------------------
   return (
@@ -537,7 +598,6 @@ export default function UploadTailorWizardPage() {
           </h1>
         </div>
 
-        {/* Top: stepper + pipeline badges */}
         <WizardStepper />
 
         {/* STEP 1 — Upload Resume */}
@@ -550,12 +610,11 @@ export default function UploadTailorWizardPage() {
                   <span className='text-xl md:text-2xl'>Upload your resume 📄</span>
                 </CardTitle>
                 <p className="text-muted-foreground text-sm">
-                  We currently support <strong>TXT</strong>, <strong>DOCX</strong> and <strong>PDF</strong> .
+                  We currently support <strong>TXT</strong>, <strong>DOCX</strong> and <strong>PDF</strong>.
                 </p>
               </CardHeader>
 
               <CardContent className="pt-0">
-                {/* Upload area */}
                 {!resumeParsed ? (
                   <div className="relative">
                     <motion.div
@@ -587,7 +646,6 @@ export default function UploadTailorWizardPage() {
                         Choose File
                       </Button>
 
-                      {/* Hidden input */}
                       <input
                         ref={resumeInputRef}
                         type="file"
@@ -596,7 +654,6 @@ export default function UploadTailorWizardPage() {
                         onChange={onResumeFileChange}
                       />
 
-                      {/* Dim/lock overlay while parsing */}
                       <LoadingOverlay show={steps.parse === 'loading'} label="Parsing your resume…" />
                     </motion.div>
                   </div>
@@ -613,19 +670,17 @@ export default function UploadTailorWizardPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={onResumeClick}
+                        onClick={() => resumeInputRef.current?.click()}
                         className="w-full sm:w-auto"
                       >
                         Replace
                       </Button>
                     </div>
 
-                    {/* If you want to show parsing state here too (e.g., when re-uploading) */}
                     <LoadingOverlay show={steps.parse === 'loading'} label="Parsing your resume…" />
                   </div>
                 )}
 
-                {/* Nav buttons — stacked on mobile with spacing */}
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
                   <Button variant="outline" disabled className="w-full sm:w-auto">
                     <ChevronLeft className="h-4 w-4 mr-2" />
@@ -664,58 +719,39 @@ export default function UploadTailorWizardPage() {
                   </span>
                 </CardTitle>
                 <p className="text-muted-foreground text-xs sm:text-sm">
-                  Paste the JD text below. Upload/URL are coming soon.
+                  Paste the JD text, or use the Image (OCR) tab to extract from a screenshot.
                 </p>
               </CardHeader>
 
               <CardContent className="pt-0">
-                {/* Force Paste Text as the only active option for now */}
-                <Tabs value="text">
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
                   <TabsList className="w-full flex flex-wrap gap-2 justify-start">
-                    <TabsTrigger
-                      value="text"
-                      className="px-3 py-1.5 text-xs sm:text-sm data-[state=active]:font-medium"
-                    >
+                    <TabsTrigger value="text" className="px-3 py-1.5 text-xs sm:text-sm data-[state=active]:font-medium">
                       Paste Text
                     </TabsTrigger>
-
-                    <TabsTrigger
-                      value="upload"
-                      disabled
-                      className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed"
-                      title="Coming soon"
-                    >
+                    <TabsTrigger value="image" className="px-3 py-1.5 text-xs sm:text-sm">
+                      Image (OCR)
+                    </TabsTrigger>
+                    <TabsTrigger value="upload" disabled className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed" title="Coming soon">
                       Upload File
                     </TabsTrigger>
-
-                    <TabsTrigger
-                      value="url"
-                      disabled
-                      className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed"
-                      title="Coming soon"
-                    >
+                    <TabsTrigger value="url" disabled className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed" title="Coming soon">
                       URL
                     </TabsTrigger>
                   </TabsList>
 
+                  {/* TEXT TAB */}
                   <TabsContent value="text" className="space-y-4 pt-4">
-                    {/* Pro tip panel */}
                     <div className="rounded-lg border bg-muted/50 p-3 sm:p-4">
                       <div className="flex items-start gap-2 sm:gap-3">
                         <div className="mt-0.5 shrink-0">
                           <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                         </div>
                         <div className="text-xs sm:text-sm">
-                          <p className="font-medium">Pro tip</p>
+                          <p className="font-medium">Tip</p>
                           <p className="text-muted-foreground">
-                            If your JD is an <strong>image</strong>, <strong>PDF</strong>, or a <strong>web page</strong>,
-                            ask ChatGPT to <em>transcribe/extract the text</em> for you:
+                            If your JD is an <strong>image</strong> or <strong>PDF</strong>, try the Image (OCR) tab to auto-extract.
                           </p>
-                          <ul className="mt-2 list-disc pl-4 space-y-1 text-muted-foreground">
-                            <li>Upload the screenshot/PDF or paste the JD page content into ChatGPT.</li>
-                            <li>Say: <em>“Please extract the job description text for my resume tailoring.”</em></li>
-                            <li>Copy the extracted text and paste it here.</li>
-                          </ul>
                         </div>
                       </div>
                     </div>
@@ -725,7 +761,7 @@ export default function UploadTailorWizardPage() {
                         placeholder="Paste the job description here…"
                         value={jobDescription}
                         onChange={(e) => {
-                          if (jdBusy) return; // ignore input while busy
+                          if (jdBusy) return;
                           setJobDescription(e.target.value);
                           setJdProvided(!!e.target.value.trim());
                         }}
@@ -734,39 +770,88 @@ export default function UploadTailorWizardPage() {
                         aria-busy={jdBusy}
                         disabled={jdBusy}
                       />
-                      {/* Covers normalize + analyze (+ tailor for consistency) */}
+                      {/* Normalization now auto-runs inside Tailor; overlay shows progress for the whole pipeline */}
                       <LoadingOverlay show={jdBusy} label={jdLabel} />
                     </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{jobDescription.length} characters</span>
-
-                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        <Button
-                          onClick={cleanAndFlagJD}
-                          variant="secondary"
-                          size="sm"
-                          className="w-full sm:w-auto"
-                          disabled={!jobDescription.trim() || jdBusy}
-                        >
-                          <Loader2 className="h-4 w-4 mr-2" />
-                          Clean & Normalize
-                        </Button>
-
-                        <Button
-                          onClick={() => setStep(1)}
-                          variant="ghost"
-                          size="sm"
-                          className="w-full sm:w-auto"
-                          disabled={jdBusy}
-                        >
-                          Back to Resume
-                        </Button>
-                      </div>
+                      <Button
+                        onClick={() => setStep(1)}
+                        variant="ghost"
+                        size="sm"
+                        className="w-auto"
+                        disabled={jdBusy}
+                      >
+                        Back to Resume
+                      </Button>
                     </div>
                   </TabsContent>
 
-                  {/* Optional placeholders (won't be reachable due to disabled triggers) */}
+                  {/* IMAGE OCR TAB */}
+                  <TabsContent value="image" className="space-y-4 pt-4">
+                    {!imageOCRDone ? (
+                      <div className="border-2 border-dashed rounded-lg p-6 text-center relative">
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg,image/webp"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) ocrImageInBrowser(f);
+                          }}
+                          className="hidden"
+                          id="jd-image"
+                        />
+                        <label htmlFor="jd-image" className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded border">
+                          <Upload className="h-4 w-4" />
+                          Choose an image
+                        </label>
+
+                        {ocrBusy && (
+                          <div className="mt-4 text-sm flex items-center justify-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Recognizing text… {ocrProgress}%
+                          </div>
+                        )}
+
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Tip: Clear screenshots with good contrast work best.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg bg-green-50 dark:bg-green-950/20 p-4">
+                          <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full grid place-items-center shrink-0">
+                            <CheckCheck className="h-5 w-5 text-green-700" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{jdImageName || 'Image'}</p>
+                            <p className="text-xs text-muted-foreground">Text extraction successful</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setActiveTab('text')}
+                              className="w-full sm:w-auto"
+                            >
+                              View Text
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={resetOCR}
+                              className="w-full sm:w-auto"
+                            >
+                              Restart extraction
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* PLACEHOLDERS */}
                   <TabsContent value="upload" className="pt-4">
                     <div className="rounded-lg border bg-muted/50 p-6 text-center text-sm text-muted-foreground">
                       Upload from file is coming soon.
@@ -780,7 +865,7 @@ export default function UploadTailorWizardPage() {
                   </TabsContent>
                 </Tabs>
 
-                {/* Nav buttons — stacked on mobile, comfy spacing */}
+                {/* Nav buttons */}
                 <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
                   <Button
                     variant="outline"
@@ -797,8 +882,7 @@ export default function UploadTailorWizardPage() {
                     disabled={!resumeParsed || !jdProvided || steps.normalize === 'loading' || tailoringBusy}
                     aria-disabled={!resumeParsed || !jdProvided || steps.normalize === 'loading' || tailoringBusy}
                     data-busy={tailoringBusy ? 'true' : 'false'}
-                    className={`w-full sm:w-auto ${tailoringBusy ? 'opacity-60 pointer-events-none' : ''
-                      }`}
+                    className={`w-full sm:w-auto ${tailoringBusy ? 'opacity-60 pointer-events-none' : ''}`}
                   >
                     {tailoringBusy ? (
                       <>
@@ -818,16 +902,12 @@ export default function UploadTailorWizardPage() {
           </motion.div>
         )}
 
-
-
         {/* STEP 3 — Tailor & Preview */}
         {step === 3 && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="mt-6 overflow-hidden">
-              {/* sticky toolbar */}
               <div className="sticky top-0 z-10 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
                 <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5">
-                  {/* Left: title */}
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">Tailored Resume Preview</span>
                     {steps.tailor === "loading" && (
@@ -835,8 +915,6 @@ export default function UploadTailorWizardPage() {
                     )}
                   </div>
 
-                  {/* Right: actions — scrollable on mobile */}
-                  {/* Right: actions — scrollable on mobile */}
                   <div className="flex w-full gap-2 overflow-x-auto pb-1 no-scrollbar sm:w-auto sm:overflow-visible">
                     <Button
                       variant="outline"
@@ -853,7 +931,11 @@ export default function UploadTailorWizardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={copyMarkdown}
+                      onClick={async () => {
+                        if (!previewMarkdown) return;
+                        await navigator.clipboard.writeText(previewMarkdown);
+                        toast.success('Markdown copied 📋');
+                      }}
                       disabled={!previewMarkdown}
                       className="shrink-0"
                       aria-label="Copy Markdown"
@@ -875,9 +957,8 @@ export default function UploadTailorWizardPage() {
                       <span className="hidden sm:inline">Open in Editor</span>
                     </Button>
 
-                    {/* --- Split Download --- */}
+                    {/* Split Download */}
                     <div className="inline-flex items-stretch shrink-0">
-                      {/* Primary: downloads current format */}
                       <Button
                         size="sm"
                         onClick={handlePrimaryDownload}
@@ -892,13 +973,11 @@ export default function UploadTailorWizardPage() {
                           <Download className="h-4 w-4 sm:mr-2" />
                         )}
                         <span className="hidden sm:inline">Download</span>
-                        {/* Tiny always-visible format pill (visible on mobile too) */}
                         <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-foreground">
                           {downloadFmt.toUpperCase()}
                         </span>
                       </Button>
 
-                      {/* Caret: opens format picker (DOCX/PDF) */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -913,27 +992,21 @@ export default function UploadTailorWizardPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem
-                            onClick={() => setDownloadFmt('docx')}
-                            className="flex items-center gap-2"
-                          >
+                          <DropdownMenuItem onClick={() => setDownloadFmt('docx')} className="flex items-center gap-2">
                             <FileText className="h-4 w-4" />
                             <span>DOCX</span>
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setDownloadFmt('pdf')}
-                            className="flex items-center gap-2"
-                          >
+                          <DropdownMenuItem onClick={() => setDownloadFmt('pdf')} className="flex items-center gap-2">
                             <FileType2 className="h-4 w-4" />
                             <span>PDF</span>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    {/* --- /Split Download --- */}
                   </div>
                 </div>
               </div>
+
               <CardContent className="p-0">
                 {!previewMarkdown ? (
                   <div className="p-8 text-center text-muted-foreground">
@@ -946,7 +1019,7 @@ export default function UploadTailorWizardPage() {
               </CardContent>
             </Card>
 
-            {/* Changes Summary (not exported) */}
+            {/* Changes Summary */}
             {changesMarkdown && (
               <Card className="mt-6">
                 <CardHeader className="pb-2">
@@ -970,7 +1043,7 @@ export default function UploadTailorWizardPage() {
               </Card>
             )}
 
-            {/* Optional info accordion-ish cards */}
+            {/* ATS + Keywords */}
             {analysis && (
               <div className="mt-6 grid gap-6">
                 <Card>
@@ -1005,38 +1078,47 @@ export default function UploadTailorWizardPage() {
                   </CardContent>
                 </Card>
 
-                {keywordRows.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Target className="h-5 w-5" />
-                        Keyword Analysis
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {keywordRows.map((k, idx) => (
-                          <div
-                            key={`${k.word}-${idx}`}
-                            className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="flex items-center gap-2">
-                              {k.matched ? (
-                                <CheckCircle className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                              )}
-                              <span className="text-sm font-medium">{k.word}</span>
+                {(() => {
+                  const rows = (() => {
+                    if (!analysis) return [];
+                    const matched = analysis.matchedKeywords.map(w => ({ word: w, matched: true, frequency: 1 }));
+                    const missing = analysis.missingKeywords.map(w => ({ word: w, matched: false, frequency: 0 }));
+                    return [...matched, ...missing].slice(0, 12);
+                  })();
+                  if (!rows.length) return null;
+                  return (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Target className="h-5 w-5" />
+                          Keyword Analysis
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {rows.map((k, idx) => (
+                            <div
+                              key={`${k.word}-${idx}`}
+                              className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                            >
+                              <div className="flex items-center gap-2">
+                                {k.matched ? (
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                                )}
+                                <span className="text-sm font-medium">{k.word}</span>
+                              </div>
+                              <Badge variant={k.matched ? 'default' : 'secondary'}>
+                                {k.matched ? `1x` : 'Missing'}
+                              </Badge>
                             </div>
-                            <Badge variant={k.matched ? 'default' : 'secondary'}>
-                              {k.matched ? `${k.frequency}x` : 'Missing'}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
               </div>
             )}
 
@@ -1045,7 +1127,7 @@ export default function UploadTailorWizardPage() {
                 <ChevronLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
-              <Button variant="ghost" onClick={() => { setStep(1); setTailoredReady(false); }}>
+              <Button variant="ghost" onClick={() => { resetAll(); }}>
                 Start Over
               </Button>
             </div>
@@ -1055,3 +1137,4 @@ export default function UploadTailorWizardPage() {
     </div>
   );
 }
+

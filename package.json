@@ -71,6 +71,7 @@
     "pdf-parse": "^1.1.1",
     "pdf-ts": "^0.0.2",
     "pdfjs-dist": "^5.4.149",
+    "pesepay-js": "^1.0.13",
     "playwright": "^1.55.1",
     "playwright-core": "^1.55.1",
     "postcss": "8.4.30",

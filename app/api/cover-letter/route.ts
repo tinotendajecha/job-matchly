@@ -24,23 +24,26 @@ export async function POST(req: Request) {
     // 2) generate cover letter
     const llm = new ChatOpenAI({ model: "gpt-5-mini" });
     const out = await llm.invoke([
-      { role: "system", content:
-`Write a concise, professional cover letter (350–450 words).
+      {
+        role: "system", content:
+          `Write a concise, professional cover letter (350–450 words).
 - Confident, warm tone
 - 4–5 short paragraphs
 - Tie resume strengths to JD requirements
 - Include role & company if provided
 - No tables or images
 - End with a polite call to action` },
-      { role: "user", content:
-`ROLE: ${role}
+      {
+        role: "user", content:
+          `ROLE: ${role}
 COMPANY: ${company}
 
 JOB DESCRIPTION:
 """${String(jdText).slice(0, 9000)}"""
 
 RESUME:
-"""${String(resumeText).slice(0, 9000)}"""` },
+"""${String(resumeText).slice(0, 9000)}"""`
+      },
     ] as any);
 
     const markdown = String(out.content || "").trim();

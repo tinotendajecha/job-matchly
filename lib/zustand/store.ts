@@ -139,6 +139,7 @@ export const useTailorStore = create<Store>()(
           tailoredMarkdown: '',
           steps: { parse: 'idle', normalize: 'idle', analyze: 'idle', tailor: 'idle', export: 'idle' },
           downloadFmt: 'docx',
+          generatedCoverLetter: '',
         }),
     }),
     { name: 'tailor-wizard' }

@@ -118,6 +118,8 @@ async function apiTailor(payload: { resumeJson: any; resumeText: string; jdText:
   return res.json() as Promise<{ ok: boolean; tailoredMarkdown: string }>;
 }
 
+
+
 // ------------------- Component -------------------
 export default function UploadTailorWizardPage() {
   const router = useRouter();
@@ -140,6 +142,7 @@ export default function UploadTailorWizardPage() {
     steps, setStepStatus,
     downloadFmt, setDownloadFmt,
     resetOCR, resetAll,
+    generatedCoverLetter, setGeneratedCoverLetter
   } = useTailorStore();
 
   // transient (not persisted)
@@ -150,6 +153,59 @@ export default function UploadTailorWizardPage() {
   const [ocrLang] = useState<'eng'>('eng');
 
   const [tailoredReady, setTailoredReady] = useState(false)
+
+  // Cover letter
+  const [coverLoading, setCoverLoading] = useState(false);
+  const [coverDocId, setCoverDocId] = useState<string | null>(null);
+  const [coverTitle, setCoverTitle] = useState<string>('');
+  const [coverMarkdown, setCoverMarkdown] = useState<string>('');
+  const [coverLetterGenerated, setCoverLetterGenerated] = useState(false)
+
+  // Helpers for downloading cover letters
+  async function handleExportDocxForCoverLetter(coverLetterTitle: string, markdown: string) {
+    const res = await fetch('/api/export/docx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coverLetterTitle, markdown }),
+    });
+    if (!res.ok) throw new Error('Export failed');
+    return res.blob();
+  }
+
+  async function handleGenerateCoverLetter() {
+    if (!tailoredMarkdown || !resumeText || !jobDescription) {
+      toast.info("Generate your tailored resume first.");
+      return;
+    }
+    setCoverLoading(true);
+    try {
+      const r = await fetch("/api/cover-letter", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          resumeText: tailoredMarkdown,
+          jdText: jobDescription,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j?.ok)
+        throw new Error(j?.error || "Cover letter generation failed");
+      setCoverDocId(j.id);
+      setCoverTitle(j.title);
+      setCoverMarkdown(j.markdown);
+      setCoverLetterGenerated(true)
+
+      // Set to global store
+      setGeneratedCoverLetter(j.markdown)
+      console.log(j.markdown)
+
+      toast.success("Cover letter generated!");
+    } catch (e: any) {
+      toast.error(e?.message || "Could not generate cover letter");
+    } finally {
+      setCoverLoading(false);
+    }
+  }
 
   // refs
   const resumeInputRef = useRef<HTMLInputElement | null>(null);
@@ -806,145 +862,326 @@ export default function UploadTailorWizardPage() {
                 Start Over
               </Button>
             </div>
-            <Card className="mt-6 overflow-hidden">
-              <div className="sticky top-0 z-10 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-                <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">Tailored Resume Preview</span>
-                    {steps.tailor === "loading" && (
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
 
-                  <div className="flex w-full gap-2 overflow-x-auto pb-1 no-scrollbar sm:w-auto sm:overflow-visible">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setStep(2)}
-                      className="shrink-0"
-                      aria-label="Back to Job Description"
-                      title="Back to JD"
-                    >
-                      <ChevronLeft className="h-4 w-4 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Back to JD</span>
-                    </Button>
+            {/* --- TABS: Resume / Cover Letter --- */}
+            <Tabs defaultValue="resume" className="mt-6">
+              <TabsList className="flex gap-2 w-full justify-start ">
+                <TabsTrigger value="resume">Tailored Resume</TabsTrigger>
+                <TabsTrigger value="cover">Cover Letter</TabsTrigger>
+              </TabsList>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
-                        if (!previewMarkdown) return;
-                        await navigator.clipboard.writeText(previewMarkdown);
-                        toast.success('Markdown copied 📋');
-                      }}
-                      disabled={!previewMarkdown}
-                      className="shrink-0"
-                      aria-label="Copy Markdown"
-                      title="Copy Markdown"
-                    >
-                      <Clipboard className="h-4 w-4 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Copy Markdown</span>
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toast.info("Editor coming soon")}
-                      className="shrink-0"
-                      aria-label="Open in Editor (coming soon)"
-                      title="Open in Editor (coming soon)"
-                    >
-                      <FileEdit className="h-4 w-4 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Open in Editor</span>
-                    </Button>
-
-                    {/* Split Download */}
-                    <div className="inline-flex items-stretch shrink-0">
-                      <Button
-                        size="sm"
-                        onClick={handlePrimaryDownload}
-                        disabled={!tailoredMarkdown || isDownloading}
-                        className="rounded-r-none relative pr-10"
-                        aria-label={`Download ${downloadFmt.toUpperCase()}`}
-                        title={`Download ${downloadFmt.toUpperCase()}`}
-                      >
-                        {isDownloading ? (
-                          <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
-                        ) : (
-                          <Download className="h-4 w-4 sm:mr-2" />
+              {/* ---------------- Resume Tab (unchanged) ---------------- */}
+              <TabsContent value="resume">
+                <Card className="mt-6 overflow-hidden">
+                  <div className="sticky top-0 z-10 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+                    <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Tailored Resume Preview</span>
+                        {steps.tailor === "loading" && (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                         )}
-                        <span className="hidden sm:inline">Download</span>
-                        <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-foreground">
-                          {downloadFmt.toUpperCase()}
-                        </span>
-                      </Button>
+                      </div>
 
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                      <div className="flex w-full gap-2 overflow-x-auto pb-1 no-scrollbar sm:w-auto sm:overflow-visible">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setStep(2)}
+                          className="shrink-0"
+                          aria-label="Back to Job Description"
+                          title="Back to JD"
+                        >
+                          <ChevronLeft className="h-4 w-4 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Back to JD</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            if (!previewMarkdown) return;
+                            await navigator.clipboard.writeText(previewMarkdown);
+                            toast.success('Markdown copied 📋');
+                          }}
+                          disabled={!previewMarkdown}
+                          className="shrink-0"
+                          aria-label="Copy Markdown"
+                          title="Copy Markdown"
+                        >
+                          <Clipboard className="h-4 w-4 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Copy Markdown</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toast.info("Editor coming soon")}
+                          className="shrink-0"
+                          aria-label="Open in Editor (coming soon)"
+                          title="Open in Editor (coming soon)"
+                        >
+                          <FileEdit className="h-4 w-4 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Open in Editor</span>
+                        </Button>
+
+                        {/* Split Download (exact same markup as original) */}
+                        <div className="inline-flex items-stretch shrink-0">
                           <Button
-                            variant="outline"
                             size="sm"
-                            className="-ml-px rounded-l-none px-2"
-                            aria-label="Change download format"
-                            title="Change format"
+                            onClick={handlePrimaryDownload}
                             disabled={!tailoredMarkdown || isDownloading}
+                            className="rounded-r-none relative pr-10"
+                            aria-label={`Download ${downloadFmt.toUpperCase()}`}
+                            title={`Download ${downloadFmt.toUpperCase()}`}
                           >
-                            <ChevronDown className="h-4 w-4" />
+                            {isDownloading ? (
+                              <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+                            ) : (
+                              <Download className="h-4 w-4 sm:mr-2" />
+                            )}
+                            <span className="hidden sm:inline">Download</span>
+                            <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-foreground">
+                              {downloadFmt.toUpperCase()}
+                            </span>
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem onClick={() => setDownloadFmt('docx')} className="flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
-                            <span>DOCX</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDownloadFmt('pdf')} className="flex items-center gap-2">
-                            <FileType2 className="h-4 w-4" />
-                            <span>PDF</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="-ml-px rounded-l-none px-2"
+                                aria-label="Change download format"
+                                title="Change format"
+                                disabled={!tailoredMarkdown || isDownloading}
+                              >
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem onClick={() => setDownloadFmt('docx')} className="flex items-center gap-2">
+                                <FileText className="h-4 w-4" />
+                                <span>DOCX</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDownloadFmt('pdf')} className="flex items-center gap-2">
+                                <FileType2 className="h-4 w-4" />
+                                <span>PDF</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <CardContent className="p-0">
-                {!previewMarkdown ? (
-                  <div className="p-8 text-center text-muted-foreground">
-                    <Target className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                    Your tailored resume will appear here after generation.
-                  </div>
-                ) : (
-                  <MarkdownPreview value={previewMarkdown} />
+                  <CardContent className="p-0">
+                    {!previewMarkdown ? (
+                      <div className="p-8 text-center text-muted-foreground">
+                        <Target className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                        Your tailored resume will appear here after generation.
+                      </div>
+                    ) : (
+                      <MarkdownPreview value={previewMarkdown} />
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Changes Summary */}
+                {changesMarkdown && (
+                  <Card className="mt-6">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2">
+                        <ExternalLink className="h-5 w-5" />
+                        Changes Summary
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          ul: (p) => <ul className="list-disc pl-5 space-y-1.5" {...p} />,
+                          li: (p) => <li className="text-sm leading-6" {...p} />,
+                          p: (p) => <p className="text-sm leading-6" {...p} />,
+                        }}
+                      >
+                        {changesMarkdown}
+                      </ReactMarkdown>
+                    </CardContent>
+                  </Card>
                 )}
-              </CardContent>
-            </Card>
+              </TabsContent>
 
-            {/* Changes Summary */}
-            {changesMarkdown && (
-              <Card className="mt-6">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2">
-                    <ExternalLink className="h-5 w-5" />
-                    Changes Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      ul: (p) => <ul className="list-disc pl-5 space-y-1.5" {...p} />,
-                      li: (p) => <li className="text-sm leading-6" {...p} />,
-                      p: (p) => <p className="text-sm leading-6" {...p} />,
-                    }}
-                  >
-                    {changesMarkdown}
-                  </ReactMarkdown>
-                </CardContent>
-              </Card>
-            )}
+              {/* ---------------- Cover Letter Tab (keeps the download action-bar format identical) ---------------- */}
+              <TabsContent value="cover">
+                <Card className="mt-6 overflow-hidden">
+                  {/* NOTE: action-bar markup is IDENTICAL to resume's — only the title text below differs */}
+                  <div className="sticky top-0 z-10 border-b bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+                    <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Cover Letter Preview</span>
+                        {steps.tailor === "loading" && (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        )}
+                      </div>
 
-            {/* ATS + Keywords */}
+                      <div className="flex w-full gap-2 overflow-x-auto pb-1 no-scrollbar sm:w-auto sm:overflow-visible">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setStep(2)}
+                          className="shrink-0"
+                          aria-label="Back to Job Description"
+                          title="Back to JD"
+                        >
+                          <ChevronLeft className="h-4 w-4 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Back to JD</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            // For cover tab, copy cover text to clipboard if present; otherwise fallback to resume preview
+                            const textToCopy = generatedCoverLetter;
+                            if (!textToCopy) toast.info('Generate Cover Letter First!');
+                            await navigator.clipboard.writeText(textToCopy);
+                            toast.success('Markdown copied 📋');
+                          }}
+                          disabled={!generatedCoverLetter}
+                          className="shrink-0"
+                          aria-label="Copy Markdown"
+                          title="Copy Markdown"
+                        >
+                          <Clipboard className="h-4 w-4 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Copy Markdown</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toast.info("Editor coming soon")}
+                          className="shrink-0"
+                          aria-label="Open in Editor (coming soon)"
+                          title="Open in Editor (coming soon)"
+                        >
+                          <FileEdit className="h-4 w-4 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Open in Editor</span>
+                        </Button>
+
+                        {/* Split Download: VISUALLY IDENTICAL to resume's. Functionally: if coverDocId exists we export cover, else fallback to tailored resume export */}
+                        <div className="inline-flex items-stretch shrink-0">
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              // if user generated a cover (has docId), download that; otherwise fallback to tailored resume downloa
+                                try {
+                                  if (downloadFmt === 'docx') {
+                                    // Check if we have generated cover letter first
+                                    if (!generatedCoverLetter) toast.info('generate cover letter plz');
+                                    handleExportDocxForCoverLetter(coverTitle || 'Cover Letter', generatedCoverLetter)
+                                  } else {
+                                    toast.info('No support for pdf cover letter yet!')
+                                    // const r = await fetch(`/api/export/pdf?docId=${encodeURIComponent(coverDocId)}`);
+                                    // console.log(coverDocId)
+                                    // if (!r.ok) throw new Error('Export failed');
+                                    // const blob = await r.blob();
+                                    // const url = URL.createObjectURL(blob);
+                                    // const a = document.createElement('a'); a.href = url; a.download = `${coverTitle || "Cover Letter"}.pdf`; a.click(); URL.revokeObjectURL(url);
+                                  }
+                                  toast.success('Downloaded 📥');
+                                } catch (e: any) {
+                                  console.error(e);
+                                  toast.error('Download failed.');
+                                }
+                            }}
+                            disabled={(!coverMarkdown && !tailoredMarkdown) || isDownloading}
+                            className="rounded-r-none relative pr-10"
+                            aria-label={`Download ${downloadFmt.toUpperCase()}`}
+                            title={`Download ${downloadFmt.toUpperCase()}`}
+                          >
+                            {isDownloading ? (
+                              <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+                            ) : (
+                              <Download className="h-4 w-4 sm:mr-2" />
+                            )}
+                            <span className="hidden sm:inline">Download</span>
+                            <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-foreground">
+                              {downloadFmt.toUpperCase()}
+                            </span>
+                          </Button>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="-ml-px rounded-l-none px-2"
+                                aria-label="Change download format"
+                                title="Change format"
+                                disabled={(!coverMarkdown && !tailoredMarkdown) || isDownloading}
+                              >
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem onClick={() => setDownloadFmt('docx')} className="flex items-center gap-2">
+                                <FileText className="h-4 w-4" />
+                                <span>DOCX</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDownloadFmt('pdf')} className="flex items-center gap-2">
+                                <FileType2 className="h-4 w-4" />
+                                <span>PDF</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <CardContent className="space-y-3">
+                    {
+                      !generatedCoverLetter ? (
+                        <p className="text-sm text-muted-foreground text-center mt-4">
+                          Create a cover letter matched to this job. <span className="font-semibold">Costs 1 credit.</span>
+                        </p>
+                      ) : null
+                    }
+
+                    <div className="flex gap-2 flex-wrap justify-center">
+                      {!generatedCoverLetter ? (
+                        <Button
+                          onClick={handleGenerateCoverLetter}
+                          disabled={coverLoading || !tailoredMarkdown}
+                          className='mt-4'
+                        >
+                          <>Generate Cover Letter</>
+                        </Button>
+                      ) : null}
+
+                    </div>
+
+                    {coverLoading ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        <Loader2 className="inline h-4 w-4 animate-spin mr-2" />
+                        Generating cover letter…
+                      </div>
+                    ) : generatedCoverLetter ? (
+                      <pre className="whitespace-pre-wrap text-sm leading-6 border rounded p-4 bg-muted mt-3">
+                        {generatedCoverLetter}
+                      </pre>
+                    ) : (
+                      <div className="p-4 text-center text-muted-foreground">
+                        Your generated cover letter will appear here after you click
+                        <span className="font-semibold"> Generate Cover Letter</span>.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+
+            {/* ATS + Keywords (unchanged, stays below tabs) */}
             {analysis && (
               <div className="mt-6 grid gap-6">
                 <Card>
@@ -979,6 +1216,7 @@ export default function UploadTailorWizardPage() {
                   </CardContent>
                 </Card>
 
+                {/* Keyword analysis card(s) unchanged */}
                 {(() => {
                   const rows = (() => {
                     if (!analysis) return [];
@@ -1022,8 +1260,6 @@ export default function UploadTailorWizardPage() {
                 })()}
               </div>
             )}
-
-
           </motion.div>
         )}
       </div>

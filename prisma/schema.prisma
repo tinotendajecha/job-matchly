@@ -23,14 +23,14 @@ enum PaymentStatus {
 }
 
 model User {
-  id                  String   @id @default(cuid())
-  name                String?
-  email               String?  @unique
-  passwordHash        String?
-  emailVerified       DateTime?
-  image               String?
-  credits             Int      @default(0)
-  onboardingComplete  Boolean  @default(false)
+  id                 String    @id @default(cuid())
+  name               String?
+  email              String?   @unique
+  passwordHash       String?
+  emailVerified      DateTime?
+  image              String?
+  credits            Int       @default(0)
+  onboardingComplete Boolean   @default(false)
   // Added new changes
 
   // relations
@@ -40,45 +40,46 @@ model User {
   verifications EmailVerification[]
   resets        PasswordReset[]
   oauthAccounts OAuthAccount[]
-  profile       Profile?  // 👈 1–1 profile
+  profile       Profile? // 👈 1–1 profile
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Ledger    Ledger[]
 }
 
 model Profile {
-  id               String  @id @default(cuid())
-  userId           String  @unique
+  id              String   @id @default(cuid())
+  userId          String   @unique
   // basics
-  headline         String?      // e.g., "Software Developer"
-  location         String?
-  phone            String?
-  website          String?
-  linkedInUrl      String?
+  headline        String? // e.g., "Software Developer"
+  location        String?
+  phone           String?
+  website         String?
+  linkedInUrl     String?
   // education
-  school           String?
-  degree           String?
-  graduationYear   String?
+  school          String?
+  degree          String?
+  graduationYear  String?
   // skills & prefs
-  skills           Json?        // string[]
-  targetRoles      String?
-  targetLocations  String?
-  jobType          String?      // "Full-time" | "Part-time" | ...
+  skills          Json? // string[]
+  targetRoles     String?
+  targetLocations String?
+  jobType         String? // "Full-time" | "Part-time" | ...
   // metadata
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  user             User    @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Session {
   id        String   @id @default(cuid())
   userId    String
-  token     String   @unique             // opaque session token
+  token     String   @unique // opaque session token
   expires   DateTime
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([expires])
@@ -89,38 +90,41 @@ model Document {
   userId     String
   kind       DocumentKind
   title      String       @default("")
-  markdown   String                       // full content
-  sections   Json                         // parsed sections for editor/preview
-  sourceMeta Json?                        // snapshot of jd/resume/env
+  markdown   String // full content
+  sections   Json // parsed sections for editor/preview
+  sourceMeta Json? // snapshot of jd/resume/env
 
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user       User         @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
   @@index([userId, kind, createdAt])
 }
 
 model Purchase {
-  id           String        @id @default(cuid())
-  userId       String
-  provider     String        @default("PESEPAY") // keep simple, future providers optional
-  amount       Int                           // minor units (e.g., cents)
-  currency     String        @default("USD")
-  credits      Int                           // how many credits this purchase grants
-  status       PaymentStatus @default(PENDING)
-  providerRef  String?       @unique         // e.g., pesepay reference/transaction id
-  meta         Json?                         // raw payloads / fields from provider
+  id          String        @id @default(cuid())
+  userId      String
+  provider    String        @default("PESEPAY") // keep simple, future providers optional
+  amount      Int // minor units (e.g., cents)
+  currency    String        @default("USD")
+  credits     Int // how many credits this purchase grants
+  status      PaymentStatus @default(PENDING)
+  providerRef String?       @unique // e.g., pesepay reference/transaction id
+  meta        Json? // raw payloads / fields from provider
 
-  createdAt    DateTime      @default(now())
-  user         User          @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId, createdAt])
   @@index([status])
 }
 
-/** Email verification flow (code-based or link-based) **/
+/**
+ * Email verification flow (code-based or link-based) *
+ */
 model EmailVerification {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
   email      String
   // Either store a 6-digit code (hashed) or a random token (hashed). We’ll use codeHash for MVP.
@@ -128,38 +132,55 @@ model EmailVerification {
   expiresAt  DateTime
   consumedAt DateTime?
 
-  user       User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId, expiresAt])
   @@index([email])
 }
 
-/** Password reset via token (optional but handy) **/
+/**
+ * Password reset via token (optional but handy) *
+ */
 model PasswordReset {
-  id         String   @id @default(cuid())
-  userId     String
-  tokenHash  String
-  expiresAt  DateTime
-  usedAt     DateTime?
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
 
-  user       User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId, expiresAt])
 }
 
-/** Optional future: OAuth accounts (keeps door open for Google later) **/
+/**
+ * Optional future: OAuth accounts (keeps door open for Google later) *
+ */
 model OAuthAccount {
-  id                String  @id @default(cuid())
+  id                String @id @default(cuid())
   userId            String
   provider          String
   providerAccountId String
 
-  accessToken       String?
-  refreshToken      String?
-  expiresAt         Int?
+  accessToken  String?
+  refreshToken String?
+  expiresAt    Int?
 
-  user              User    @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([provider, providerAccountId])
   @@index([userId])
+}
+
+// prisma/schema.prisma
+model Ledger {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // e.g., "COVER_LETTER_GENERATED"
+  credits   Int // negative for spend, positive for refund/grant
+  meta      Json?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
 }

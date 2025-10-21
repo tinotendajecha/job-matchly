@@ -16,3 +16,12 @@ export async function spendCredits(userId: string, amount = 1) {
     });
   });
 }
+
+// lib/credits.ts (add a refund helper)
+export async function refundCredits(userId: string, amount: number) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { credits: { increment: amount } },
+  });
+}
+

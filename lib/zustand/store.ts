@@ -52,6 +52,10 @@ type Store = {
   tailoredMarkdown: string;
   setTailoredMarkdown: (s: string) => void;
 
+  // Cover Letter
+  generatedCoverLetter: string;
+  setGeneratedCoverLetter: (s: string) => void;
+
   // pipeline badges
   steps: Record<'parse' | 'normalize' | 'analyze' | 'tailor' | 'export', StepStatus>;
   setStepStatus: (k: keyof Store['steps'], v: StepStatus) => void;
@@ -98,6 +102,10 @@ export const useTailorStore = create<Store>()(
       setAtsScore: (n) => set({ atsScore: n }),
       tailoredMarkdown: '',
       setTailoredMarkdown: (s) => set({ tailoredMarkdown: s }),
+
+      // For Cover Letter
+      generatedCoverLetter: '',
+      setGeneratedCoverLetter: (s) => set({ generatedCoverLetter: s}),
 
       steps: { parse: 'idle', normalize: 'idle', analyze: 'idle', tailor: 'idle', export: 'idle' },
       setStepStatus: (k, v) => set({ steps: { ...get().steps, [k]: v } }),

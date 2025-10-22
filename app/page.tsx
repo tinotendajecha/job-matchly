@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { cubicBezier } from "framer-motion";
 import { 
   FileText, 
   Target, 
@@ -50,7 +51,7 @@ const floatAnimation = {
     transition: {
       duration: 6,
       repeat: Infinity,
-      ease: [0.4, 0, 0.6, 1]
+      ease: cubicBezier(0.4, 0, 0.6, 1)
     }
   }
 };
@@ -214,14 +215,14 @@ export default function LandingPage() {
         <motion.div
           animate={{
             y: [-15, 15, -15],
-            transition: { duration: 8, repeat: Infinity, ease: [0.4, 0, 0.6, 1] }
+            transition: { duration: 8, repeat: Infinity, ease: cubicBezier(0.4, 0, 0.6, 1) }
           }}
           className="absolute top-40 right-20 w-16 h-16 bg-primary/20 rounded-full blur-lg"
         />
         <motion.div
           animate={{
             y: [-20, 20, -20],
-            transition: { duration: 10, repeat: Infinity, ease: [0.4, 0, 0.6, 1] }
+            transition: { duration: 10, repeat: Infinity, ease: cubicBezier(0.4, 0, 0.6, 1) }
           }}
           className="absolute bottom-20 left-1/4 w-12 h-12 bg-primary/15 rounded-full blur-md"
         />
@@ -332,7 +333,7 @@ export default function LandingPage() {
                   <CardContent className="p-6">
                     <h3 className="font-semibold mb-4 text-left">Job Description</h3>
                     <div className="text-sm text-left space-y-2 text-muted-foreground">
-                      <p>We're looking for a <motion.span 
+                      <p>We&apos;re looking for a <motion.span 
                         className="bg-primary/20 px-1 rounded"
                         animate={{ opacity: [1, 0.7, 1] }}
                         transition={{ duration: 2, repeat: Infinity, delay: 0 }}
@@ -451,7 +452,7 @@ export default function LandingPage() {
           >
             <h2 className="text-3xl md:text-4xl font-bold mb-4">The Problem</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Job applications shouldn't feel like throwing resumes into a void
+              Job applications shouldn&apos;t feel like throwing resumes into a void
             </p>
           </motion.div>
 
@@ -668,7 +669,7 @@ export default function LandingPage() {
           >
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Success Stories</h2>
             <p className="text-xl text-muted-foreground">
-              Join thousands who've landed their dream jobs
+              Join thousands who&apos;ve landed their dream jobs
             </p>
           </motion.div>
 
@@ -848,7 +849,7 @@ export default function LandingPage() {
               Ready to land your next role?
             </h2>
             <p className="text-xl text-muted-foreground mb-8">
-              Join thousands of job seekers who've transformed their applications with JobMatchly
+              Join thousands of job seekers who&apos;ve transformed their applications with JobMatchly
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 

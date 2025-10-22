@@ -37,7 +37,7 @@ const plans: Plan[] = [
     description: 'Perfect for trying out JobMatchly',
     price: '$0',
     period: 'forever',
-    credits: '3 credits/month',
+    credits: '3 credits',
     features: [
       '1 resume build',
       'Basic templates access',
@@ -55,44 +55,40 @@ const plans: Plan[] = [
     color: 'gray'
   },
   {
-    name: 'Starter',
-    description: 'For active job seekers',
-    price: '$5',
-    period: 'month',
-    credits: '10 credits/month',
+    name: 'Pay-as-you-go',
+    description: 'Buy credits as you need them',
+    price: 'From $0.34',
+    period: 'per credit',
+    credits: 'Buy as needed',
     features: [
-      'Up to 5 resume builds',
-      'All premium templates',
-      'JD tailoring with keyword highlighting',
+      'Everything in Free',
       'Cover letter generation',
-      'Advanced ATS scoring',
-      'Priority email support',
-      'Version history'
+      'Advanced ATS insights',
+      'Priority support',
+      'Flexible usage',
+      'No monthly commitment'
     ],
     limitations: [],
-    cta: 'Start Free Trial',
+    cta: 'Buy Credits',
     popular: true,
     color: 'primary'
   },
   {
-    name: 'Pro',
-    description: 'For power users and professionals',
-    price: '$10',
-    period: 'month',
-    credits: '25 credits/month',
+    name: 'Enterprise',
+    description: 'For teams and organizations',
+    price: 'Custom',
+    period: 'contact us',
+    credits: 'Unlimited',
     features: [
-      'Unlimited resume builds',
-      'All templates + early access',
-      'Advanced AI suggestions',
-      'Bulk JD tailoring',
-      'LinkedIn profile optimization',
-      'Interview prep materials',
-      'Priority chat support',
-      'Team collaboration (up to 3 members)',
-      'Advanced analytics'
+      'Everything included',
+      'Custom integrations',
+      'Dedicated support',
+      'Team management',
+      'Advanced analytics',
+      'White-label options'
     ],
     limitations: [],
-    cta: 'Start Free Trial',
+    cta: 'Contact Sales',
     popular: false,
     color: 'purple'
   }

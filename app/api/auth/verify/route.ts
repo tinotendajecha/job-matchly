@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     }
 
     // Atomic: mark verified + grant credits (+3) + consume code + audit purchase
-    const BONUS = 2;
+    const BONUS = 3;
     await prisma.$transaction(async (tx) => {
       // guard against race: recheck inside the transaction
       const fresh = await tx.user.findUnique({ where: { id: user.id }, select: { emailVerified: true } });

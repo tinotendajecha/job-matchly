@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -59,24 +60,10 @@ export function Header({ isPublic = false }: HeaderProps) {
   // get resetAll from store
   const resetAll = useTailorStore((s) => s.resetAll);
 
-  // ---- Dark/Light toggle (no system) ----
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  useEffect(() => {
-    const saved = (typeof window !== 'undefined' && localStorage.getItem('jm_theme')) as
-      | 'light'
-      | 'dark'
-      | null;
-    const initial = saved === 'dark' ? 'dark' : 'light';
-    setTheme(initial);
-    document.documentElement.classList.toggle('dark', initial === 'dark');
-  }, []);
+  // ---- Dark/Light toggle using next-themes ----
+  const { theme, setTheme } = useTheme();
   const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    try {
-      localStorage.setItem('jm_theme', next);
-    } catch {}
-    document.documentElement.classList.toggle('dark', next === 'dark');
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   // ---- Load / refresh current user (credits, etc) ----
@@ -138,7 +125,7 @@ export function Header({ isPublic = false }: HeaderProps) {
       animate={{ y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="container flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4">
+      <div className="container flex h-16 items-center justify-between px-4 mx-auto max-w-7xl">
         {/* Brand */}
         <Link
           href={isAuthed ? '/app/dashboard' : '/'}

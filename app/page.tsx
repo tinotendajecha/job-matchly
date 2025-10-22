@@ -120,13 +120,13 @@ const painPoints = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <Header isPublic={true} />
       
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 md:py-28">
+      <section className="relative overflow-hidden py-12 md:py-20">
         <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-muted/20" />
-        <div className="container relative px-4">
+        <div className="container relative px-4 mx-auto max-w-7xl">
           <div className="mx-auto max-w-4xl text-center">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -276,7 +276,7 @@ export default function LandingPage() {
 
       {/* Trust Strip */}
       <section className="py-12 border-y bg-muted/30">
-        <div className="container px-4">
+        <div className="container px-4 mx-auto max-w-7xl">
           <motion.div 
             className="text-center mb-8"
             {...fadeInUp}
@@ -299,7 +299,7 @@ export default function LandingPage() {
 
       {/* Pain Points */}
       <section className="py-20">
-        <div className="container px-4">
+        <div className="container px-4 mx-auto max-w-7xl">
           <motion.div 
             className="text-center mb-16"
             {...fadeInUp}
@@ -335,7 +335,7 @@ export default function LandingPage() {
 
       {/* Solution */}
       <section className="py-20 bg-muted/30">
-        <div className="container px-4">
+        <div className="container px-4 mx-auto max-w-7xl">
           <motion.div 
             className="text-center mb-16"
             {...fadeInUp}
@@ -425,7 +425,7 @@ export default function LandingPage() {
 
       {/* Features Grid */}
       <section className="py-20">
-        <div className="container px-4">
+        <div className="container px-4 mx-auto max-w-7xl">
           <motion.div 
             className="text-center mb-16"
             {...fadeInUp}
@@ -461,7 +461,7 @@ export default function LandingPage() {
 
       {/* Template Preview */}
       <section className="py-20 bg-muted/30">
-        <div className="container px-4">
+        <div className="container px-4 mx-auto max-w-7xl">
           <motion.div 
             className="text-center mb-16"
             {...fadeInUp}
@@ -508,7 +508,7 @@ export default function LandingPage() {
 
       {/* Testimonials */}
       <section className="py-20">
-        <div className="container px-4">
+        <div className="container px-4 mx-auto max-w-7xl">
           <motion.div 
             className="text-center mb-16"
             {...fadeInUp}
@@ -561,7 +561,7 @@ export default function LandingPage() {
 
       {/* Pricing Teaser */}
       <section className="py-20 bg-muted/30">
-        <div className="container px-4">
+        <div className="container px-4 mx-auto max-w-7xl">
           <motion.div 
             className="text-center mb-16"
             {...fadeInUp}

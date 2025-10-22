@@ -23,8 +23,9 @@ export default function RootLayout({
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
-          enableSystem
+          enableSystem={false}
           disableTransitionOnChange={false}
+          storageKey="jm_theme"
         >
           {children}
           <ToastContainer

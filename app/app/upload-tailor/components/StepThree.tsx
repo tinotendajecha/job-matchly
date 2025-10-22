@@ -26,7 +26,7 @@ import {
   FileType2
 } from 'lucide-react';
 import { MarkdownPreview, splitChanges } from '../helpers/utils';
-import { apiExportPdf, apiExportDocx, handleExportDocxForCoverLetter } from '../helpers/api';
+import { downloadDocument } from '../helpers/api';
 import type { Analysis, StepStatus } from '../types';
 
 interface StepThreeProps {
@@ -68,54 +68,65 @@ export const StepThree = ({
 
   const { body: previewMarkdown, changes: changesMarkdown } = splitChanges(tailoredMarkdown);
 
-  const handleExportPdf = async () => {
+  // Generate filename for resume downloads
+  const getResumeFilename = () => {
+    // Extract name from resume if available, otherwise use generic name
+    const nameMatch = tailoredMarkdown.match(/^#\s+(.+)$/m);
+    const name = nameMatch ? nameMatch[1].trim() : 'Resume';
+    return name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim();
+  };
+
+  // Generate filename for cover letter downloads
+  const getCoverLetterFilename = () => {
+    // Use the cover title if available, otherwise generate from content
+    if (coverTitle) {
+      return coverTitle.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim();
+    }
+    
+    // Fallback: try to extract name from cover letter content
+    const nameMatch = generatedCoverLetter.match(/^Dear\s+(.+),/m);
+    if (nameMatch) {
+      return `Cover Letter - ${nameMatch[1].trim()}`;
+    }
+    
+    return 'Cover Letter';
+  };
+
+  const handleResumeDownload = async () => {
     if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
+    
     try {
-      setDownloadingPdf(true);
-      const blob = await apiExportPdf(tailoredMarkdown);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'resume.pdf';
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('PDF downloaded 📥');
+      const filename = getResumeFilename();
+      await downloadDocument(
+        tailoredMarkdown, 
+        downloadFmt, 
+        filename,
+        downloadFmt === 'pdf' ? setDownloadingPdf : setDownloading
+      );
+      toast.success(`${downloadFmt.toUpperCase()} downloaded 📥`);
     } catch (err: any) {
       console.error(err);
       toast.error('Download failed.');
-    } finally {
-      setDownloadingPdf(false);
     }
   };
 
-  const handleExportDocx = async () => {
-    if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
+  const handleCoverLetterDownload = async () => {
+    if (!generatedCoverLetter) return toast.error('Generate cover letter first');
+    
     try {
-      setDownloading(true);
-      const blob = await apiExportDocx(tailoredMarkdown);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'resume.docx';
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('DOCX downloaded 📥');
+      const filename = getCoverLetterFilename();
+      await downloadDocument(
+        generatedCoverLetter, 
+        downloadFmt, 
+        filename,
+        downloadFmt === 'pdf' ? setDownloadingPdf : setDownloading
+      );
+      toast.success(`${downloadFmt.toUpperCase()} downloaded 📥`);
     } catch (err: any) {
       console.error(err);
       toast.error('Download failed.');
-    } finally {
-      setDownloading(false);
     }
   };
-
-  async function handlePrimaryDownload() {
-    if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
-    if (downloadFmt === 'docx') {
-      await handleExportDocx();
-    } else {
-      await handleExportPdf();
-    }
-  }
 
   const copyMarkdown = async () => {
     if (!previewMarkdown) return;
@@ -206,7 +217,7 @@ export const StepThree = ({
                   <div className="inline-flex items-stretch shrink-0">
                     <Button
                       size="sm"
-                      onClick={handlePrimaryDownload}
+                      onClick={handleResumeDownload}
                       disabled={!tailoredMarkdown || isDownloading}
                       className="rounded-r-none relative pr-10"
                       aria-label={`Download ${downloadFmt.toUpperCase()}`}
@@ -348,20 +359,7 @@ export const StepThree = ({
                   <div className="inline-flex items-stretch shrink-0">
                     <Button
                       size="sm"
-                      onClick={async () => {
-                        try {
-                          if (downloadFmt === 'docx') {
-                            if (!generatedCoverLetter) toast.info('generate cover letter plz');
-                            await handleExportDocxForCoverLetter(coverTitle || 'Cover Letter', generatedCoverLetter);
-                          } else {
-                            toast.info('No support for pdf cover letter yet!')
-                          }
-                          toast.success('Downloaded 📥');
-                        } catch (e: any) {
-                          console.error(e);
-                          toast.error('Download failed.');
-                        }
-                      }}
+                      onClick={handleCoverLetterDownload}
                       disabled={(!coverMarkdown && !tailoredMarkdown) || isDownloading}
                       className="rounded-r-none relative pr-10"
                       aria-label={`Download ${downloadFmt.toUpperCase()}`}

@@ -108,7 +108,75 @@ export const StepTwo = ({
       onJdImageNameChange(file.name);
       toast.success('Extracted text from image 🪄');
 
+      // Automatically proceed to tailoring after successful OCR
       onActiveTabChange('text'); // go back to text with filled JD
+      
+      // Start the tailoring process automatically with the extracted text
+      setTimeout(async () => {
+        try {
+          // Use the extracted and normalized text directly
+          const finalJD = jdText || raw;
+          
+          if (resumeParsed && finalJD.trim()) {
+            // Start the analysis and tailoring process directly
+            onSetStepStatus('normalize', 'loading');
+            onSetStepStatus('normalize', 'done');
+            
+            // Analyze
+            onSetStepStatus('analyze', 'loading');
+            const analysisRes = await apiAnalyze(resumeText, finalJD);
+            onAnalysisComplete(analysisRes);
+            onSetStepStatus('analyze', 'done');
+
+            // Score animation
+            const targetScore = Math.max(0, Math.min(100, analysisRes.llmFitScore ?? 75));
+            let s = 0;
+            const timer = setInterval(() => {
+              s = Math.min(targetScore, s + 2);
+              onAtsScoreChange(s);
+              if (s >= targetScore) clearInterval(timer);
+            }, 22);
+
+            // Tailor
+            onSetStepStatus('tailor', 'loading');
+            
+            // Extract company and role from job description for better document naming
+            let company = '';
+            let role = '';
+            try {
+              const companyMatch = finalJD.match(/\b(?:at|for|with)\s+([A-Z][A-Za-z\s&.,]{1,30}?)(?:\s|$|,|\.)/);
+              if (companyMatch) {
+                company = companyMatch[1].trim();
+              }
+              
+              const roleMatch = finalJD.match(/\b(?:position|role|job|opening)\s*:?\s*([A-Za-z\s]{3,30}?)(?:\s|$|,|\.)/i);
+              if (roleMatch) {
+                role = roleMatch[1].trim();
+              }
+            } catch (e) {
+              console.log('Company/role extraction failed:', e);
+            }
+            
+            const tailored = await apiTailor({ 
+              resumeJson, 
+              resumeText, 
+              jdText: finalJD,
+              company: company || undefined,
+              role: role || undefined
+            });
+            onTailoredMarkdownChange(tailored.tailoredMarkdown || '');
+            onSetStepStatus('tailor', 'done');
+            toast.success('Tailored and ready! ✨');
+            onStepChange(3);
+          } else {
+            console.log('Missing required data for auto-tailoring');
+          }
+        } catch (e: any) {
+          console.error('Auto-tailoring failed:', e);
+          toast.error('Auto-tailoring failed. Please try the manual process.');
+        }
+      }, 1000);
+      
     } catch (e: any) {
       console.error(e);
       toast.error(e.message || 'OCR failed. Try a clearer image.');
@@ -150,7 +218,34 @@ export const StepTwo = ({
 
       // 3) tailor
       onSetStepStatus('tailor', 'loading');
-      const tailored = await apiTailor({ resumeJson, resumeText, jdText: finalJD });
+      
+      // Extract company and role from job description for better document naming
+      let company = '';
+      let role = '';
+      try {
+        // Look for company patterns in the job description
+        const companyMatch = finalJD.match(/\b(?:at|for|with)\s+([A-Z][A-Za-z\s&.,]{1,30}?)(?:\s|$|,|\.)/);
+        if (companyMatch) {
+          company = companyMatch[1].trim();
+        }
+        
+        // Look for role patterns
+        const roleMatch = finalJD.match(/\b(?:position|role|job|opening)\s*:?\s*([A-Za-z\s]{3,30}?)(?:\s|$|,|\.)/i);
+        if (roleMatch) {
+          role = roleMatch[1].trim();
+        }
+      } catch (e) {
+        // Fallback if extraction fails
+        console.log('Company/role extraction failed:', e);
+      }
+      
+      const tailored = await apiTailor({ 
+        resumeJson, 
+        resumeText, 
+        jdText: finalJD,
+        company: company || undefined,
+        role: role || undefined
+      });
       onTailoredMarkdownChange(tailored.tailoredMarkdown || '');
       onSetStepStatus('tailor', 'done');
       toast.success('Tailored and ready! ✨');

@@ -98,12 +98,12 @@ export async function apiAnalyze(resumeText: string, jdText: string) {
   return res.json() as Promise<Analysis>;
 }
 
-export async function apiTailor(payload: { resumeJson: any; resumeText: string; jdText: string }) {
+export async function apiTailor(payload: { resumeJson: any; resumeText: string; jdText: string; company?: string; role?: string }) {
   const res = await fetch('/api/tailor', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error((await res.json()).error || 'Tailor failed');
-  return res.json() as Promise<{ ok: boolean; tailoredMarkdown: string }>;
+  return res.json() as Promise<{ ok: boolean; tailoredMarkdown: string; documentId?: string; title?: string }>;
 }

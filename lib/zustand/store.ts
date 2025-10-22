@@ -55,6 +55,8 @@ type Store = {
   // Cover Letter
   generatedCoverLetter: string;
   setGeneratedCoverLetter: (s: string) => void;
+  generatedCoverTitle: string;
+  setGeneratedCoverTitle: (s: string) => void;
 
   // pipeline badges
   steps: Record<'parse' | 'normalize' | 'analyze' | 'tailor' | 'export', StepStatus>;
@@ -107,6 +109,9 @@ export const useTailorStore = create<Store>()(
       generatedCoverLetter: '',
       setGeneratedCoverLetter: (s) => set({ generatedCoverLetter: s}),
 
+      generatedCoverTitle: '',
+      setGeneratedCoverTitle: (s) => set({ generatedCoverTitle: s}),
+
       steps: { parse: 'idle', normalize: 'idle', analyze: 'idle', tailor: 'idle', export: 'idle' },
       setStepStatus: (k, v) => set({ steps: { ...get().steps, [k]: v } }),
 
@@ -140,6 +145,7 @@ export const useTailorStore = create<Store>()(
           steps: { parse: 'idle', normalize: 'idle', analyze: 'idle', tailor: 'idle', export: 'idle' },
           downloadFmt: 'docx',
           generatedCoverLetter: '',
+          generatedCoverTitle: ''
         }),
     }),
     { name: 'tailor-wizard' }

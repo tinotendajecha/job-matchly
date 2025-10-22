@@ -34,14 +34,14 @@ interface StepThreeProps {
   generatedCoverLetter: string;
   analysis: Analysis | null;
   atsScore: number;
-  downloadFmt: string;
+  downloadFmt: 'docx' | 'pdf';
   steps: {
     tailor: StepStatus;
     export: StepStatus;
   };
   onStepChange: (step: number) => void;
   onResetAll: () => void;
-  onDownloadFmtChange: (fmt: string) => void;
+  onDownloadFmtChange: (fmt: 'docx' | 'pdf') => void;
   onGenerateCoverLetter: () => void;
   coverLoading: boolean;
   coverTitle: string;
@@ -70,26 +70,56 @@ export const StepThree = ({
 
   // Generate filename for resume downloads
   const getResumeFilename = () => {
-    // Extract name from resume if available, otherwise use generic name
+    // Try to extract name from resume content
     const nameMatch = tailoredMarkdown.match(/^#\s+(.+)$/m);
-    const name = nameMatch ? nameMatch[1].trim() : 'Resume';
-    return name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim();
+    const name = nameMatch ? nameMatch[1].trim() : 'User';
+    
+    // Try to extract company from the summary section which should contain company info
+    let company = 'Company';
+    
+    // Look for company in the Professional Summary section
+    const summaryMatch = tailoredMarkdown.match(/##\s*Professional\s+Summary\s*\n([\s\S]*?)(?=\n##|$)/i);
+    if (summaryMatch) {
+      const summaryText = summaryMatch[1];
+      // Look for company patterns in summary
+      const companyPatterns = [
+        /\b(?:at|for|with)\s+([A-Z][A-Za-z\s&.,]{1,20}?)(?:\s|$|,|\.)/,
+        /\b([A-Z][A-Za-z\s&.,]{1,20}?)\s+(?:Inc|LLC|Corp|Company|Ltd|Limited|Technologies|Systems|Solutions)/,
+        /\b([A-Z][A-Za-z\s&.,]{1,20}?)\s+(?:as|for)\s+(?:a|the)\s+/
+      ];
+      
+      for (const pattern of companyPatterns) {
+        const match = summaryText.match(pattern);
+        if (match) {
+          company = match[1].trim();
+          break;
+        }
+      }
+    }
+    
+    // Clean up company name - limit length and remove extra words
+    company = company.replace(/[^a-zA-Z0-9\s&.,-]/g, '').replace(/\s+/g, ' ').trim();
+    if (company.length > 15) {
+      company = company.split(' ').slice(0, 2).join(' ');
+    }
+    
+    return `${name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_')}_RESUME_FOR_${company.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_')}`;
   };
 
   // Generate filename for cover letter downloads
   const getCoverLetterFilename = () => {
     // Use the cover title if available, otherwise generate from content
     if (coverTitle) {
-      return coverTitle.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim();
+      return coverTitle.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_').trim();
     }
     
     // Fallback: try to extract name from cover letter content
     const nameMatch = generatedCoverLetter.match(/^Dear\s+(.+),/m);
     if (nameMatch) {
-      return `Cover Letter - ${nameMatch[1].trim()}`;
+      return `Cover_Letter_For_${nameMatch[1].trim().replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_')}`;
     }
     
-    return 'Cover Letter';
+    return 'Cover_Letter_For_User';
   };
 
   const handleResumeDownload = async () => {

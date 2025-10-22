@@ -122,17 +122,21 @@ function mdToHtml(md: string) {
 }
 
 const CSS = `
-  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.35; color: #111; }
-  h1 { font-size: 24pt; letter-spacing: 0.3pt; margin: 0 0 6pt 0; color: #0f2a43; }
-  h2 { font-size: 14pt; margin: 12pt 0 6pt 0; padding-bottom: 2pt; border-bottom: 1px solid #dcdcdc; color: #12467F; }
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #111; }
+  h1 { font-size: 24pt; letter-spacing: 0.3pt; margin: 0 0 8pt 0; color: #0f2a43; }
+  h2 { font-size: 14pt; margin: 16pt 0 8pt 0; padding-bottom: 2pt; border-bottom: 1px solid #dcdcdc; color: #12467F; }
   h2.exp { font-size: 15pt; color: #0e6ba8; }
-  section.exp p.jobline { margin: 6pt 0 4pt 0; font-size: 12pt; }
+  section.exp p.jobline { margin: 8pt 0 6pt 0; font-size: 12pt; }
   section.exp p.jobline strong { color: #0e6ba8; font-weight: 700; }
-  p { margin: 3pt 0; }
-  ul { margin: 3pt 0 6pt 18pt; padding: 0; }
-  li { margin: 2pt 0; }
+  p { margin: 6pt 0; font-size: 11pt; line-height: 1.6; }
+  ul { margin: 6pt 0 8pt 18pt; padding: 0; }
+  li { margin: 4pt 0; font-size: 11pt; line-height: 1.5; }
   a { color: #1155cc; text-decoration: none; }
-  h1 + p { color: #333; margin-top: 2pt; }
+  h1 + p { color: #333; margin-top: 4pt; }
+  /* Enhanced cover letter formatting */
+  .cover-letter p { margin: 8pt 0; line-height: 1.7; }
+  .cover-letter h1 { font-size: 20pt; margin-bottom: 12pt; }
+  .cover-letter h2 { font-size: 16pt; margin: 14pt 0 10pt 0; }
 `;
 
 export async function POST(req: Request) {
@@ -157,13 +161,27 @@ export async function POST(req: Request) {
       );
     }
 
-    // 4) Ensure a top-level H1 exists (prevents “blank-looking” docs)
+    // 4) Detect cover letter BEFORE injecting a default H1
+    const isCoverLetter = /^(dear|to whom it may concern|hiring manager)/i.test(cleaned.trim()) || 
+                          /cover\s+letter/i.test(cleaned) ||
+                          /application\s+for/i.test(cleaned);
+
+    // Ensure a top-level H1 exists and use a meaningful title
     if (!/^#\s+/m.test(cleaned)) {
-      cleaned = `# Resume\n\n${cleaned}`;
+      const titleFromFilename = (fn?: string) => {
+        if (!fn) return "";
+        const base = String(fn).replace(/\.[a-zA-Z0-9]+$/, "");
+        return base.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+      };
+      const fallback = isCoverLetter ? "Cover Letter" : "Resume";
+      const derived = titleFromFilename(filename) || fallback;
+      cleaned = `# ${derived}\n\n${cleaned}`;
     }
 
     // 5) Build HTML
-    const html = `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${mdToHtml(cleaned)}</body></html>`;
+    
+    const bodyClass = isCoverLetter ? 'cover-letter' : '';
+    const html = `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body class="${bodyClass}">${mdToHtml(cleaned)}</body></html>`;
 
     // 6) Generate DOCX (defensive across html-docx-js versions)
     const mod = require("html-docx-js");

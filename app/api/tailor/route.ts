@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { ChatOpenAI } from "@langchain/openai";
 import { getCurrentUser } from "@/lib/auth";        // <- custom auth (session cookie)
 import { spendCredits } from "@/lib/credits";       // <- 1 credit per tailor
+import { prisma } from "@/lib/prisma";
+import { safeFileName } from "@/lib/files";
+import { extractCompanyAndRoleLC } from "@/lib/extract";
 
 export const runtime = "nodejs";
 
@@ -17,11 +20,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Email not verified" }, { status: 403 });
     }
 
-    const { resumeJson, resumeText, jdText, tone = "professional", seniority = "junior" } =
+    const { resumeJson, resumeText, jdText, tone = "professional", seniority = "junior", company = "", role = "" } =
       await req.json();
 
     if (!resumeText || !jdText) {
       return NextResponse.json({ ok: false, error: "Missing inputs" }, { status: 400 });
+    }
+
+    // If frontend didn't provide company/role, infer from JD
+    let finalCompany = company;
+    let finalRole = role;
+    if (!company || !role) {
+      try {
+        const inferred = await extractCompanyAndRoleLC(jdText);
+        finalCompany = company || inferred.company || "";
+        finalRole = role || inferred.role || "";
+      } catch {
+        // best-effort; proceed with blanks if extractor fails
+      }
     }
 
     // --- Charge 1 credit (tailor = 1) ---
@@ -35,7 +51,7 @@ export async function POST(req: Request) {
     }
 
     // --- LLM call (unchanged) ---
-    const llm = new ChatOpenAI({ model: "gpt-5-mini" });
+    const llm = new ChatOpenAI({ model: "gpt-5" });
 
     const prompt = [
       {
@@ -89,10 +105,47 @@ RESUME TEXT:
     const out = await llm.invoke(prompt as any);
     const tailoredMarkdown = String(out.content || "");
 
-    // (Optional next step: save to prisma.document here if you want persistence)
-    // await prisma.document.create({ ... });
+    // Generate better document title using LLM
+    const titlePrompt = `Generate a professional document title for a resume.
+User: ${user.name || "User"}
+Company: ${finalCompany || "Company"}
+Role: ${finalRole || "Position"}
 
-    return NextResponse.json({ ok: true, tailoredMarkdown });
+Format: [USER_NAME]_RESUME_FOR_[COMPANY_NAME]
+Example: John_Smith_RESUME_FOR_Google
+
+Return only the title, no other text.`;
+    
+    const titleResponse = await llm.invoke([{ role: "user", content: titlePrompt }]);
+    const generatedTitle = String(titleResponse.content || "").trim();
+    
+    const title = generatedTitle || `${(user.name || "User").replace(/\s+/g, "_")}_RESUME_FOR_${(finalCompany || "Company").replace(/\s+/g, "_")}`;
+    const fileStem = safeFileName(title);
+
+    // Save to DOCUMENT table
+    const doc = await prisma.document.create({
+      data: {
+        userId: user.id,
+        kind: "TAILORED_RESUME",
+        title,
+        markdown: tailoredMarkdown,
+        sections: {},
+        sourceMeta: { company: finalCompany, role: finalRole, fileStem },
+      },
+      select: { id: true, title: true },
+    });
+
+    // Ledger entry
+    await prisma.ledger.create({
+      data: {
+        userId: user.id,
+        type: "RESUME_GENERATED",
+        credits: -1,
+        meta: { documentId: doc.id, company: finalCompany, role: finalRole, title },
+      },
+    });
+
+    return NextResponse.json({ ok: true, tailoredMarkdown, documentId: doc.id, title });
   } catch (err: any) {
     console.error("tailor fatal:", err?.message || err);
     return NextResponse.json({ ok: false, error: "Server error while tailoring." }, { status: 500 });

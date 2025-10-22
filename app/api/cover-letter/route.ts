@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
   try {
     // Prompt with CTA + STAR
-    const llm = new ChatOpenAI({ model: "gpt-5-mini" });
+    const llm = new ChatOpenAI({ model: "gpt-5" });
     const out = await llm.invoke([
       {
         role: "system",
@@ -65,16 +65,21 @@ RESUME:
 
     const markdown = String(out.content || "").trim();
 
-    // AI-generated document title
-    const fullName = user.name || "";
-    const baseTitle =
-      [fullName, "Cover Letter", company && `for ${company}`, role && `(${role})`]
-        .filter(Boolean)
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
+    // Generate better document title using LLM
+    const titlePrompt = `Generate a professional document title for a cover letter.
+User: ${user.name || "User"}
+Company: ${company || "Company"}
+Role: ${role || "Position"}
 
-    const title = baseTitle || (role ? `Cover Letter - ${role}` : "Cover Letter");
+Format: Cover_Letter_For_[USER_NAME]
+Example: Cover_Letter_For_John_Smith
+
+Return only the title, no other text.`;
+    
+    const titleResponse = await llm.invoke([{ role: "user", content: titlePrompt }]);
+    const generatedTitle = String(titleResponse.content || "").trim();
+    
+    const title = generatedTitle || `Cover_Letter_For_${(user.name || "User").replace(/\s+/g, "_")}`;
     const fileStem = safeFileName(title);
 
     // Persist

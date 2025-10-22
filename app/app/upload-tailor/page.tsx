@@ -40,7 +40,8 @@ export default function UploadTailorWizardPage() {
     steps, setStepStatus,
     downloadFmt, setDownloadFmt,
     resetOCR, resetAll,
-    generatedCoverLetter, setGeneratedCoverLetter
+    generatedCoverLetter, setGeneratedCoverLetter,
+    generatedCoverTitle, setGeneratedCoverTitle
   } = useTailorStore();
 
   // Cover letter state
@@ -75,6 +76,9 @@ export default function UploadTailorWizardPage() {
 
       // Set to global store
       setGeneratedCoverLetter(j.markdown);
+
+      // Set Cover title as well to global store
+      setGeneratedCoverTitle(j.title)
       console.log(j.markdown);
 
       toast.success("Cover letter generated!");
@@ -157,7 +161,7 @@ export default function UploadTailorWizardPage() {
             onDownloadFmtChange={(fmt) => setDownloadFmt(fmt as any)}
             onGenerateCoverLetter={handleGenerateCoverLetterWrapper}
             coverLoading={coverLoading}
-            coverTitle={coverTitle}
+            coverTitle={generatedCoverTitle}
             coverMarkdown={coverMarkdown}
           />
         )}

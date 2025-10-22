@@ -22,7 +22,7 @@ type Plan = {
   name: string;
   description: string;
   price: string;
-  period: 'month' | 'forever';
+  period: 'month' | 'forever' | 'per credit' | 'contact us';
   credits: string;
   features: string[];
   limitations: string[];

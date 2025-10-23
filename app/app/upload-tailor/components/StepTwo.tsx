@@ -41,6 +41,7 @@ interface StepTwoProps {
   onStepChange: (step: number) => void;
   onAnalysisComplete: (analysis: any) => void;
   onTailoredMarkdownChange: (markdown: string) => void;
+  onGeneratedResumeTitle: (title: string) => void;
   onAtsScoreChange: (score: number) => void;
   onResetOCR: () => void;
   onSetStepStatus: (step: 'parse' | 'normalize' | 'analyze' | 'tailor' | 'export', status: StepStatus) => void;
@@ -76,6 +77,7 @@ export const StepTwo = ({
   onStepChange,
   onAnalysisComplete,
   onTailoredMarkdownChange,
+  onGeneratedResumeTitle,
   onAtsScoreChange,
   onResetOCR,
   onSetStepStatus
@@ -140,31 +142,14 @@ export const StepTwo = ({
             // Tailor
             onSetStepStatus('tailor', 'loading');
             
-            // Extract company and role from job description for better document naming
-            let company = '';
-            let role = '';
-            try {
-              const companyMatch = finalJD.match(/\b(?:at|for|with)\s+([A-Z][A-Za-z\s&.,]{1,30}?)(?:\s|$|,|\.)/);
-              if (companyMatch) {
-                company = companyMatch[1].trim();
-              }
-              
-              const roleMatch = finalJD.match(/\b(?:position|role|job|opening)\s*:?\s*([A-Za-z\s]{3,30}?)(?:\s|$|,|\.)/i);
-              if (roleMatch) {
-                role = roleMatch[1].trim();
-              }
-            } catch (e) {
-              console.log('Company/role extraction failed:', e);
-            }
             
             const tailored = await apiTailor({ 
               resumeJson, 
               resumeText, 
               jdText: finalJD,
-              company: company || undefined,
-              role: role || undefined
             });
             onTailoredMarkdownChange(tailored.tailoredMarkdown || '');
+            onGeneratedResumeTitle(tailored.title || '')
             onSetStepStatus('tailor', 'done');
             toast.success('Tailored and ready! ✨');
             onStepChange(3);
@@ -219,34 +204,15 @@ export const StepTwo = ({
       // 3) tailor
       onSetStepStatus('tailor', 'loading');
       
-      // Extract company and role from job description for better document naming
-      let company = '';
-      let role = '';
-      try {
-        // Look for company patterns in the job description
-        const companyMatch = finalJD.match(/\b(?:at|for|with)\s+([A-Z][A-Za-z\s&.,]{1,30}?)(?:\s|$|,|\.)/);
-        if (companyMatch) {
-          company = companyMatch[1].trim();
-        }
-        
-        // Look for role patterns
-        const roleMatch = finalJD.match(/\b(?:position|role|job|opening)\s*:?\s*([A-Za-z\s]{3,30}?)(?:\s|$|,|\.)/i);
-        if (roleMatch) {
-          role = roleMatch[1].trim();
-        }
-      } catch (e) {
-        // Fallback if extraction fails
-        console.log('Company/role extraction failed:', e);
-      }
-      
       const tailored = await apiTailor({ 
         resumeJson, 
         resumeText, 
         jdText: finalJD,
-        company: company || undefined,
-        role: role || undefined
       });
       onTailoredMarkdownChange(tailored.tailoredMarkdown || '');
+
+      // save the generated title as well
+      onGeneratedResumeTitle(tailored.title || '')
       onSetStepStatus('tailor', 'done');
       toast.success('Tailored and ready! ✨');
       onStepChange(3);
@@ -297,12 +263,12 @@ export const StepTwo = ({
               <TabsTrigger value="image" className="px-3 py-1.5 text-xs sm:text-sm">
                 Image (OCR)
               </TabsTrigger>
-              <TabsTrigger value="upload" disabled className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed" title="Coming soon">
+              {/* <TabsTrigger value="upload" disabled className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed" title="Coming soon">
                 Upload File
               </TabsTrigger>
               <TabsTrigger value="url" disabled className="px-3 py-1.5 text-xs sm:text-sm opacity-60 cursor-not-allowed" title="Coming soon">
                 URL
-              </TabsTrigger>
+              </TabsTrigger> */}
             </TabsList>
 
             {/* TEXT TAB */}

@@ -30,6 +30,7 @@ type Store = {
   resumeJson: any;
   setResumeJson: (v: any) => void;
 
+
   // JD
   jobDescription: string;
   setJobDescription: (s: string) => void;
@@ -51,6 +52,8 @@ type Store = {
   setAtsScore: (n: number) => void;
   tailoredMarkdown: string;
   setTailoredMarkdown: (s: string) => void;
+  generatedResumeTitle: string,
+  setGeneratedResumeTitle: (s: string) => void,
 
   // Cover Letter
   generatedCoverLetter: string;
@@ -105,6 +108,9 @@ export const useTailorStore = create<Store>()(
       tailoredMarkdown: '',
       setTailoredMarkdown: (s) => set({ tailoredMarkdown: s }),
 
+      generatedResumeTitle: '',
+      setGeneratedResumeTitle: (s) => set({generatedResumeTitle: s}),
+
       // For Cover Letter
       generatedCoverLetter: '',
       setGeneratedCoverLetter: (s) => set({ generatedCoverLetter: s}),
@@ -142,6 +148,7 @@ export const useTailorStore = create<Store>()(
           analysis: null,
           atsScore: 0,
           tailoredMarkdown: '',
+          generatedResumeTitle: '',
           steps: { parse: 'idle', normalize: 'idle', analyze: 'idle', tailor: 'idle', export: 'idle' },
           downloadFmt: 'docx',
           generatedCoverLetter: '',

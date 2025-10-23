@@ -31,6 +31,7 @@ import type { Analysis, StepStatus } from '../types';
 
 interface StepThreeProps {
   tailoredMarkdown: string;
+  resumeTitleFromLLM: string;
   generatedCoverLetter: string;
   analysis: Analysis | null;
   atsScore: number;
@@ -50,6 +51,7 @@ interface StepThreeProps {
 
 export const StepThree = ({
   tailoredMarkdown,
+  resumeTitleFromLLM,
   generatedCoverLetter,
   analysis,
   atsScore,
@@ -68,43 +70,6 @@ export const StepThree = ({
 
   const { body: previewMarkdown, changes: changesMarkdown } = splitChanges(tailoredMarkdown);
 
-  // Generate filename for resume downloads
-  const getResumeFilename = () => {
-    // Try to extract name from resume content
-    const nameMatch = tailoredMarkdown.match(/^#\s+(.+)$/m);
-    const name = nameMatch ? nameMatch[1].trim() : 'User';
-    
-    // Try to extract company from the summary section which should contain company info
-    let company = 'Company';
-    
-    // Look for company in the Professional Summary section
-    const summaryMatch = tailoredMarkdown.match(/##\s*Professional\s+Summary\s*\n([\s\S]*?)(?=\n##|$)/i);
-    if (summaryMatch) {
-      const summaryText = summaryMatch[1];
-      // Look for company patterns in summary
-      const companyPatterns = [
-        /\b(?:at|for|with)\s+([A-Z][A-Za-z\s&.,]{1,20}?)(?:\s|$|,|\.)/,
-        /\b([A-Z][A-Za-z\s&.,]{1,20}?)\s+(?:Inc|LLC|Corp|Company|Ltd|Limited|Technologies|Systems|Solutions)/,
-        /\b([A-Z][A-Za-z\s&.,]{1,20}?)\s+(?:as|for)\s+(?:a|the)\s+/
-      ];
-      
-      for (const pattern of companyPatterns) {
-        const match = summaryText.match(pattern);
-        if (match) {
-          company = match[1].trim();
-          break;
-        }
-      }
-    }
-    
-    // Clean up company name - limit length and remove extra words
-    company = company.replace(/[^a-zA-Z0-9\s&.,-]/g, '').replace(/\s+/g, ' ').trim();
-    if (company.length > 15) {
-      company = company.split(' ').slice(0, 2).join(' ');
-    }
-    
-    return `${name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_')}_RESUME_FOR_${company.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_')}`;
-  };
 
   // Generate filename for cover letter downloads
   const getCoverLetterFilename = () => {
@@ -126,11 +91,10 @@ export const StepThree = ({
     if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
     
     try {
-      const filename = getResumeFilename();
       await downloadDocument(
         tailoredMarkdown, 
         downloadFmt, 
-        filename,
+        resumeTitleFromLLM,
         downloadFmt === 'pdf' ? setDownloadingPdf : setDownloading
       );
       toast.success(`${downloadFmt.toUpperCase()} downloaded 📥`);

@@ -1,46 +1,24 @@
 // app/api/tailor/route.ts
 import { NextResponse } from "next/server";
 import { ChatOpenAI } from "@langchain/openai";
-import { getCurrentUser } from "@/lib/auth";        // <- custom auth (session cookie)
-import { spendCredits } from "@/lib/credits";       // <- 1 credit per tailor
+import { getCurrentUser } from "@/lib/auth";
+import { spendCredits } from "@/lib/credits";
 import { prisma } from "@/lib/prisma";
 import { safeFileName } from "@/lib/files";
-import { extractCompanyAndRoleLC } from "@/lib/extract";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    // --- Auth + verification ---
     const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
-    }
-    if (!user.emailVerified) {
-      return NextResponse.json({ ok: false, error: "Email not verified" }, { status: 403 });
-    }
+    if (!user) return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
+    if (!user.emailVerified) return NextResponse.json({ ok: false, error: "Email not verified" }, { status: 403 });
 
-    const { resumeJson, resumeText, jdText, tone = "professional", seniority = "junior", company = "", role = "" } =
-      await req.json();
-
-    if (!resumeText || !jdText) {
+    const { resumeJson, resumeText, jdText, tone = "professional", seniority = "junior" } = await req.json();
+    if (!resumeText || !jdText)
       return NextResponse.json({ ok: false, error: "Missing inputs" }, { status: 400 });
-    }
 
-    // If frontend didn't provide company/role, infer from JD
-    let finalCompany = company;
-    let finalRole = role;
-    if (!company || !role) {
-      try {
-        const inferred = await extractCompanyAndRoleLC(jdText);
-        finalCompany = company || inferred.company || "";
-        finalRole = role || inferred.role || "";
-      } catch {
-        // best-effort; proceed with blanks if extractor fails
-      }
-    }
-
-    // --- Charge 1 credit (tailor = 1) ---
+    // Spend 1 credit
     try {
       await spendCredits(user.id, 1);
     } catch (e: any) {
@@ -50,10 +28,10 @@ export async function POST(req: Request) {
       throw e;
     }
 
-    // --- LLM call (unchanged) ---
     const llm = new ChatOpenAI({ model: "gpt-5" });
 
-    const prompt = [
+    // --- Resume Tailoring ---
+    const tailoringPrompt = [
       {
         role: "system",
         content: `Tailor the resume to the JD.
@@ -91,7 +69,8 @@ Return the resume as Markdown exactly in that order.`,
       },
       {
         role: "user",
-        content: `JOB DESCRIPTION:
+        content: `
+JOB DESCRIPTION:
 """${String(jdText).slice(0, 9000)}"""
 
 RESUME JSON:
@@ -102,50 +81,62 @@ RESUME TEXT:
       },
     ];
 
-    const out = await llm.invoke(prompt as any);
+    const out = await llm.invoke(tailoringPrompt as any);
     const tailoredMarkdown = String(out.content || "");
 
-    // Generate better document title using LLM
-    const titlePrompt = `Generate a professional document title for a resume.
-User: ${user.name || "User"}
-Company: ${finalCompany || "Company"}
-Role: ${finalRole || "Position"}
+    // --- Generate Resume Title ---
+    const titlePrompt = `
+From this job description, infer the most likely company name and job title.
+Then generate a professional resume title in this format:
+"[Company Name] [Job Title] Resume"
 
-Format: [USER_NAME]_RESUME_FOR_[COMPANY_NAME]
-Example: John_Smith_RESUME_FOR_Google
+Examples:
+- Google Frontend Developer Resume
+- Meta Product Designer Resume
+- Startup Founder Resume
 
-Return only the title, no other text.`;
-    
+If unsure, return "Professional Resume".
+
+Job Description:
+"""${String(jdText).slice(0, 4000)}"""
+`;
+
     const titleResponse = await llm.invoke([{ role: "user", content: titlePrompt }]);
-    const generatedTitle = String(titleResponse.content || "").trim();
-    
-    const title = generatedTitle || `${(user.name || "User").replace(/\s+/g, "_")}_RESUME_FOR_${(finalCompany || "Company").replace(/\s+/g, "_")}`;
-    const fileStem = safeFileName(title);
+    let generatedTitle = String(titleResponse.content || "").trim();
 
-    // Save to DOCUMENT table
+    // Sanitize + Fallback
+    if (!generatedTitle || generatedTitle.length < 5) generatedTitle = "Professional Resume";
+
+    const fileStem = safeFileName(generatedTitle);
+
+    // --- Save Document ---
     const doc = await prisma.document.create({
       data: {
         userId: user.id,
         kind: "TAILORED_RESUME",
-        title,
+        title: generatedTitle,
         markdown: tailoredMarkdown,
         sections: {},
-        sourceMeta: { company: finalCompany, role: finalRole, fileStem },
+        sourceMeta: { fileStem },
       },
       select: { id: true, title: true },
     });
 
-    // Ledger entry
     await prisma.ledger.create({
       data: {
         userId: user.id,
         type: "RESUME_GENERATED",
         credits: -1,
-        meta: { documentId: doc.id, company: finalCompany, role: finalRole, title },
+        meta: { documentId: doc.id, title: generatedTitle },
       },
     });
 
-    return NextResponse.json({ ok: true, tailoredMarkdown, documentId: doc.id, title });
+    return NextResponse.json({
+      ok: true,
+      tailoredMarkdown,
+      documentId: doc.id,
+      title: generatedTitle,
+    });
   } catch (err: any) {
     console.error("tailor fatal:", err?.message || err);
     return NextResponse.json({ ok: false, error: "Server error while tailoring." }, { status: 500 });

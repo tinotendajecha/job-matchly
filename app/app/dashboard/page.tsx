@@ -179,330 +179,334 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <Header />
 
-      <div className="container mx-auto p-4 py-8">
-        <div className="grid lg:grid-cols-4 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-3 space-y-6">
-            {/* Welcome */}
-            <motion.div {...fadeInUp}>
-              <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
-                <CardContent className="p-6">
-                  <h1 className="text-2xl font-bold mb-2 break-words">Welcome back, {userData.name}👋</h1>
-                  <p className="text-muted-foreground mb-4">
-                    You have {userData.credits} credits remaining. Ready to tailor your next application?
-                  </p>
-                  <Button asChild>
-                    <Link href="/app/upload-tailor">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Tailor Your First Resume
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Primary Actions */}
-            <motion.div
-              className="grid md:grid-cols-3 gap-6"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-            >
-              <motion.div whileHover={{ y: -5 }} className="group relative">
-                {/* Coming Soon badge */}
-                <div className="absolute top-2 right-2 z-10">
-                  <span className="bg-yellow-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
-                    Coming Soon
-                  </span>
-                </div>
-
-                <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300 opacity-70 pointer-events-none">
-                  <CardHeader className="text-center pb-4">
-                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
-                      <FileText className="h-8 w-8 text-primary" />
-                    </div>
-                    <CardTitle>Build from Scratch</CardTitle>
-                    <CardDescription>
-                      Start with a clean template and build your resume step by step
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <Button className="w-full" disabled>
-                      Start Building
+      <div className="w-full max-w-[100vw]">
+        <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
+            {/* Main Content */}
+            <div className="lg:col-span-3 space-y-4 sm:space-y-5 md:space-y-6 w-full min-w-0">
+              {/* Welcome Card */}
+              <motion.div {...fadeInUp}>
+                <Card className="bg-gradient-to-r from-primary/10 to-primary/5 w-full">
+                  <CardContent className="p-4 sm:p-5 md:p-6">
+                    <h1 className="text-lg sm:text-xl md:text-2xl font-bold mb-2 break-words">
+                      Welcome back, {userData.name}👋
+                    </h1>
+                    <p className="text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4">
+                      You have {userData.credits} credits remaining. Ready to tailor your next application?
+                    </p>
+                    <Button asChild className="w-full sm:w-auto text-sm sm:text-base">
+                      <Link href="/app/upload-tailor">
+                        <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
+                        Tailor Your First Resume
+                      </Link>
                     </Button>
                   </CardContent>
                 </Card>
               </motion.div>
 
-              <motion.div whileHover={{ y: -5 }} className="group relative">
-                {/* Live badge */}
-                <div className="absolute top-2 right-2 z-10">
-                  <span className="bg-green-600 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
-                    Live
-                  </span>
-                </div>
+              {/* Primary Actions - Single column on mobile */}
+              <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+              >
+                {/* Build from Scratch */}
+                <motion.div whileHover={{ y: -5 }} className="group relative w-full">
+                  <div className="absolute top-2 right-2 z-10">
+                    <span className="bg-yellow-500 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
+                      Coming Soon
+                    </span>
+                  </div>
 
-                <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300">
-                  <CardHeader className="text-center pb-4">
-                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
-                      <Upload className="h-8 w-8 text-primary" />
-                    </div>
-                    <CardTitle>Upload & Tailor</CardTitle>
-                    <CardDescription>
-                      Upload your existing resume and tailor it to a specific job
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <Button className="w-full" variant="outline" asChild>
-                      <Link href="/app/upload-tailor">Upload Resume</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div whileHover={{ y: -5 }} className="group relative">
-                {/* Coming Soon badge */}
-                <div className="absolute top-2 right-2 z-10">
-                  <span className="bg-yellow-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
-                    Coming Soon
-                  </span>
-                </div>
-
-                <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300 opacity-70 pointer-events-none">
-                  <CardHeader className="text-center pb-4">
-                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
-                      <Target className="h-8 w-8 text-primary" />
-                    </div>
-                    <CardTitle>ATS Check</CardTitle>
-                    <CardDescription>
-                      Test any resume for ATS compatibility and get improvement tips
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <Button className="w-full" variant="outline" disabled>
-                      Check ATS
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </motion.div>
-
-            {/* Recent Activity with Pagination */}
-            <motion.div {...fadeInUp}>
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <Clock className="h-5 w-5" />
-                      Recent Activity
-                    </CardTitle>
-                    {totalPages > 1 && (
-                      <div className="text-xs text-muted-foreground hidden md:block">
-                        Page {currentPage} of {totalPages}
+                  <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300 opacity-70 pointer-events-none">
+                    <CardHeader className="text-center pb-3 sm:pb-4 p-4 sm:p-6">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 group-hover:bg-primary/20 transition-colors">
+                        <FileText className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
                       </div>
-                    )}
+                      <CardTitle className="text-base sm:text-lg">Build from Scratch</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">
+                        Start with a clean template and build your resume step by step
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0 p-4 sm:p-6">
+                      <Button className="w-full text-sm" disabled>
+                        Start Building
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                {/* Upload & Tailor */}
+                <motion.div whileHover={{ y: -5 }} className="group relative w-full">
+                  <div className="absolute top-2 right-2 z-10">
+                    <span className="bg-green-600 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
+                      Live
+                    </span>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {currentActivities.map((activity, index) => (
-                      <motion.div
-                        key={startIndex + index}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div
-                          className={cn(
-                            'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
-                            activity.type === 'create' && 'bg-blue-100 dark:bg-blue-900',
-                            activity.type === 'tailor' && 'bg-green-100 dark:bg-green-900',
-                            activity.type === 'cover' && 'bg-purple-100 dark:bg-purple-900',
-                            activity.type === 'check' && 'bg-orange-100 dark:bg-orange-900'
-                          )}
+
+                  <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300">
+                    <CardHeader className="text-center pb-3 sm:pb-4 p-4 sm:p-6">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 group-hover:bg-primary/20 transition-colors">
+                        <Upload className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
+                      </div>
+                      <CardTitle className="text-base sm:text-lg">Upload & Tailor</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">
+                        Upload your existing resume and tailor it to a specific job
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0 p-4 sm:p-6">
+                      <Button className="w-full text-sm" variant="outline" asChild>
+                        <Link href="/app/upload-tailor">Upload Resume</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                {/* ATS Check */}
+                <motion.div whileHover={{ y: -5 }} className="group relative w-full sm:col-span-2 md:col-span-1">
+                  <div className="absolute top-2 right-2 z-10">
+                    <span className="bg-yellow-500 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
+                      Coming Soon
+                    </span>
+                  </div>
+
+                  <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300 opacity-70 pointer-events-none">
+                    <CardHeader className="text-center pb-3 sm:pb-4 p-4 sm:p-6">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 group-hover:bg-primary/20 transition-colors">
+                        <Target className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
+                      </div>
+                      <CardTitle className="text-base sm:text-lg">ATS Check</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">
+                        Test any resume for ATS compatibility and get improvement tips
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0 p-4 sm:p-6">
+                      <Button className="w-full text-sm" variant="outline" disabled>
+                        Check ATS
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </motion.div>
+
+              {/* Recent Activity with Pagination */}
+              <motion.div {...fadeInUp}>
+                <Card className="w-full">
+                  <CardHeader className="p-4 sm:p-5 md:p-6 pb-3 sm:pb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
+                        <Clock className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                        <span>Recent Activity</span>
+                      </CardTitle>
+                      {totalPages > 1 && (
+                        <div className="text-xs sm:text-sm text-muted-foreground">
+                          Page {currentPage} of {totalPages}
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
+                    <div className="space-y-3 sm:space-y-4">
+                      {currentActivities.map((activity, index) => (
+                        <motion.div
+                          key={startIndex + index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="flex items-start sm:items-center gap-3 p-2.5 sm:p-3 rounded-lg hover:bg-muted/50 transition-colors"
                         >
-                          {activity.type === 'create' && <FileText className="h-4 w-4" />}
-                          {activity.type === 'tailor' && <Target className="h-4 w-4" />}
-                          {activity.type === 'cover' && <FileText className="h-4 w-4" />}
-                          {activity.type === 'check' && <CheckCircle className="h-4 w-4" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{activity.action}</p>
-                          <p className="text-xs text-muted-foreground truncate">{activity.item}</p>
-                        </div>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap hidden md:inline">
-                          {activity.time}
-                        </span>
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Mobile-Responsive Pagination */}
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t">
-                      {/* Previous Button */}
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handlePreviousPage}
-                        disabled={currentPage === 1}
-                        className={cn(
-                          'group flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-all duration-200',
-                          'bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10',
-                          'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-primary/10 disabled:hover:to-primary/5',
-                          'border border-primary/20 hover:border-primary/30',
-                          'min-h-[44px]'
-                        )}
-                      >
-                        <ChevronLeft className="h-5 w-5 transition-transform duration-200 group-hover:-translate-x-1" />
-                        <span className="text-sm hidden md:inline">Previous</span>
-                      </motion.button>
-
-                      {/* Page Indicators - Desktop only */}
-                      <div className="hidden md:flex items-center gap-2">
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                          <motion.button
-                            key={page}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => setCurrentPage(page)}
+                          <div
                             className={cn(
-                              'w-9 h-9 rounded-full font-medium text-sm transition-all duration-200',
-                              page === currentPage
-                                ? 'bg-primary text-primary-foreground shadow-md'
-                                : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                              'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center flex-shrink-0',
+                              activity.type === 'create' && 'bg-blue-100 dark:bg-blue-900',
+                              activity.type === 'tailor' && 'bg-green-100 dark:bg-green-900',
+                              activity.type === 'cover' && 'bg-purple-100 dark:bg-purple-900',
+                              activity.type === 'check' && 'bg-orange-100 dark:bg-orange-900'
                             )}
                           >
-                            {page}
-                          </motion.button>
-                        ))}
-                      </div>
+                            {activity.type === 'create' && <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                            {activity.type === 'tailor' && <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                            {activity.type === 'cover' && <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                            {activity.type === 'check' && <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs sm:text-sm font-medium truncate">{activity.action}</p>
+                            <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{activity.item}</p>
+                          </div>
+                          <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                            {activity.time}
+                          </span>
+                        </motion.div>
+                      ))}
+                    </div>
 
-                      {/* Mobile Page Counter */}
-                      <div className="md:hidden text-xs text-muted-foreground px-2">
-                        {currentPage} / {totalPages}
-                      </div>
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between sm:justify-center gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 border-t">
+                        {/* Previous Button */}
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={handlePreviousPage}
+                          disabled={currentPage === 1}
+                          className={cn(
+                            'group flex items-center justify-center gap-1 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-2 rounded-lg font-medium transition-all duration-200',
+                            'bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10',
+                            'disabled:opacity-40 disabled:cursor-not-allowed',
+                            'border border-primary/20 hover:border-primary/30',
+                            'min-h-[40px] sm:min-h-[44px]'
+                          )}
+                        >
+                          <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 group-hover:-translate-x-0.5" />
+                          <span className="text-xs sm:text-sm hidden sm:inline">Prev</span>
+                        </motion.button>
 
-                      {/* Next Button */}
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handleNextPage}
-                        disabled={currentPage === totalPages}
-                        className={cn(
-                          'group flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-all duration-200',
-                          'bg-gradient-to-r from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/20',
-                          'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-primary/5 disabled:hover:to-primary/10',
-                          'border border-primary/20 hover:border-primary/30',
-                          'min-h-[44px]'
-                        )}
+                        {/* Page Indicators - Desktop/Tablet only */}
+                        <div className="hidden sm:flex items-center gap-1.5 sm:gap-2">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                            <motion.button
+                              key={page}
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => setCurrentPage(page)}
+                              className={cn(
+                                'w-8 h-8 sm:w-9 sm:h-9 rounded-full font-medium text-xs sm:text-sm transition-all duration-200',
+                                page === currentPage
+                                  ? 'bg-primary text-primary-foreground shadow-md'
+                                  : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                              )}
+                            >
+                              {page}
+                            </motion.button>
+                          ))}
+                        </div>
+
+                        {/* Mobile Page Counter */}
+                        <div className="sm:hidden text-xs text-muted-foreground font-medium px-2">
+                          {currentPage} / {totalPages}
+                        </div>
+
+                        {/* Next Button */}
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={handleNextPage}
+                          disabled={currentPage === totalPages}
+                          className={cn(
+                            'group flex items-center justify-center gap-1 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-2 rounded-lg font-medium transition-all duration-200',
+                            'bg-gradient-to-r from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/20',
+                            'disabled:opacity-40 disabled:cursor-not-allowed',
+                            'border border-primary/20 hover:border-primary/30',
+                            'min-h-[40px] sm:min-h-[44px]'
+                          )}
+                        >
+                          <span className="text-xs sm:text-sm hidden sm:inline">Next</span>
+                          <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
+                        </motion.button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+
+            {/* Right Sidebar */}
+            <div className="space-y-4 sm:space-y-5 md:space-y-6 w-full min-w-0">
+              {/* Credit Usage */}
+              <motion.div {...fadeInUp}>
+                <Card className="w-full">
+                  <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-5 md:p-6">
+                    <CardTitle className="text-base sm:text-lg">Credit Usage</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-5 md:p-6 pt-0">
+                    <div>
+                      <div className="flex justify-between text-xs sm:text-sm mb-2">
+                        <span>This month</span>
+                        <span className="text-right truncate ml-2">
+                          {creditUsage.used > 0
+                            ? `${creditUsage.used}/${creditUsage.total} used`
+                            : `${creditUsage.breakdown.resume + creditUsage.breakdown.cover} used`}
+                        </span>
+                      </div>
+                      <Progress
+                        value={((creditUsage.breakdown.tailor + creditUsage.breakdown.cover) / creditUsage.total) * 100}
+                        className="h-2"
+                      />
+                    </div>
+
+                    <div className="space-y-2 text-xs sm:text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground truncate mr-2">JD Tailoring</span>
+                        <span className="font-medium flex-shrink-0">{creditUsage.breakdown.resume}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground truncate mr-2">Cover Letters</span>
+                        <span className="font-medium flex-shrink-0">{creditUsage.breakdown.cover}</span>
+                      </div>
+                      <div className="flex justify-between items-center opacity-60">
+                        <span className="text-muted-foreground text-[11px] sm:text-xs truncate mr-2">Resume Builds (Soon)</span>
+                        <span className="flex-shrink-0">-</span>
+                      </div>
+                    </div>
+
+                    <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm" asChild>
+                      <Link href="/app/billing">Add Credits</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Coming Soon */}
+              <motion.div {...fadeInUp}>
+                <Card className="w-full">
+                  <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-5 md:p-6">
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                      <span>Coming Soon</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 sm:space-y-3 p-4 sm:p-5 md:p-6 pt-0">
+                    {comingSoonFeatures.slice(0, 3).map((feature, index) => (
+                      <motion.div
+                        key={feature.title}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex items-start gap-2.5 sm:gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
                       >
-                        <span className="text-sm hidden md:inline">Next</span>
-                        <ChevronRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
-                      </motion.button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
+                        <feature.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs sm:text-sm font-medium truncate">{feature.title}</p>
+                          <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-2">{feature.description}</p>
+                        </div>
+                      </motion.div>
+                    ))}
+                    <Button variant="ghost" size="sm" className="w-full text-xs sm:text-sm mt-2" asChild>
+                      <Link href="/app/coming-soon">View Roadmap</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
 
-          {/* Right Sidebar */}
-          <div className="space-y-6">
-            {/* Usage Meter */}
-            <motion.div {...fadeInUp}>
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">Credit Usage</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span>This month</span>
-                      <span>
-                        {creditUsage.used > 0
-                          ? `${creditUsage.used} / ${creditUsage.total} used`
-                          : `You've used ${creditUsage.breakdown.resume + creditUsage.breakdown.cover} credits`}
-                      </span>
-                    </div>
-                    <Progress
-                      value={((creditUsage.breakdown.tailor + creditUsage.breakdown.cover) / creditUsage.total) * 100}
-                      className="h-2"
-                    />
-                  </div>
-
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">JD Tailoring</span>
-                      <span>{creditUsage.breakdown.resume}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Cover Letters</span>
-                      <span>{creditUsage.breakdown.cover}</span>
-                    </div>
-                    <div className="flex justify-between opacity-60">
-                      <span className="text-muted-foreground">Resume Builds (Coming Soon)</span>
-                      <span>-</span>
-                    </div>
-                  </div>
-
-                  <Button variant="outline" size="sm" className="w-full" asChild>
-                    <Link href="/app/billing">Add Credits</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Coming Soon */}
-            <motion.div {...fadeInUp}>
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Sparkles className="h-5 w-5" />
-                    Coming Soon
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {comingSoonFeatures.slice(0, 3).map((feature, index) => (
-                    <motion.div
-                      key={feature.title}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <feature.icon className="h-4 w-4 text-primary flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{feature.title}</p>
-                        <p className="text-xs text-muted-foreground">{feature.description}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                  <Button variant="ghost" size="sm" className="w-full" asChild>
-                    <Link href="/app/coming-soon">View Roadmap</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Quick Tips */}
-            <motion.div {...fadeInUp}>
-              <Card className="bg-gradient-to-br from-primary/5 to-primary/10">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">💡 Today's Tip</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Use action verbs like "increased," "improved," and "led" to start your resume bullets.
-                    They're more impactful than passive language.
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
+              {/* Quick Tips */}
+              <motion.div {...fadeInUp}>
+                <Card className="bg-gradient-to-br from-primary/5 to-primary/10 w-full">
+                  <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-5 md:p-6">
+                    <CardTitle className="text-base sm:text-lg">💡 Today's Tip</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
+                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                      Use action verbs like "increased," "improved," and "led" to start your resume bullets.
+                      They're more impactful than passive language.
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
           </div>
         </div>
       </div>

@@ -28,6 +28,7 @@ import {
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-toastify';
+import { Crown } from 'lucide-react';
 
 import { useTailorStore } from '@/lib/zustand/store';
 
@@ -40,6 +41,7 @@ type Me = {
   email: string | null;
   name: string | null;
   credits: number;
+  isAdmin: boolean;
 };
 
 function initialsFrom(name?: string | null, email?: string | null) {
@@ -155,6 +157,16 @@ export function Header({ isPublic = false }: HeaderProps) {
           >
             Pricing
           </Link>
+          {
+            me?.isAdmin == true && (
+              <Link
+            href="/app/admin"
+            className="text-sm font-medium transition-colors hover:text-primary"
+          >
+            <span className='flex items-center gap-2'>Admin <Crown color='yellow' size={16}/></span>
+          </Link>
+            ) 
+          }
         </nav>
 
         {/* Right cluster */}

@@ -33,6 +33,9 @@ model User {
   onboardingComplete Boolean   @default(false)
   // Added new changes
 
+  // Admin flag
+  isAdmin           Boolean   @default(false)
+
   // relations
   sessions      Session[]
   documents     Document[]

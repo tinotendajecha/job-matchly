@@ -11,48 +11,51 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
-  if (!user.emailVerified) return NextResponse.json({ ok: false, error: "Email not verified" }, { status: 403 });
+  if (!user)
+    return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
+  if (!user.emailVerified)
+    return NextResponse.json({ ok: false, error: "Email not verified" }, { status: 403 });
 
   let { resumeText, jdText, company = "", role = "" } = await req.json();
-  if (!resumeText || !jdText) {
+  if (!resumeText || !jdText)
     return NextResponse.json({ ok: false, error: "Missing inputs" }, { status: 400 });
-  }
 
   // If frontend didn't provide company/role, infer from JD
   if (!company || !role) {
     try {
       const inferred = await extractCompanyAndRoleLC(jdText);
       company = company || inferred.company || "";
-      role    = role    || inferred.role    || "";
+      role = role || inferred.role || "";
     } catch {
-      // best-effort; proceed with blanks if extractor fails
+      // best-effort fallback
     }
   }
 
   // Charge 1 credit
-  try { await spendCredits(user.id, 1); }
-  catch { return NextResponse.json({ ok: false, error: "Insufficient credits" }, { status: 402 }); }
+  try {
+    await spendCredits(user.id, 1);
+  } catch {
+    return NextResponse.json({ ok: false, error: "Insufficient credits" }, { status: 402 });
+  }
 
   try {
-    // Prompt with CTA + STAR
-    const llm = new ChatOpenAI({ model: "gpt-5" });
+    const llm = new ChatOpenAI({ model: "gpt-5"});
+
+    // --- Generate Cover Letter ---
     const out = await llm.invoke([
       {
         role: "system",
-        content:
-`Write a concise, professional cover letter (250–350 words).
-- 3–4 short paragraphs plus a closing
-- Confident, warm tone
-- Tailor to the role and company using 2–3 relevant JD keywords
-- Include one brief STAR example with a measurable result
-- End with a polite, specific call to action (request conversation/interview)
-- No tables, images, or personal data fabrication`,
+        content: `Write a concise, professional cover letter (250–350 words).
+- 3–4 short paragraphs plus a closing.
+- Confident, warm tone.
+- Tailor to the role and company using 2–3 relevant JD keywords.
+- Include one brief STAR example with a measurable result.
+- End with a polite call to action (request conversation/interview).
+- No tables, images, or personal data fabrication.`,
       },
       {
         role: "user",
-        content:
-`ROLE: ${role || "—"}
+        content: `ROLE: ${role || "—"}
 COMPANY: ${company || "—"}
 
 JOB DESCRIPTION:
@@ -65,24 +68,42 @@ RESUME:
 
     const markdown = String(out.content || "").trim();
 
-    // Generate better document title using LLM
-    const titlePrompt = `Generate a professional document title for a cover letter.
-User: ${user.name || "User"}
-Company: ${company || "Company"}
-Role: ${role || "Position"}
+    // --- Generate Document Title ---
+    const titlePrompt = `
+Generate a clean, professional title for a cover letter.
+Prefer natural capitalization (no underscores).
+Examples:
+- Cover Letter for John Smith
+- Cover Letter for a Product Designer at Meta
+- Cover Letter for a Software Engineer
+- Cover Letter
 
-Format: Cover_Letter_For_[USER_NAME]
-Example: Cover_Letter_For_John_Smith
+Use the user's name, role, and company if available.
 
-Return only the title, no other text.`;
-    
+User Name: ${user.name || "User"}
+Role: ${role || ""}
+Company: ${company || ""}
+`;
+
     const titleResponse = await llm.invoke([{ role: "user", content: titlePrompt }]);
-    const generatedTitle = String(titleResponse.content || "").trim();
-    
-    const title = generatedTitle || `Cover_Letter_For_${(user.name || "User").replace(/\s+/g, "_")}`;
+    let generatedTitle = String(titleResponse.content || "").trim();
+
+    // Fallback if LLM returns blank or messy text
+    if (!generatedTitle || generatedTitle.length < 5) {
+      if (role && company) {
+        generatedTitle = `Cover Letter for a ${role} at ${company}`;
+      } else if (role) {
+        generatedTitle = `Cover Letter for a ${role}`;
+      } else {
+        generatedTitle = `Cover Letter for ${user.name || "User"}`;
+      }
+    }
+
+    // Clean up extra underscores or unwanted chars
+    const title = generatedTitle.replace(/_/g, " ").replace(/\s+/g, " ").trim();
     const fileStem = safeFileName(title);
 
-    // Persist
+    // --- Persist document ---
     const doc = await prisma.document.create({
       data: {
         userId: user.id,
@@ -109,14 +130,16 @@ Return only the title, no other text.`;
   } catch (e: any) {
     // Refund on failure + ledger note
     await refundCredits(user.id, 1).catch(() => {});
-    await prisma.ledger.create({
-      data: {
-        userId: user.id,
-        type: "COVER_LETTER_GENERATION_FAILED",
-        credits: +1,
-        meta: { error: String(e?.message || e) },
-      },
-    }).catch(() => {});
+    await prisma.ledger
+      .create({
+        data: {
+          userId: user.id,
+          type: "COVER_LETTER_GENERATION_FAILED",
+          credits: +1,
+          meta: { error: String(e?.message || e) },
+        },
+      })
+      .catch(() => {});
     console.error("cover-letter fatal:", e?.message || e);
     return NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
   }

@@ -2,17 +2,14 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
   FileText,
   Upload,
   Target,
   Plus,
-  TrendingUp,
   Clock,
   CheckCircle,
-  AlertTriangle,
   Sparkles,
   Users,
   Briefcase,
@@ -24,9 +21,9 @@ import { Header } from '@/components/layout/header';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
-import { set } from 'date-fns';
 import { toast } from 'react-toastify';
 import DashboardLoader from '@/components/dashboard-loader';
+import { formatDistanceToNow } from 'date-fns';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -34,7 +31,8 @@ const fadeInUp = {
   transition: { duration: 0.5 }
 };
 
-const recentActivity = [
+// Keep your original fallback hardcoded recent activity (used if fetch fails)
+const FALLBACK_RECENT: { action: string; item: string; time: string; type: 'create' | 'tailor' | 'cover' | 'check' }[] = [
   { action: 'Created resume', item: 'Software Engineer Resume', time: '2 hours ago', type: 'create' },
   { action: 'Tailored to job', item: 'Google Frontend Developer', time: '1 day ago', type: 'tailor' },
   { action: 'Generated cover letter', item: 'Meta Product Designer', time: '3 days ago', type: 'cover' },
@@ -49,45 +47,122 @@ const comingSoonFeatures = [
 ];
 
 export default function DashboardPage() {
-
   interface user {
-    name: String;
-    credits: number
+    name: string;
+    credits: number;
   }
 
-  const [userData, setUserData] = useState<user>({ name: "", credits: 0 });
-  const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [isError, setIsError] = useState<boolean>(false)
+  interface Activity {
+    action: string;
+    item: string;
+    time: string;
+    type: 'create' | 'tailor' | 'cover' | 'check';
+  }
 
-  // Fetch user data from /api/auth/me 
+  const [userData, setUserData] = useState<user>({ name: '', credits: 0 });
+  const [recentActivity, setRecentActivity] = useState<Activity[]>(FALLBACK_RECENT);
+  const [creditUsage, setCreditUsage] = useState({
+    used: 23,
+    total: 150,
+    breakdown: { resume: 8, tailor: 12, cover: 3 }
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isError, setIsError] = useState<boolean>(false);
+
   useEffect(() => {
-    const fetchUserData = async () => {
+    const fetchAll = async () => {
       try {
         setIsLoading(true);
-        const res = await fetch('/api/auth/me', { cache: 'no-store' });
-        const data = await res.json();
-        if (data.ok) {
-          setUserData(data.user);
-          setIsLoading(false);
+
+        // 1) get user (same as before)
+        const uRes = await fetch('/api/auth/me', { cache: 'no-store' });
+        const uJson = await uRes.json();
+        if (uJson?.ok && uJson.user) {
+          setUserData({ name: uJson.user.name || '', credits: uJson.user.credits ?? 0 });
         } else {
+          // leave fallback userData if any, but flag error
           setIsError(true);
-          setIsLoading(false);
-          toast.error("Failed to fetch user data");
+          toast.warn('Could not fetch user info — showing cached data.');
         }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
+
+        // 2) get recent documents (from server route /api/documents/recent)
+        try {
+          const docsRes = await fetch('/api/documents/recent?limit=8', { cache: 'no-store' });
+          const docsJson = await docsRes.json();
+          if (docsJson?.ok && Array.isArray(docsJson.documents)) {
+            // map documents into your activity items (most recent first)
+            const mapped = docsJson.documents.map((d: any) => {
+              const kind = d.kind as string;
+              const type = kind === 'COVER_LETTER' ? 'cover' : kind === 'TAILORED_RESUME' ? 'tailor' : 'create';
+              // friendly time: use createdAt -> "2 hours ago"
+              const time = d.createdAt ? formatDistanceToNow(new Date(d.createdAt), { addSuffix: true }) : 'just now';
+              return {
+                action:
+                  type === 'create'
+                    ? 'Created resume'
+                    : type === 'tailor'
+                      ? 'Tailored to job'
+                      : type === 'cover'
+                        ? 'Generated cover letter'
+                        : 'Activity',
+                item: d.title || 'Untitled',
+                time,
+                type
+              } as Activity;
+            });
+            setRecentActivity(mapped.length ? mapped : FALLBACK_RECENT);
+          } else {
+            // keep fallback if response not ok
+            setRecentActivity(FALLBACK_RECENT);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch documents/recent', err);
+          setRecentActivity(FALLBACK_RECENT);
+        }
+
+        // 3) get ledger summary (credit usage) from /api/ledger/summary
+        try {
+          const ledgerRes = await fetch('/api/ledger/summary', { cache: 'no-store' });
+          const ledgerJson = await ledgerRes.json();
+          if (ledgerJson?.ok && ledgerJson.summary) {
+            const s = ledgerJson.summary;
+            // try to read totals.totals or breakdown mapping if available
+            const totals = s.totals || { resumes: 0, tailorings: 0, coverLetters: 0 };
+            const used = s.creditsThisMonth ?? ((totals.resumes || 0) + (totals.tailorings || 0) + (totals.coverLetters || 0));
+            setCreditUsage({
+              used: totals.used ?? 0,
+              total: s.monthLimit ?? 150,
+              breakdown: {
+                resume: totals.resumes ?? 0,
+                tailor: (totals.tailorings ?? totals.tailor) || 0,
+                cover: (totals.coverLetters ?? totals.cover) || 0
+              }
+            });
+          } else {
+            // keep fallback; don't crash UI
+            console.warn('ledger summary not ok, using fallback');
+          }
+        } catch (err) {
+          console.warn('Failed to fetch ledger/summary', err);
+          // keep fallback
+        }
+      } catch (err) {
+        console.error('Dashboard fetch error', err);
+        toast.error('Error loading dashboard data');
+      } finally {
+        setIsLoading(false);
       }
-    }
-    fetchUserData();
-  }, [])
+    };
+
+    fetchAll();
+  }, []);
 
   if (isLoading) {
-    // Make a fancy loader here
     return (
       <div>
         <DashboardLoader />
       </div>
-    )
+    );
   }
 
   return (
@@ -107,7 +182,7 @@ export default function DashboardPage() {
                     You have {userData.credits} credits remaining. Ready to tailor your next application?
                   </p>
                   <Button asChild>
-                    <Link href="/app/upload-tailor"> 
+                    <Link href="/app/upload-tailor">
                       <Plus className="h-4 w-4 mr-2" />
                       Tailor Your First Resume
                     </Link>
@@ -222,11 +297,11 @@ export default function DashboardPage() {
                         className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors"
                       >
                         <div className={cn(
-                          "w-8 h-8 rounded-full flex items-center justify-center",
-                          activity.type === 'create' && "bg-blue-100 dark:bg-blue-900",
-                          activity.type === 'tailor' && "bg-green-100 dark:bg-green-900",
-                          activity.type === 'cover' && "bg-purple-100 dark:bg-purple-900",
-                          activity.type === 'check' && "bg-orange-100 dark:bg-orange-900"
+                          'w-8 h-8 rounded-full flex items-center justify-center',
+                          activity.type === 'create' && 'bg-blue-100 dark:bg-blue-900',
+                          activity.type === 'tailor' && 'bg-green-100 dark:bg-green-900',
+                          activity.type === 'cover' && 'bg-purple-100 dark:bg-purple-900',
+                          activity.type === 'check' && 'bg-orange-100 dark:bg-orange-900'
                         )}>
                           {activity.type === 'create' && <FileText className="h-4 w-4" />}
                           {activity.type === 'tailor' && <Target className="h-4 w-4" />}
@@ -258,23 +333,30 @@ export default function DashboardPage() {
                   <div>
                     <div className="flex justify-between text-sm mb-2">
                       <span>This month</span>
-                      <span>23/150 used</span>
+                      <span>
+                        {creditUsage.used > 0
+                          ? `${creditUsage.used} / ${creditUsage.total} used`
+                          : `You’ve used ${creditUsage.breakdown.resume + creditUsage.breakdown.cover} credits`}
+                      </span>
                     </div>
-                    <Progress value={15.3} className="h-2" />
+                    <Progress
+                      value={((creditUsage.breakdown.tailor + creditUsage.breakdown.cover) / creditUsage.total) * 100}
+                      className="h-2"
+                    />
                   </div>
 
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Resume builds</span>
-                      <span>8</span>
+                      <span className="text-muted-foreground">JD Tailoring</span>
+                      <span>{creditUsage.breakdown.resume}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">JD tailoring</span>
-                      <span>12</span>
+                      <span className="text-muted-foreground">Cover Letters</span>
+                      <span>{creditUsage.breakdown.cover}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Cover letters</span>
-                      <span>3</span>
+                    <div className="flex justify-between opacity-60">
+                      <span className="text-muted-foreground">Resume Builds (Coming Soon)</span>
+                      <span>-</span>
                     </div>
                   </div>
 
@@ -284,7 +366,6 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             </motion.div>
-
             {/* Coming Soon */}
             <motion.div {...fadeInUp}>
               <Card>

@@ -14,7 +14,9 @@ import {
   Users,
   Briefcase,
   MapPin,
-  Star
+  Star,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
@@ -31,7 +33,7 @@ const fadeInUp = {
   transition: { duration: 0.5 }
 };
 
-// Keep your original fallback hardcoded recent activity (used if fetch fails)
+// Fallback data
 const FALLBACK_RECENT: { action: string; item: string; time: string; type: 'create' | 'tailor' | 'cover' | 'check' }[] = [
   { action: 'Created resume', item: 'Software Engineer Resume', time: '2 hours ago', type: 'create' },
   { action: 'Tailored to job', item: 'Google Frontend Developer', time: '1 day ago', type: 'tailor' },
@@ -69,32 +71,47 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isError, setIsError] = useState<boolean>(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 4;
+
+  // Calculate pagination
+  const totalPages = Math.ceil(recentActivity.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentActivities = recentActivity.slice(startIndex, endIndex);
+
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
   useEffect(() => {
     const fetchAll = async () => {
       try {
         setIsLoading(true);
 
-        // 1) get user (same as before)
+        // 1) Get user data
         const uRes = await fetch('/api/auth/me', { cache: 'no-store' });
         const uJson = await uRes.json();
         if (uJson?.ok && uJson.user) {
           setUserData({ name: uJson.user.name || '', credits: uJson.user.credits ?? 0 });
         } else {
-          // leave fallback userData if any, but flag error
           setIsError(true);
           toast.warn('Could not fetch user info — showing cached data.');
         }
 
-        // 2) get recent documents (from server route /api/documents/recent)
+        // 2) Get recent documents
         try {
           const docsRes = await fetch('/api/documents/recent?limit=8', { cache: 'no-store' });
           const docsJson = await docsRes.json();
           if (docsJson?.ok && Array.isArray(docsJson.documents)) {
-            // map documents into your activity items (most recent first)
             const mapped = docsJson.documents.map((d: any) => {
               const kind = d.kind as string;
               const type = kind === 'COVER_LETTER' ? 'cover' : kind === 'TAILORED_RESUME' ? 'tailor' : 'create';
-              // friendly time: use createdAt -> "2 hours ago"
               const time = d.createdAt ? formatDistanceToNow(new Date(d.createdAt), { addSuffix: true }) : 'just now';
               return {
                 action:
@@ -112,7 +129,6 @@ export default function DashboardPage() {
             });
             setRecentActivity(mapped.length ? mapped : FALLBACK_RECENT);
           } else {
-            // keep fallback if response not ok
             setRecentActivity(FALLBACK_RECENT);
           }
         } catch (err) {
@@ -120,13 +136,12 @@ export default function DashboardPage() {
           setRecentActivity(FALLBACK_RECENT);
         }
 
-        // 3) get ledger summary (credit usage) from /api/ledger/summary
+        // 3) Get ledger summary
         try {
           const ledgerRes = await fetch('/api/ledger/summary', { cache: 'no-store' });
           const ledgerJson = await ledgerRes.json();
           if (ledgerJson?.ok && ledgerJson.summary) {
             const s = ledgerJson.summary;
-            // try to read totals.totals or breakdown mapping if available
             const totals = s.totals || { resumes: 0, tailorings: 0, coverLetters: 0 };
             const used = s.creditsThisMonth ?? ((totals.resumes || 0) + (totals.tailorings || 0) + (totals.coverLetters || 0));
             setCreditUsage({
@@ -139,12 +154,10 @@ export default function DashboardPage() {
               }
             });
           } else {
-            // keep fallback; don't crash UI
             console.warn('ledger summary not ok, using fallback');
           }
         } catch (err) {
           console.warn('Failed to fetch ledger/summary', err);
-          // keep fallback
         }
       } catch (err) {
         console.error('Dashboard fetch error', err);
@@ -166,7 +179,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen w-full overflow-x-hidden bg-background">
       <Header />
 
       <div className="container mx-auto p-4 py-8">
@@ -177,7 +190,7 @@ export default function DashboardPage() {
             <motion.div {...fadeInUp}>
               <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
                 <CardContent className="p-6">
-                  <h1 className="text-2xl font-bold mb-2">Welcome back, {userData.name}👋</h1>
+                  <h1 className="text-2xl font-bold mb-2 break-words">Welcome back, {userData.name}👋</h1>
                   <p className="text-muted-foreground mb-4">
                     You have {userData.credits} credits remaining. Ready to tailor your next application?
                   </p>
@@ -277,45 +290,122 @@ export default function DashboardPage() {
               </motion.div>
             </motion.div>
 
-            {/* Recent Activity */}
+            {/* Recent Activity with Pagination */}
             <motion.div {...fadeInUp}>
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    Recent Activity
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5" />
+                      Recent Activity
+                    </CardTitle>
+                    {totalPages > 1 && (
+                      <div className="text-xs text-muted-foreground hidden md:block">
+                        Page {currentPage} of {totalPages}
+                      </div>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {recentActivity.map((activity, index) => (
+                    {currentActivities.map((activity, index) => (
                       <motion.div
-                        key={index}
+                        key={startIndex + index}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.1 }}
                         className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors"
                       >
-                        <div className={cn(
-                          'w-8 h-8 rounded-full flex items-center justify-center',
-                          activity.type === 'create' && 'bg-blue-100 dark:bg-blue-900',
-                          activity.type === 'tailor' && 'bg-green-100 dark:bg-green-900',
-                          activity.type === 'cover' && 'bg-purple-100 dark:bg-purple-900',
-                          activity.type === 'check' && 'bg-orange-100 dark:bg-orange-900'
-                        )}>
+                        <div
+                          className={cn(
+                            'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
+                            activity.type === 'create' && 'bg-blue-100 dark:bg-blue-900',
+                            activity.type === 'tailor' && 'bg-green-100 dark:bg-green-900',
+                            activity.type === 'cover' && 'bg-purple-100 dark:bg-purple-900',
+                            activity.type === 'check' && 'bg-orange-100 dark:bg-orange-900'
+                          )}
+                        >
                           {activity.type === 'create' && <FileText className="h-4 w-4" />}
                           {activity.type === 'tailor' && <Target className="h-4 w-4" />}
                           {activity.type === 'cover' && <FileText className="h-4 w-4" />}
                           {activity.type === 'check' && <CheckCircle className="h-4 w-4" />}
                         </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{activity.action}</p>
-                          <p className="text-xs text-muted-foreground">{activity.item}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{activity.action}</p>
+                          <p className="text-xs text-muted-foreground truncate">{activity.item}</p>
                         </div>
-                        <span className="text-xs text-muted-foreground">{activity.time}</span>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap hidden md:inline">
+                          {activity.time}
+                        </span>
                       </motion.div>
                     ))}
                   </div>
+
+                  {/* Mobile-Responsive Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t">
+                      {/* Previous Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handlePreviousPage}
+                        disabled={currentPage === 1}
+                        className={cn(
+                          'group flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-all duration-200',
+                          'bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10',
+                          'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-primary/10 disabled:hover:to-primary/5',
+                          'border border-primary/20 hover:border-primary/30',
+                          'min-h-[44px]'
+                        )}
+                      >
+                        <ChevronLeft className="h-5 w-5 transition-transform duration-200 group-hover:-translate-x-1" />
+                        <span className="text-sm hidden md:inline">Previous</span>
+                      </motion.button>
+
+                      {/* Page Indicators - Desktop only */}
+                      <div className="hidden md:flex items-center gap-2">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <motion.button
+                            key={page}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => setCurrentPage(page)}
+                            className={cn(
+                              'w-9 h-9 rounded-full font-medium text-sm transition-all duration-200',
+                              page === currentPage
+                                ? 'bg-primary text-primary-foreground shadow-md'
+                                : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                            )}
+                          >
+                            {page}
+                          </motion.button>
+                        ))}
+                      </div>
+
+                      {/* Mobile Page Counter */}
+                      <div className="md:hidden text-xs text-muted-foreground px-2">
+                        {currentPage} / {totalPages}
+                      </div>
+
+                      {/* Next Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleNextPage}
+                        disabled={currentPage === totalPages}
+                        className={cn(
+                          'group flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-all duration-200',
+                          'bg-gradient-to-r from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/20',
+                          'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-primary/5 disabled:hover:to-primary/10',
+                          'border border-primary/20 hover:border-primary/30',
+                          'min-h-[44px]'
+                        )}
+                      >
+                        <span className="text-sm hidden md:inline">Next</span>
+                        <ChevronRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
+                      </motion.button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
@@ -336,7 +426,7 @@ export default function DashboardPage() {
                       <span>
                         {creditUsage.used > 0
                           ? `${creditUsage.used} / ${creditUsage.total} used`
-                          : `You’ve used ${creditUsage.breakdown.resume + creditUsage.breakdown.cover} credits`}
+                          : `You've used ${creditUsage.breakdown.resume + creditUsage.breakdown.cover} credits`}
                       </span>
                     </div>
                     <Progress
@@ -366,6 +456,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             </motion.div>
+
             {/* Coming Soon */}
             <motion.div {...fadeInUp}>
               <Card>
@@ -384,8 +475,8 @@ export default function DashboardPage() {
                       transition={{ delay: index * 0.1 }}
                       className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
                     >
-                      <feature.icon className="h-4 w-4 text-primary" />
-                      <div>
+                      <feature.icon className="h-4 w-4 text-primary flex-shrink-0" />
+                      <div className="min-w-0">
                         <p className="text-sm font-medium">{feature.title}</p>
                         <p className="text-xs text-muted-foreground">{feature.description}</p>
                       </div>

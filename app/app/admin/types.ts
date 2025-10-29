@@ -121,3 +121,48 @@ export interface UserDetailResponse {
   purchases: UserPurchase[];
   creditHistory: CreditHistoryItem[];
 }
+
+export interface DocumentListItem {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  title: string;
+  kind: string;
+  createdAt: string;
+}
+
+export interface DocumentStats {
+  totalDocuments: number;
+  documentsToday: number;
+  documentsThisWeek: number;
+  avgPerUser: string;
+  statsByType: {
+    tailored: number;
+    cover: number;
+    created: number;
+  };
+  chartData: Array<{ date: string; tailored: number; cover: number; created: number }>;
+}
+
+export interface DocumentPagination {
+  page: number;
+  limit: number;
+  totalPages: number;
+  totalCount: number;
+  hasMore: boolean;
+}
+
+export interface DocumentListResponse {
+  documents: DocumentListItem[];
+  pagination: DocumentPagination;
+}
+
+export interface DocumentDetail {
+  id: string;
+  title: string;
+  kind: string;
+  createdAt: string;
+  markdown: string;
+  user: { id: string; email: string; name: string };
+}

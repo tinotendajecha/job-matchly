@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, startOfMonth, subDays, subMonths, format } from 'date-fns';
+import { requireAdmin } from '../middleware';
 
 // TODO: Add admin authentication middleware here
 // For now, we'll proceed without auth - ADD THIS LATER!
 
 export async function GET(request: NextRequest) {
+
+  // Check admin authentication
+  const authResult = await requireAdmin(request);
+  
+  if (authResult instanceof NextResponse) {
+    // Authentication failed, return the error response
+    return authResult;
+  }
+
   try {
     const now = new Date();
     const today = startOfDay(now);

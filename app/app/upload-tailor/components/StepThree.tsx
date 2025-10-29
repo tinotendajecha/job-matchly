@@ -140,7 +140,7 @@ export const StepThree = ({
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-      <div className="mt-6 flex justify-between">
+      {/* <div className="mt-6 flex justify-between">
         <Button variant="outline" onClick={() => onStepChange(2)}>
           <ChevronLeft className="h-4 w-4 mr-2" />
           Back
@@ -148,7 +148,7 @@ export const StepThree = ({
         <Button variant="ghost" onClick={() => { onResetAll(); }}>
           Start Over
         </Button>
-      </div>
+      </div> */}
 
       {/* --- TABS: Resume / Cover Letter --- */}
       <Tabs defaultValue="resume" className="mt-6">

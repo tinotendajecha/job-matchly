@@ -33,8 +33,8 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
+  Legend,
 } from 'recharts';
 import { AdminOverviewData } from './types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -76,15 +76,15 @@ export default function AdminDashboard() {
 
   if (error) {
     return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard Overview</h1>
-          <p className="text-muted-foreground mt-1">Monitor your SaaS metrics and performance</p>
+      <div className="space-y-6 sm:space-y-8 w-full min-w-0">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">Dashboard Overview</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">Monitor your SaaS metrics and performance</p>
         </div>
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription className="break-words">{error}</AlertDescription>
         </Alert>
       </div>
     );
@@ -97,14 +97,15 @@ export default function AdminDashboard() {
   const { metrics, charts, recentActivity } = data;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard Overview</h1>
-        <p className="text-muted-foreground mt-1">Monitor your SaaS metrics and performance</p>
+    <div className="space-y-6 sm:space-y-8 w-full min-w-0 overflow-x-hidden">
+      {/* Header */}
+      <div className="min-w-0">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">Dashboard Overview</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">Monitor your SaaS metrics and performance</p>
       </div>
 
       {/* First Row - Core Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
         <MetricCard
           title="Total Users"
           value={formatNumber(metrics.totalUsers)}
@@ -132,7 +133,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Second Row - Revenue & Activity */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
         <MetricCard
           title="Documents Today"
           value={formatNumber(metrics.documentsToday)}
@@ -159,7 +160,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Third Row - Health Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
         <MetricCard
           title="Activation Rate"
           value={`${metrics.activationRate.toFixed(1)}%`}
@@ -177,148 +178,211 @@ export default function AdminDashboard() {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle>Daily Signups (Last 30 Days)</CardTitle>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 w-full">
+        <Card className="bg-card border-border w-full min-w-0">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg truncate">Daily Signups (Last 30 Days)</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={charts.dailySignups}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Line type="monotone" dataKey="signups" stroke="hsl(var(--chart-1))" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="w-full overflow-hidden">
+              <ResponsiveContainer width="100%" height={250} minWidth={0}>
+                <LineChart data={charts.dailySignups} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={10}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                    }}
+                  />
+                  <Line type="monotone" dataKey="signups" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle>Active Users Trend</CardTitle>
+        <Card className="bg-card border-border w-full min-w-0">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg truncate">Active Users Trend</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={charts.activeUsers}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Line type="monotone" dataKey="active" stroke="hsl(var(--chart-2))" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="w-full overflow-hidden">
+              <ResponsiveContainer width="100%" height={250} minWidth={0}>
+                <LineChart data={charts.activeUsers} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={10}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                    }}
+                  />
+                  <Line type="monotone" dataKey="active" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Charts Row 2 */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle>Documents by Type</CardTitle>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 w-full">
+        <Card className="bg-card border-border w-full min-w-0">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg truncate">Documents by Type</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={charts.documentsByType}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="type" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Bar dataKey="count" fill="hsl(var(--chart-1))" />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="w-full overflow-hidden">
+              <ResponsiveContainer width="100%" height={250} minWidth={0}>
+                <BarChart data={charts.documentsByType} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="type"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={10}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                    }}
+                  />
+                  <Bar dataKey="count" fill="hsl(var(--chart-1))" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle>Revenue Trend (6 Months)</CardTitle>
+        <Card className="bg-card border-border w-full min-w-0">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg truncate">Revenue Trend (6 Months)</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={charts.revenueTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.3}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            <div className="w-full overflow-hidden">
+              <ResponsiveContainer width="100%" height={250} minWidth={0}>
+                <AreaChart data={charts.revenueTrend} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="month"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={10}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="hsl(var(--primary))"
+                    fill="hsl(var(--primary))"
+                    fillOpacity={0.3}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Bottom Row */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle>User Distribution</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-center">
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={charts.userDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {charts.userDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <div className="lg:col-span-2">
-          <RecentActivity activities={recentActivity} limit={10} />
-        </div>
+      {/* Bottom Row - Fixed Heights */}
+      {/* Bottom Row - Fixed User Distribution */}
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 w-full items-start">
+  {/* User Distribution - Fixed Height & Better Labels */}
+  <Card className="bg-card border-border w-full min-w-0 lg:h-full lg:max-h-[500px]">
+    <CardHeader className="p-4 sm:p-6">
+      <CardTitle className="text-base sm:text-lg truncate">User Distribution</CardTitle>
+    </CardHeader>
+    <CardContent className="p-4 sm:p-6 pt-0">
+      <div className="w-full overflow-hidden">
+        <ResponsiveContainer width="100%" height={250} minWidth={0}>
+          <PieChart>
+            <Pie
+              data={charts.userDistribution}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              label={false}
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey="value"
+            >
+              {charts.userDistribution.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+                fontSize: '12px',
+              }}
+            />
+            <Legend
+              verticalAlign="bottom"
+              height={36}
+              iconType="circle"
+              formatter={(value, entry: any) => {
+                const total = charts.userDistribution.reduce((sum, item) => sum + item.value, 0);
+                const percentage = ((entry.value / total) * 100).toFixed(0);
+                return `${value}: ${entry.value} (${percentage}%)`;
+              }}
+              wrapperStyle={{
+                fontSize: '12px',
+                paddingTop: '10px',
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
       </div>
+    </CardContent>
+  </Card>
+
+  {/* Recent Activity */}
+  <div className="lg:col-span-2 w-full min-w-0">
+    <RecentActivity activities={recentActivity} limit={10} />
+  </div>
+</div>
+
+
     </div>
   );
 }
@@ -326,44 +390,44 @@ export default function AdminDashboard() {
 // Loading skeleton component
 function DashboardSkeleton() {
   return (
-    <div className="space-y-8">
-      <div>
-        <Skeleton className="h-10 w-64 mb-2" />
-        <Skeleton className="h-4 w-96" />
+    <div className="space-y-6 sm:space-y-8 w-full min-w-0 overflow-x-hidden">
+      <div className="min-w-0">
+        <Skeleton className="h-8 sm:h-10 w-48 sm:w-64 mb-2" />
+        <Skeleton className="h-3 sm:h-4 w-64 sm:w-96" />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="bg-card border-border">
-            <CardContent className="p-6">
-              <Skeleton className="h-4 w-32 mb-4" />
-              <Skeleton className="h-8 w-24 mb-2" />
-              <Skeleton className="h-3 w-40" />
+          <Card key={i} className="bg-card border-border w-full">
+            <CardContent className="p-4 sm:p-6">
+              <Skeleton className="h-3 sm:h-4 w-24 sm:w-32 mb-3 sm:mb-4" />
+              <Skeleton className="h-6 sm:h-8 w-16 sm:w-24 mb-2" />
+              <Skeleton className="h-2.5 sm:h-3 w-32 sm:w-40" />
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="bg-card border-border">
-            <CardContent className="p-6">
-              <Skeleton className="h-4 w-32 mb-4" />
-              <Skeleton className="h-8 w-24 mb-2" />
-              <Skeleton className="h-3 w-40" />
+          <Card key={i} className="bg-card border-border w-full">
+            <CardContent className="p-4 sm:p-6">
+              <Skeleton className="h-3 sm:h-4 w-24 sm:w-32 mb-3 sm:mb-4" />
+              <Skeleton className="h-6 sm:h-8 w-16 sm:w-24 mb-2" />
+              <Skeleton className="h-2.5 sm:h-3 w-32 sm:w-40" />
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 w-full">
         {Array.from({ length: 2 }).map((_, i) => (
-          <Card key={i} className="bg-card border-border">
-            <CardHeader>
-              <Skeleton className="h-6 w-48" />
+          <Card key={i} className="bg-card border-border w-full">
+            <CardHeader className="p-4 sm:p-6">
+              <Skeleton className="h-5 sm:h-6 w-36 sm:w-48" />
             </CardHeader>
-            <CardContent>
-              <Skeleton className="h-[300px] w-full" />
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <Skeleton className="h-[250px] w-full" />
             </CardContent>
           </Card>
         ))}

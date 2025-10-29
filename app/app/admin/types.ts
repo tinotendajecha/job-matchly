@@ -39,3 +39,85 @@ export interface AdminOverviewData {
   charts: ChartData;
   recentActivity: Activity[];
 }
+
+// ... existing types ...
+
+export interface UserListItem {
+  id: string;
+  name: string;
+  email: string;
+  credits: number;
+  documentsCreated: number;
+  purchaseCount: number;
+  lastActive: Date | string;
+  status: 'ACTIVE' | 'INACTIVE';
+  isPaid: boolean;
+  onboardingComplete: boolean;
+  createdAt: Date | string;
+  emailVerified: Date | string | null;
+}
+
+export interface UserStats {
+  totalUsers: number;
+  activeThisMonth: number;
+  newThisWeek: number;
+  churnedThisMonth: number;
+}
+
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
+export interface UsersResponse {
+  users: UserListItem[];
+  pagination: PaginationInfo;
+  stats: UserStats;
+}
+
+export interface UserDetail {
+  id: string;
+  name: string | null;
+  email: string | null;
+  credits: number;
+  onboardingComplete: boolean;
+  emailVerified: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  lastActive: Date | string;
+  totalDocuments: number;
+  totalPurchases: number;
+}
+
+export interface UserDocument {
+  id: string;
+  title: string;
+  kind: string;
+  createdAt: Date | string;
+}
+
+export interface UserPurchase {
+  id: string;
+  amount: number;
+  credits: number;
+  status: string;
+  provider: string;
+  createdAt: Date | string;
+}
+
+export interface CreditHistoryItem {
+  id: string;
+  type: string;
+  credits: number;
+  createdAt: Date | string;
+}
+
+export interface UserDetailResponse {
+  user: UserDetail;
+  documents: UserDocument[];
+  purchases: UserPurchase[];
+  creditHistory: CreditHistoryItem[];
+}

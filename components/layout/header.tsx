@@ -157,16 +157,6 @@ export function Header({ isPublic = false }: HeaderProps) {
           >
             Pricing
           </Link>
-          {
-            me?.isAdmin == true && (
-              <Link
-            href="/app/admin"
-            className="text-sm font-medium transition-colors hover:text-primary"
-          >
-            <span className='flex items-center gap-2'>Admin <Crown color='yellow' size={16}/></span>
-          </Link>
-            ) 
-          }
         </nav>
 
         {/* Right cluster */}
@@ -242,12 +232,27 @@ export function Header({ isPublic = false }: HeaderProps) {
                 </DropdownMenuItem> */}
 
                 <DropdownMenuItem asChild>
+                  {
+                    me?.isAdmin == true && (
+                      <Link
+                        href="/app/admin"
+                        className="text-sm font-medium transition-colors hover:text-primary flex gap-2"
+                      >
+                        <Crown color='yellow' size={16} />
+                        <span className='flex items-center gap-2'>Admin </span>
+                      </Link>
+                    )
+                  }
+                </DropdownMenuItem>
+
+                <DropdownMenuItem asChild>
                   <Link href="/app/billing" className="flex cursor-pointer">
                     <CreditCard className="mr-2 h-4 w-4" />
                     <span>Billing</span>
                   </Link>
                 </DropdownMenuItem>
-{/* 
+                
+                {/* 
                 <DropdownMenuItem asChild>
                   <Link href="/app/settings" className="flex cursor-pointer">
                     <Settings className="mr-2 h-4 w-4" />

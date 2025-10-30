@@ -220,7 +220,7 @@ export default function VerifyEmailPage() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          Didn’t receive the email? Check your spam folder or try again later.
+          Didn’t receive the email? Check your <span className='text-primary'>spam</span> folder or try again later.
         </p>
       </motion.div>
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, LogOut, User } from 'lucide-react';
+import { Bell, LogOut, User, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import Link from 'next/link';
 
 export function AdminHeader() {
   return (
@@ -41,6 +42,10 @@ export function AdminHeader() {
               <DropdownMenuItem>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
+              </DropdownMenuItem><DropdownMenuItem>
+                <Link href="/app/dashboard" className='flex items-center'>
+                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                  <span>User Dashboard</span></Link>
               </DropdownMenuItem>
               <DropdownMenuItem className="text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />

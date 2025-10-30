@@ -12,7 +12,7 @@ import { formatDateTime } from '../lib/utils';
 interface DocumentsTableProps {
   documents: DocumentListItem[];
   loading?: boolean;
-  pagination: DocumentPagination;
+  pagination: DocumentPagination | null;
   currentPage: number;
   onPageChange: (p: number) => void;
 }
@@ -24,7 +24,7 @@ export function DocumentsTable({
   currentPage,
   onPageChange,
 }: DocumentsTableProps) {
-  const { totalPages, totalCount, limit } = pagination;
+  const { totalPages = 1, totalCount = 0, limit = 20 } = pagination || {};
   const startIndex = (currentPage - 1) * limit + 1;
   const endIndex = Math.min(currentPage * limit, totalCount);
 
@@ -165,7 +165,7 @@ export function DocumentsTable({
             {/* Desktop Page Numbers */}
             <div className="hidden md:flex items-center gap-1">
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                let pageNum;
+let pageNum: number = 1; // or any default number
                 if (totalPages <= 5) {
                   pageNum = i + 1;
                 } else if (currentPage <= 3) {

@@ -237,7 +237,7 @@ export function UsersTable({ users, onViewDetails, pagination, currentPage, onPa
             {/* Desktop Page Numbers */}
             <div className="hidden md:flex items-center gap-1">
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                let pageNum;
+let pageNum: number = 1; // or any default number
                 if (totalPages <= 5) {
                   pageNum = i + 1;
                 } else if (currentPage <= 3) {

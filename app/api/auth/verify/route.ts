@@ -60,7 +60,7 @@ export async function POST(req: Request) {
           amount: 0,
           currency: "USD",
           credits: BONUS,
-          status: "PAID",
+          status: "BONUS",
           meta: { reason: "Welcome bonus on email verification" },
         },
       });

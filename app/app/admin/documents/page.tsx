@@ -18,6 +18,9 @@ export default function DocumentsPage() {
 
   const [stats, setStats] = useState<DocumentStats | null>(null);
   const [docs, setDocs] = useState<DocumentListItem[]>([]);
+
+  
+
   const [pagination, setPagination] = useState<DocumentPagination | null>(null);
   const [loading, setLoading] = useState(true);
 

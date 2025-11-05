@@ -176,10 +176,12 @@ Location · Phone · Email · LinkedIn · Portfolio (if relevant)
 3. ## Skills
 4. ## Experience
 5. ## Education
-6. ## Projects (conditional)
-7. ## Certifications (if applicable)
+6. ## Projects (conditional - if applicable)
+7. ## Certifications (if applicable )
 8. ## References (conditional)
 9. ## Changes Summary
+
+If the resume has missing information for any of the above sections, please don't write the section heading on the resume, just skip it
 
 ## Changes Summary (For Review Only - Will Be Stripped)
 At the very end, add:
@@ -192,7 +194,7 @@ At the very end, add:
 
 ## Output Requirements
 - Return ONLY the tailored resume in clean Markdown
-- Use proper Markdown headers (##), bold (**text**), and formatting
+- Use proper Markdown headers (##), bold text, and formatting
 - No XML, JSON, or other markup
 - Ensure every section flows naturally and tells a cohesive story
 - The resume should make it OBVIOUS why this candidate is perfect for THIS job`,

@@ -39,7 +39,7 @@ export default function TemplatesPage() {
   const handleUseTemplate = (templateId: string) => {
     toast.success(`Using ${templates.find(t => t.id === templateId)?.name} template!`);
     setTimeout(() => {
-      window.location.href = `/app/builder/new?template=${templateId}`;
+      window.location.href = `/app/builder/template=${templateId}`;
     }, 1000);
   };
 
@@ -192,7 +192,7 @@ export default function TemplatesPage() {
           >
             <h2 className="text-2xl font-bold mb-4">More templates coming soon!</h2>
             <p className="text-muted-foreground mb-6">
-              We're working on industry-specific templates for tech, finance, healthcare, and more.
+              We are working on industry-specific templates for tech, finance, healthcare, and more.
             </p>
             <Button variant="outline" asChild>
               <Link href="/app/coming-soon">View Roadmap</Link>

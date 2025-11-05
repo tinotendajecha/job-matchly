@@ -1,0 +1,207 @@
+/**
+ * Print CSS - Shared pagination rules for all templates
+ * 
+ * This file contains CSS Paged Media rules that apply to all resume templates.
+ * Template-specific styles should be in separate CSS files.
+ * 
+ * @page rules define page size, margins, and named pages for special cases.
+ * break-inside: avoid prevents awkward splits (e.g., experience items split mid-item).
+ */
+
+/* Default page settings - A4 size */
+@page {
+  size: A4;
+  margin: 18mm;
+}
+
+/* Alternative: Letter size (can be switched via template registry) */
+/* Commented out to avoid Paged.js parsing issues - can be enabled if needed */
+/*
+@page letter {
+  size: Letter;
+  margin: 0.5in;
+}
+*/
+
+/* Named page for first page (optional - for special first page styling) */
+/* 
+@page first :first {
+  margin-top: 24mm;
+}
+*/
+
+/* Left/Right pages for book-style layouts (optional) */
+/*
+@page :left {
+  margin-right: 25mm;
+}
+
+@page :right {
+  margin-left: 25mm;
+}
+*/
+
+/* Prevent awkward splits - atomic blocks should not break */
+/* .section, */
+.experience-item,
+.education-item,
+.project-item,
+.certification-item,
+.reference-item,
+li {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.section {
+  break-inside: auto;
+  page-break-inside: auto;
+  margin-bottom: 1.5rem;
+}
+
+/* Keep atomic items together */
+.experience-item,
+.education-item,
+.project-item,
+.certification-item,
+.reference-item,
+li {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Prevent headings from being orphaned */
+h1, h2, h3, h4, h5, h6 {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+/* Typography controls */
+p {
+  orphans: 2;
+  widows: 2;
+}
+
+/* Two-column layouts */
+.two-col {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+
+
+/* Prevent headings from being orphaned at page bottom */
+h1, h2, h3, h4, h5, h6 {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+/* Two-column layouts should not break mid-column */
+.two-col {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Lists should not break across pages awkwardly */
+ul, ol {
+  break-inside: avoid;
+}
+
+/* Individual list items can break if very long, but try to avoid */
+li {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Paragraphs - allow natural breaks but avoid orphans/widows */
+p {
+  orphans: 2;
+  widows: 2;
+}
+
+/* Prevent page breaks immediately after section headers */
+.section > h2 {
+  break-after: avoid;
+}
+
+/* Experience entries should stay together */
+.experience-item {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: 1rem;
+}
+
+/* Education entries should stay together */
+.education-item {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: 1rem;
+}
+
+/* Project entries should stay together */
+.project-item {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: 1rem;
+}
+
+/* Certification entries should stay together */
+.certification-item {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: 0.75rem;
+}
+
+/* Reference entries should stay together */
+.reference-item {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Print-specific styles */
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Hide non-printable elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Ensure proper page breaks */
+  .page-break-before {
+    page-break-before: always;
+    break-before: page;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .no-page-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
+/* Screen preview styles */
+@media screen {
+  /* Paged.js generates .pagedjs_page elements */
+  .pagedjs_page {
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1rem;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .pagedjs_pages {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+

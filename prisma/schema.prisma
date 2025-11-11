@@ -69,6 +69,13 @@ model Profile {
   targetRoles     String?
   targetLocations String?
   jobType         String? // "Full-time" | "Part-time" | ...
+
+  // Last used resume
+  resumeMarkdown      String?
+  resumeFileName      String?
+  resumeUpdatedAt     DateTime?
+
+
   // metadata
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

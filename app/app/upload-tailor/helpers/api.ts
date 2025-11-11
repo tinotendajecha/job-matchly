@@ -77,6 +77,14 @@ export async function apiParseResume(file: File, router: ReturnType<typeof useRo
   }
 }
 
+// helpers/api.ts
+export async function apiGetLastResume() {
+  const res = await fetch('/api/profile/resume', { method: 'GET' });
+  const data = await res.json();
+  if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to load saved resume');
+  return data as { ok: true; resumeMarkdown: string; resumeFileName: string; resumeUpdatedAt: string | null };
+}
+
 export async function apiNormalizeJDFromText(text: string) {
   const res = await fetch('/api/normalize-jd', {
     method: 'POST',

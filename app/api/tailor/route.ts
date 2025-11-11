@@ -102,6 +102,7 @@ export async function POST(req: Request) {
 ## Header Format (Exact Order)
 \`\`\`
 # Full Name
+Location · Phone · Email · Other Relevant Links if available
 Location · Phone · Email · LinkedIn · Portfolio (if relevant)
 \`\`\`
 

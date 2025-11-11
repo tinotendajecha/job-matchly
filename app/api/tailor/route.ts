@@ -102,8 +102,7 @@ export async function POST(req: Request) {
 ## Header Format (Exact Order)
 \`\`\`
 # Full Name
-Location · Phone · Email · Other Relevant Links if available
-Location · Phone · Email · LinkedIn · Portfolio (if relevant)
+Location · Phone · Email · Other Relevant Like Linkedin, github, portfolio (on one strict condition if they are available in the resume)
 \`\`\`
 
 ## Professional Summary (2-3 impactful lines)

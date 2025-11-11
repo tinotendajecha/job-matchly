@@ -6,6 +6,8 @@ import { ChatOpenAI } from "@langchain/openai";
 import { ResumeSchema } from "@/lib/types";
 import { getCurrentUser } from "@/lib/auth";
 import { pdfToText } from "pdf-ts"; // PDF extraction
+// import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -135,6 +137,22 @@ ${parser.getFormatInstructions()}`;
       const raw = String(resp.content || "{}");
       structured = ResumeSchema.parse(JSON.parse(raw));
     }
+
+    // Save the resume to profile for future use
+    await prisma.profile.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        resumeMarkdown: text,
+        resumeFileName: file.name || "resume.txt",
+        resumeUpdatedAt: new Date(),
+      },
+      update: {
+        resumeMarkdown: text,
+        resumeFileName: file.name || "resume.txt",
+        resumeUpdatedAt: new Date(),
+      },
+    });
 
     return NextResponse.json({
       ok: true,

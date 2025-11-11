@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { Button } from '@/components/ui/button';
@@ -29,16 +29,54 @@ function LoadingOverlay({ show, label }: { show: boolean; label?: string }) {
   );
 }
 
-export const StepOne = ({ 
-  resumeParsed, 
-  resumeFileName, 
-  steps, 
-  onResumeParsed, 
-  onStepChange, 
+type SavedResume = {
+  fileName: string;
+  text: string;
+  updatedAt?: string | null;
+};
+
+export const StepOne = ({
+  resumeParsed,
+  resumeFileName,
+  steps,
+  onResumeParsed,
+  onStepChange,
   onSetStepStatus,
-  router 
+  router
 }: StepOneProps) => {
   const resumeInputRef = useRef<HTMLInputElement | null>(null);
+  const [saved, setSaved] = useState<SavedResume | null>(null);
+  const [loadingSaved, setLoadingSaved] = useState<boolean>(true);
+
+  // Fetch saved resume on mount
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadSaved() {
+      try {
+        const res = await fetch('/api/profile/resume', { method: 'GET' });
+        // Accept 200 with JSON body: { ok: true, resumeMarkdown, resumeFileName, resumeUpdatedAt }
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        if (!data?.ok) return;
+        const md: string = data.resumeMarkdown || '';
+        const fn: string = data.resumeFileName || '';
+        const at: string | null = data.resumeUpdatedAt || null;
+        if (!ignore && md) {
+          setSaved({ fileName: fn || 'resume.txt', text: md, updatedAt: at });
+        }
+      } catch {
+        // ignore fetch errors; fall back to uploader
+      } finally {
+        if (!ignore) setLoadingSaved(false);
+      }
+    }
+
+    loadSaved();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const triggerResumePicker = () => {
     const el = resumeInputRef.current;
@@ -70,6 +108,20 @@ export const StepOne = ({
     }
   };
 
+  const useSavedResume = () => {
+    if (!saved) return;
+    onSetStepStatus('parse', 'loading');
+    onResumeParsed({
+      fileName: saved.fileName,
+      resumeText: saved.text,
+      resumeJson: null, // optional; downstream can handle null JSON
+      parsed: true
+    });
+    onSetStepStatus('parse', 'done');
+    toast.success('Loaded your last saved resume ✅');
+    onStepChange(2);
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
       <Card className="mt-6">
@@ -92,6 +144,29 @@ export const StepOne = ({
             className="sr-only"
             onChange={onResumeFileChange}
           />
+
+          {/* Saved resume card (if available and not already parsed) */}
+          {!resumeParsed && !loadingSaved && saved && (
+            <div className="mb-4 rounded-lg border p-4 bg-muted/30">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full grid place-items-center shrink-0">
+                    <FileText className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">Use your last resume</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {saved.fileName}
+                      {saved.updatedAt ? ` · Updated ${new Date(saved.updatedAt).toLocaleString()}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <Button size="sm" onClick={useSavedResume} disabled={steps.parse === 'loading'}>
+                  Use this
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Upload area */}
           {!resumeParsed ? (
@@ -119,7 +194,7 @@ export const StepOne = ({
                   Drop your resume here or tap to choose
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
-                  We will  parse it and prep it for tailoring.
+                  We will parse it and prep it for tailoring.
                 </p>
                 <Button variant="outline" size="sm" disabled={steps.parse === 'loading'}>
                   Choose File

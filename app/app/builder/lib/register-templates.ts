@@ -8,39 +8,18 @@
 import { templateRegistry, ResumeTemplate } from './template-registry';
 import { ClassicTemplate } from '../templates/ClassicTemplate';
 import { ModernTemplate } from '../templates/ModernTemplate';
+import { TEMPLATES_META, TEMPLATE_IDS } from './templates-meta';
 
 // Register Classic Template
 export const classicTemplate: ResumeTemplate = {
-  id: 'classic',
-  name: 'Classic',
+  ...TEMPLATES_META.classic,
   component: ClassicTemplate,
-  css: '/app/builder/styles/print.css',
-  page: {
-    size: 'A4',
-    margins: {
-      top: '18mm',
-      right: '18mm',
-      bottom: '18mm',
-      left: '18mm',
-    },
-  },
 };
 
 // Register Modern Template
 export const modernTemplate: ResumeTemplate = {
-  id: 'modern',
-  name: 'Modern',
+  ...TEMPLATES_META.modern,
   component: ModernTemplate,
-  css: '/app/builder/styles/print.css',
-  page: {
-    size: 'A4',
-    margins: {
-      top: '18mm',
-      right: '18mm',
-      bottom: '18mm',
-      left: '18mm',
-    },
-  },
 };
 
 // Register all templates
@@ -48,8 +27,5 @@ templateRegistry.register(classicTemplate);
 templateRegistry.register(modernTemplate);
 
 // Export template IDs for easy reference
-export const TEMPLATE_IDS = {
-  CLASSIC: 'classic',
-  MODERN: 'modern',
-} as const;
+export { TEMPLATE_IDS };
 

@@ -3,172 +3,69 @@ import { NextResponse } from "next/server";
 import playwright from "playwright";
 import playwrightCore from "playwright-core";
 import chromium from "@sparticuz/chromium";
+import path from "path";
+import fs from "fs";
+import { getTemplateMeta } from "@/app/app/builder/lib/templates-meta";
 
 export const runtime = "nodejs";
 
-// Get template-specific CSS
-function getTemplateStyles(template: 'classic' | 'modern' = 'classic'): string {
-  if (template === 'modern') {
-    return `
-    @page {
-      size: A4;
-      margin: 18mm;
-    }
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      color: #000;
-      line-height: 1.6;
-    }
-    .section {
-      margin-bottom: 1.5rem;
-    }
-    h1 {
-      font-size: 1.875rem;
-      font-weight: bold;
-      margin-bottom: 0.5rem;
-      color: #2563eb;
-    }
-    h2 {
-      font-size: 1.25rem;
-      font-weight: 600;
-      margin-bottom: 0.75rem;
-      margin-top: 1.5rem;
-      color: #2563eb;
-      border-bottom: 2px solid #2563eb;
-      padding-bottom: 0.25rem;
-    }
-    h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      color: #1f2937;
-    }
-    p {
-      margin-bottom: 0.5rem;
-      color: #374151;
-    }
-    ul {
-      margin-left: 1rem;
-      margin-bottom: 0.5rem;
-    }
-    li {
-      margin-bottom: 0.25rem;
-      color: #374151;
-    }
-    a {
-      color: #2563eb;
-      text-decoration: none;
-    }
-    .header-section {
-      border-bottom: 2px solid #2563eb;
-    }
-    .experience-item,
-    .education-item,
-    .project-item,
-    .certification-item,
-    .reference-item {
-      break-inside: avoid;
-      page-break-inside: avoid;
-      margin-bottom: 1rem;
-    }
-    .section {
-      break-inside: auto;
-    }
-    h2, h3 {
-      break-after: avoid;
-    }
-    p {
-      widows: 2;
-      orphans: 2;
-    }
-    `;
+// Attempt to resolve and read CSS content from a web-style path
+function tryReadCss(cssPath: string): string {
+  if (!cssPath) return '';
+  const normalized = cssPath.replace(/^\//, '');
+  const candidates = [
+    path.join(process.cwd(), normalized),
+    path.join(process.cwd(), 'app', normalized),
+    path.join(process.cwd(), 'app', 'app', normalized),
+    path.join(process.cwd(), 'src', normalized),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) {
+        return fs.readFileSync(p, 'utf-8');
+      }
+    } catch {/* ignore */}
   }
-  
-  // Classic template (default)
-  return `
-    @page {
-      size: A4;
-      margin: 18mm;
-    }
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      color: #000;
-      line-height: 1.6;
-    }
-    .section {
-      margin-bottom: 1.5rem;
-    }
-    h1 {
-      font-size: 1.875rem;
-      font-weight: bold;
-      margin-bottom: 0.5rem;
-      color: #111827;
-    }
-    h2 {
-      font-size: 1.25rem;
-      font-weight: 600;
-      margin-bottom: 0.75rem;
-      margin-top: 1.5rem;
-      color: #111827;
-    }
-    h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      color: #111827;
-    }
-    p {
-      margin-bottom: 0.5rem;
-      color: #374151;
-    }
-    ul {
-      margin-left: 1rem;
-      margin-bottom: 0.5rem;
-    }
-    li {
-      margin-bottom: 0.25rem;
-      color: #374151;
-    }
-    a {
-      color: #2563eb;
-      text-decoration: none;
-    }
-    .header-section {
-      border-bottom: 1px solid #d1d5db;
-    }
-    .experience-item,
-    .education-item,
-    .project-item,
-    .certification-item,
-    .reference-item {
-      break-inside: avoid;
-      page-break-inside: avoid;
-      margin-bottom: 1rem;
-    }
-    .section {
-      break-inside: auto;
-    }
-    h2, h3 {
-      break-after: avoid;
-    }
-    p {
-      widows: 2;
-      orphans: 2;
-    }
-  `;
+  return '';
 }
+
+// Minimal fallback CSS to preserve pagination behavior if file can't be read
+const DEFAULT_BREAK_CSS = `
+/* Fallback print break rules */
+@page { margin: 18mm; }
+.experience-item,
+.education-item,
+.project-item,
+.certification-item,
+.reference-item,
+li { break-inside: avoid; page-break-inside: avoid; }
+.section { break-inside: auto; page-break-inside: auto; margin-bottom: 1.5rem; }
+h1, h2, h3, h4, h5, h6 { break-after: avoid; page-break-after: avoid; }
+p { orphans: 2; widows: 2; }
+`;
 
 export async function POST(req: Request) {
   let browser = null;
   try {
-    const { html, filename, template } = await req.json();
+    const { html, filename, template, templateId } = await req.json();
 
     if (!html || typeof html !== "string") {
       return NextResponse.json({ ok: false, error: "Missing 'html'." }, { status: 400 });
     }
 
-    const templateType: 'classic' | 'modern' = template === 'modern' ? 'modern' : 'classic';
-    const styles = getTemplateStyles(templateType);
+    // Prefer templateId, but accept legacy 'template'
+    const selectedId: string | null = (typeof templateId === 'string' && templateId)
+      || (typeof template === 'string' && template)
+      || null;
+    const meta = getTemplateMeta(selectedId);
+
+    // Load CSS file(s)
+    const cssPaths = Array.isArray(meta.css) ? meta.css : [meta.css];
+    const loadedCss = cssPaths.map(tryReadCss).filter(Boolean).join('\n\n') || DEFAULT_BREAK_CSS;
+
+    // Build dynamic @page with metadata margins/size (placed after loaded CSS to ensure specificity)
+    const pageCss = `@page { size: ${meta.page.size}; margin: ${meta.page.margins.top} ${meta.page.margins.right} ${meta.page.margins.bottom} ${meta.page.margins.left}; }`;
+    const styles = `${loadedCss}\n\n${pageCss}`;
 
     // Build full HTML document with template-specific styles
     const fullHtml = `<!doctype html>
@@ -200,13 +97,14 @@ export async function POST(req: Request) {
     await page.setContent(fullHtml, { waitUntil: 'networkidle' });
 
     const pdfUint8Array = await page.pdf({
-      format: 'A4',
+      // Use template page config
+      format: meta.page.size as any,
       printBackground: true,
       margin: {
-        top: '18mm',
-        right: '18mm',
-        bottom: '18mm',
-        left: '18mm',
+        top: meta.page.margins.top,
+        right: meta.page.margins.right,
+        bottom: meta.page.margins.bottom,
+        left: meta.page.margins.left,
       },
     });
 

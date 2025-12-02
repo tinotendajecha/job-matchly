@@ -57,7 +57,7 @@ export function resumeDataToHtml(data: ResumeData, template: 'classic' | 'modern
       ? `color: ${h2Color}; border-bottom: ${borderWidth} solid ${borderColor}; padding-bottom: 0.25rem;`
       : `color: ${h2Color};`;
     html += `<h2 style="${h2Style}">Professional Summary</h2>`;
-    html += `<p style="color: #374151; line-height: 1.75;">${escapeHtml(data.professionalSummary)}</p>`;
+    html += `<p style="color: #374151; line-height: 1.5;">${escapeHtml(data.professionalSummary)}</p>`;
     html += '</div>';
   }
 
@@ -284,7 +284,7 @@ export async function exportResumeToPdf(html: string, filename: string = 'resume
   const res = await fetch('/api/resume-builder/export/pdf', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ html, filename, template }),
+    body: JSON.stringify({ html, filename, template, templateId: template }),
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Export failed' }));
@@ -300,7 +300,7 @@ export async function exportResumeToDocx(html: string, filename: string = 'resum
   const res = await fetch('/api/resume-builder/export/docx', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ html, filename, template }),
+    body: JSON.stringify({ html, filename, template, templateId: template }),
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Export failed' }));

@@ -15,8 +15,18 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
+import { useRouter } from 'next/navigation';
 
-const templates = [
+type TemplateId = 'classic' | 'modern';
+
+const templates: Array<{
+  id: TemplateId;
+  name: string;
+  description: string;
+  features: string[];
+  preview: string;
+  popular: boolean;
+}> = [
   {
     id: 'classic',
     name: 'Classic',
@@ -36,11 +46,10 @@ const templates = [
 ];
 
 export default function TemplatesPage() {
-  const handleUseTemplate = (templateId: string) => {
+  const router = useRouter();
+  const handleUseTemplate = (templateId: TemplateId) => {
     toast.success(`Using ${templates.find(t => t.id === templateId)?.name} template!`);
-    setTimeout(() => {
-      window.location.href = `/app/builder/template=${templateId}`;
-    }, 1000);
+    router.push(`/app/builder/${templateId}`);
   };
 
   const handlePreview = (templateId: string) => {

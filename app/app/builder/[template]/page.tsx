@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -37,6 +37,7 @@ import { ReferencesSection } from '../components/ReferencesSection';
 import { ChangesSummarySection } from '../components/ChangesSummarySection';
 import { ResumePreview } from '../components/ResumePreview';
 import { useParams } from 'next/navigation';
+import { TemplateBrowserDialog } from '../components/TemplateBrowserDialog';
 
 function cn(...classes: (string | boolean | undefined | null)[]): string {
   return classes.filter(Boolean).join(' ');
@@ -44,20 +45,24 @@ function cn(...classes: (string | boolean | undefined | null)[]): string {
 
 export default function ResumeBuilderPage() {
 
-  // Get template from params url
-  const templateToUse = useParams()
-
-  console.log(templateToUse.id)
-
-
+  const params = useParams<{ template?: string }>();
+  const templateFromRoute = useMemo(() => {
+    const value = Array.isArray(params?.template) ? params?.template[0] : params?.template;
+    return value === 'modern' ? 'modern' : value === 'classic' ? 'classic' : null;
+  }, [params?.template]);
   const [zoom, setZoom] = useState(100);
   const [showMobilePreview, setShowMobilePreview] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
   const activeTemplate = useCreateResumeStore((state) => state.activeTemplate)
   const setActiveTemplate = useCreateResumeStore((state) => state.setActiveTemplate);
 
-  // | useCreateResumeStore((state) => state.setActiveTemplate);
-  
+  useEffect(() => {
+    if (templateFromRoute) {
+      setActiveTemplate(templateFromRoute);
+    }
+  }, [templateFromRoute, setActiveTemplate]);
+
   // Get all resume data
   const header = useCreateResumeStore((state) => state.header);
   const professionalSummary = useCreateResumeStore((state) => state.professionalSummary);
@@ -68,6 +73,28 @@ export default function ResumeBuilderPage() {
   const certifications = useCreateResumeStore((state) => state.certifications);
   const references = useCreateResumeStore((state) => state.references);
   const changesSummary = useCreateResumeStore((state) => state.changesSummary);
+
+  type TemplateId = 'classic' | 'modern';
+
+  const resumeData = useMemo(
+    () => ({
+      header,
+      professionalSummary,
+      skills,
+      experience,
+      education,
+      projects,
+      certifications,
+      references,
+      changesSummary,
+    }),
+    [header, professionalSummary, skills, experience, education, projects, certifications, references, changesSummary])
+
+  const handleTemplateSelect = (templateId: TemplateId) => {
+    setActiveTemplate(templateId);
+    toast.success(`Switched to ${templateId === 'classic' ? 'Classic' : 'Modern'} template`);
+    setShowTemplateBrowser(false);
+  };
 
   const handleExport = async (format: 'pdf' | 'docx') => {
     try {
@@ -83,7 +110,7 @@ export default function ResumeBuilderPage() {
         references,
         changesSummary,
       };
-      
+
       const filename = header.name ? header.name.replace(/\s+/g, '-').toLowerCase() : 'resume';
       await downloadResume(format, resumeData, activeTemplate, filename);
       toast.success(`${format.toUpperCase()} downloaded successfully!`);
@@ -98,7 +125,7 @@ export default function ResumeBuilderPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <div className="flex h-[calc(100vh-64px)]">
         {/* Left Panel - Form */}
         <div className={cn(
@@ -156,13 +183,22 @@ export default function ResumeBuilderPage() {
                     <TabsTrigger value="modern">Modern</TabsTrigger>
                   </TabsList>
                 </Tabs>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setShowTemplateBrowser(true)}
+                >
+                  <Maximize className="h-4 w-4" />
+                  Browse templates
+                </Button>
 
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setZoom(Math.max(50, zoom - 25))}
-                    disabled={zoom <= 50}
+                    onClick={() => setZoom(Math.max(25, zoom - 25))}
+                    disabled={zoom <= 25}
                   >
                     <ZoomOut className="h-4 w-4" />
                   </Button>
@@ -177,9 +213,9 @@ export default function ResumeBuilderPage() {
                   >
                     <ZoomIn className="h-4 w-4" />
                   </Button>
-                  
+
                   <Separator orientation="vertical" className="h-6" />
-                  
+
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -202,7 +238,7 @@ export default function ResumeBuilderPage() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -233,9 +269,71 @@ export default function ResumeBuilderPage() {
                 ← Back to Edit
               </Button>
             </div>
+            <div className="p-4 border-b flex flex-wrap gap-3 items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 flex-shrink-0"
+                onClick={() => setShowTemplateBrowser(true)}
+              >
+                <Maximize className="h-4 w-4" />
+                Browse templates
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setZoom(Math.max(25, zoom - 25))}
+                  disabled={zoom <= 25}
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium min-w-[60px] text-center">
+                  {zoom}%
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setZoom(Math.min(200, zoom + 25))}
+                  disabled={zoom >= 200}
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    disabled={isExporting}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {isExporting ? 'Exporting...' : 'Download'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Download as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('docx')}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Download as DOCX
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             <ResumePreview zoom={zoom} activeTemplate={activeTemplate} />
           </div>
         )}
+
+        <TemplateBrowserDialog
+          open={showTemplateBrowser}
+          onOpenChange={setShowTemplateBrowser}
+          onSelectTemplate={handleTemplateSelect}
+          resumeData={resumeData}
+        />
       </div>
     </div>
   );

@@ -18,7 +18,6 @@ export function ResumePreview({ zoom, activeTemplate }: ResumePreviewProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [isPaginating, setIsPaginating] = useState(false);
 
   // Get resume data from store
   const header = useCreateResumeStore((state) => state.header);
@@ -213,8 +212,6 @@ export function ResumePreview({ zoom, activeTemplate }: ResumePreviewProps) {
   // Split content into pages
 useEffect(() => {
   if (!contentRef.current || !containerRef.current || !template) return;
-
-  setIsPaginating(true);
 
   const timeoutId = setTimeout(() => {
     try {
@@ -426,10 +423,9 @@ useEffect(() => {
         setTotalPages(pages.length);
       }
 
-      setIsPaginating(false);
+      
     } catch (error) {
       console.error('Pagination error:', error);
-      setIsPaginating(false);
     }
   }, 200);
 
@@ -473,17 +469,7 @@ useEffect(() => {
 
   return (
     <>
-      <div className="flex-1 overflow-auto p-6 relative">
-        {/* Pagination spinner */}
-        {isPaginating && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-sm">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              <span>Paginating...</span>
-            </div>
-          </div>
-        )}
-
+      <div className="flex-1 overflow-auto p-6 relative bg-muted/20">
         {/* Hidden content for measurement */}
         <div
           ref={contentRef}
@@ -501,17 +487,19 @@ useEffect(() => {
         </div>
 
         {/* Visible page containers */}
-        <div
-          ref={containerRef}
-          className="mx-auto pages-container"
-          style={{
-            transform: `scale(${zoom / 100})`,
-            transformOrigin: 'top center',
-            width: '210mm',
-            position: 'relative',
-          }}
-        >
-          {/* Pages will be created by the useEffect */}
+        <div className="w-full flex justify-center">
+          <div
+            ref={containerRef}
+            className="pages-container"
+            style={{
+              transform: `scale(${zoom / 100})`,
+              transformOrigin: 'top center',
+              width: '210mm',
+              position: 'relative',
+            }}
+          >
+            {/* Pages will be created by the useEffect */}
+          </div>
         </div>
       </div>
 

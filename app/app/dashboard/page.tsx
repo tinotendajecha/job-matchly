@@ -217,12 +217,12 @@ export default function DashboardPage() {
                 {/* Build from Scratch */}
                 <motion.div whileHover={{ y: -5 }} className="group relative w-full">
                   <div className="absolute top-2 right-2 z-10">
-                    <span className="bg-yellow-500 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
-                      Coming Soon
+                    <span className="bg-emerald-600 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
+                      New
                     </span>
                   </div>
 
-                  <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300 opacity-70 pointer-events-none">
+                  <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300">
                     <CardHeader className="text-center pb-3 sm:pb-4 p-4 sm:p-6">
                       <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 group-hover:bg-primary/20 transition-colors">
                         <FileText className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
@@ -233,8 +233,8 @@ export default function DashboardPage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0 p-4 sm:p-6">
-                      <Button className="w-full text-sm" disabled>
-                        Start Building
+                      <Button className="w-full text-sm" variant="outline" asChild>
+                        <Link href="/app/builder/modern">Start Building</Link>
                       </Button>
                     </CardContent>
                   </Card>

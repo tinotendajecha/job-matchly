@@ -198,9 +198,9 @@ export default function DashboardPage() {
                       You have {userData.credits} credits remaining. Ready to tailor your next application?
                     </p>
                     <Button asChild className="w-full sm:w-auto text-sm sm:text-base">
-                      <Link href="/app/upload-tailor">
+                      <Link href="/app/builder/modern">
                         <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
-                        Tailor Your First Resume
+                        Create Your First Resume
                       </Link>
                     </Button>
                   </CardContent>
@@ -243,8 +243,8 @@ export default function DashboardPage() {
                 {/* Upload & Tailor */}
                 <motion.div whileHover={{ y: -5 }} className="group relative w-full">
                   <div className="absolute top-2 right-2 z-10">
-                    <span className="bg-green-600 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
-                      Live
+                    <span className="bg-amber-600 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
+                      Under Maintenance
                     </span>
                   </div>
 
@@ -259,8 +259,8 @@ export default function DashboardPage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0 p-4 sm:p-6">
-                      <Button className="w-full text-sm" variant="outline" asChild>
-                        <Link href="/app/upload-tailor">Upload Resume</Link>
+                      <Button className="w-full text-sm opacity-60" variant="outline" disabled>
+                        Tailor Resume
                       </Button>
                     </CardContent>
                   </Card>

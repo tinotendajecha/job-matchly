@@ -74,7 +74,7 @@ export function resumeDataToHtml(data: ResumeData, template: 'classic' | 'modern
       html += '<h3>Technical</h3>';
       html += '<div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">';
       data.skills.technical.forEach(skill => {
-        html += `<span style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">${escapeHtml(skill)}</span>`;
+        html += `<span style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin: 0 4pt 4pt 0; display: inline-block;">${escapeHtml(skill)}</span>`;
       });
       html += '</div>';
       html += '</div>';
@@ -84,7 +84,7 @@ export function resumeDataToHtml(data: ResumeData, template: 'classic' | 'modern
       html += '<h3>Soft Skills</h3>';
       html += '<div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">';
       data.skills.soft.forEach(skill => {
-        html += `<span style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">${escapeHtml(skill)}</span>`;
+        html += `<span style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin: 0 4pt 4pt 0; display: inline-block;">${escapeHtml(skill)}</span>`;
       });
       html += '</div>';
       html += '</div>';
@@ -194,7 +194,7 @@ export function resumeDataToHtml(data: ResumeData, template: 'classic' | 'modern
       html += `<h3>${escapeHtml(cert.name || 'Certification Name')}</h3>`;
       html += `<p style="color: #374151;">${escapeHtml(cert.issuer || 'Issuer')}</p>`;
       html += '</div>';
-      html += '<div style="text-align: right; font-size: 0.875rem; color: #4b5563;">';
+      html += '<div style="text-align: right; font-size: 0.875rem; color: #4b5563; min-width: 110pt; float: right; line-height: 1.3;">';
       if (cert.date) {
         html += `<div>Issued: ${formatDate(cert.date)}</div>`;
       }

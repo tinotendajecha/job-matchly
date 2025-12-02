@@ -5,146 +5,50 @@ const require = createRequire(import.meta.url);
 
 export const runtime = "nodejs";
 
-// Get template-specific CSS
-function getTemplateStyles(template: 'classic' | 'modern' = 'classic'): string {
+// DOCX-specific tight CSS (separate from PDF/preview)
+function getDocxStyles(template: 'classic' | 'modern' = 'classic'): string {
+  const shared = `
+    body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.8; color: #111827; margin: 0; }
+    .section { margin-bottom: 8pt; }
+    h1 { font-size: 22pt; font-weight: 700; margin: 0 0 4pt 0; }
+    h2 { font-size: 13pt; font-weight: 600; margin: 10pt 0 4pt 0; padding-bottom: 1pt; }
+    h3 { font-size: 11pt; font-weight: 600; margin: 0 0 2pt 0; }
+    p { margin: 5pt 0; line-height: 1.5; color: #374151; }
+    ul { margin: 2.5pt 0 4pt 18pt; padding: 0; }
+    li { margin: 1.5pt 0; line-height: 1.3; color: #374151; }
+    a { color: #2563eb; text-decoration: none; }
+    /* Avoid duplicate header line; we add divider inline in HTML */
+    /* .header-section { border-bottom: 1px solid #dcdcdc; } */
+    .experience-item, .education-item, .project-item, .certification-item, .reference-item { margin-bottom: 6pt; }
+  `;
   if (template === 'modern') {
     return `
-    body {
-      font-family: Calibri, Arial, sans-serif;
-      font-size: 11pt;
-      line-height: 1.6;
-      color: #111;
-    }
-    .section {
-      margin-bottom: 1.5rem;
-    }
-    h1 {
-      font-size: 24pt;
-      font-weight: bold;
-      margin-bottom: 8pt;
-      color: #2563eb;
-    }
-    h2 {
-      font-size: 14pt;
-      font-weight: 600;
-      margin: 16pt 0 8pt 0;
-      padding-bottom: 2pt;
-      border-bottom: 2px solid #2563eb;
-      color: #2563eb;
-    }
-    h3 {
-      font-size: 12pt;
-      font-weight: 600;
-      margin-bottom: 6pt;
-      color: #1f2937;
-    }
-    p {
-      margin: 6pt 0;
-      font-size: 11pt;
-      line-height: 1.6;
-      color: #374151;
-    }
-    ul {
-      margin: 6pt 0 8pt 18pt;
-      padding: 0;
-    }
-    li {
-      margin: 4pt 0;
-      font-size: 11pt;
-      line-height: 1.5;
-      color: #374151;
-    }
-    a {
-      color: #2563eb;
-      text-decoration: none;
-    }
-    .header-section {
-      border-bottom: 2px solid #2563eb;
-    }
-    .experience-item,
-    .education-item,
-    .project-item,
-    .certification-item,
-    .reference-item {
-      margin-bottom: 12pt;
-    }
+      ${shared}
+      h1 { color: #2563eb; }
+      h2 { color: #2563eb; border-bottom: 1.5pt solid #2563eb; }
+      .header-section { /* no border here to avoid extra line in export */ }
     `;
   }
-  
-  // Classic template (default)
+  // classic
   return `
-    body {
-      font-family: Calibri, Arial, sans-serif;
-      font-size: 11pt;
-      line-height: 1.6;
-      color: #111;
-    }
-    .section {
-      margin-bottom: 1.5rem;
-    }
-    h1 {
-      font-size: 24pt;
-      font-weight: bold;
-      margin-bottom: 8pt;
-      color: #0f2a43;
-    }
-    h2 {
-      font-size: 14pt;
-      font-weight: 600;
-      margin: 16pt 0 8pt 0;
-      padding-bottom: 2pt;
-      border-bottom: 1px solid #dcdcdc;
-      color: #12467F;
-    }
-    h3 {
-      font-size: 12pt;
-      font-weight: 600;
-      margin-bottom: 6pt;
-      color: #1f2937;
-    }
-    p {
-      margin: 6pt 0;
-      font-size: 11pt;
-      line-height: 1.6;
-      color: #374151;
-    }
-    ul {
-      margin: 6pt 0 8pt 18pt;
-      padding: 0;
-    }
-    li {
-      margin: 4pt 0;
-      font-size: 11pt;
-      line-height: 1.5;
-      color: #374151;
-    }
-    a {
-      color: #1155cc;
-      text-decoration: none;
-    }
-    .header-section {
-      border-bottom: 1px solid #dcdcdc;
-    }
-    .experience-item,
-    .education-item,
-    .project-item,
-    .certification-item,
-    .reference-item {
-      margin-bottom: 12pt;
-    }
+    ${shared}
+    h1 { color: #0f2a43; }
+    h2 { color: #12467F; border-bottom: 1pt solid #dcdcdc; }
+    .header-section { /* no border here to avoid extra line in export */ }
   `;
 }
 
 export async function POST(req: Request) {
   try {
-    const { html, filename, template } = await req.json();
+    const { html, filename, template, templateId } = await req.json();
 
     if (!html || typeof html !== "string") {
       return NextResponse.json({ ok: false, error: "Missing 'html'." }, { status: 400 });
     }
 
-    const templateType: 'classic' | 'modern' = template === 'modern' ? 'modern' : 'classic';
-    const styles = getTemplateStyles(templateType);
+    // Choose docx-specific template variant; do not load shared CSS
+    const selected: 'classic' | 'modern' = templateId === 'modern' || template === 'modern' ? 'modern' : 'classic';
+    const styles = getDocxStyles(selected);
 
     // Build full HTML document with template-specific styles
     const fullHtml = `<!doctype html>

@@ -232,7 +232,7 @@ export default function ResumeBuilderPage() {
                         <FileDown className="h-4 w-4 mr-2" />
                         Download as PDF
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExport('docx')}>
+                      <DropdownMenuItem onClick={() => toast.info('DOCX export is coming soon!')}>
                         <FileDown className="h-4 w-4 mr-2" />
                         Download as DOCX
                       </DropdownMenuItem>
@@ -317,9 +317,9 @@ export default function ResumeBuilderPage() {
                     <FileDown className="h-4 w-4 mr-2" />
                     Download as PDF
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport('docx')}>
+                  <DropdownMenuItem onClick={() => toast.info('DOCX export is coming soon!')}>
                     <FileDown className="h-4 w-4 mr-2" />
-                    Download as DOCX
+                    Download as DOCX (Coming Soon)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

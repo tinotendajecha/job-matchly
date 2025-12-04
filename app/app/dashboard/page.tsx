@@ -243,28 +243,29 @@ export default function DashboardPage() {
                 {/* Upload & Tailor */}
                 <motion.div whileHover={{ y: -5 }} className="group relative w-full">
                   <div className="absolute top-2 right-2 z-10">
-                    <span className="bg-amber-600 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
-                      Under Maintenance
+                    <span className="bg-emerald-600 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
+                      Live
                     </span>
                   </div>
 
                   <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300">
                     <CardHeader className="text-center pb-3 sm:pb-4 p-4 sm:p-6">
                       <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 group-hover:bg-primary/20 transition-colors">
-                        <Upload className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
+                        <FileText className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
                       </div>
-                      <CardTitle className="text-base sm:text-lg">Upload & Tailor</CardTitle>
+                      <CardTitle className="text-base sm:text-lg">Build from Scratch</CardTitle>
                       <CardDescription className="text-xs sm:text-sm">
                         Upload your existing resume and tailor it to a specific job
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0 p-4 sm:p-6">
-                      <Button className="w-full text-sm opacity-60" variant="outline" disabled>
-                        Tailor Resume
+                      <Button className="w-full text-sm" variant="outline" asChild>
+                        <Link href="/app//upload-tailor">Upload & Tailor</Link>
                       </Button>
                     </CardContent>
                   </Card>
                 </motion.div>
+
 
                 {/* ATS Check */}
                 <motion.div whileHover={{ y: -5 }} className="group relative w-full sm:col-span-2 md:col-span-1">

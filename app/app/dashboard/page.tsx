@@ -218,7 +218,7 @@ export default function DashboardPage() {
                 <motion.div whileHover={{ y: -5 }} className="group relative w-full">
                   <div className="absolute top-2 right-2 z-10">
                     <span className="bg-emerald-600 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
-                      New
+                      Beta
                     </span>
                   </div>
 

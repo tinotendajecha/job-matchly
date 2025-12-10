@@ -251,9 +251,9 @@ export default function DashboardPage() {
                   <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300">
                     <CardHeader className="text-center pb-3 sm:pb-4 p-4 sm:p-6">
                       <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 group-hover:bg-primary/20 transition-colors">
-                        <FileText className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
+                        <Upload className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
                       </div>
-                      <CardTitle className="text-base sm:text-lg">Build from Scratch</CardTitle>
+                      <CardTitle className="text-base sm:text-lg">Tailor Your Resume</CardTitle>
                       <CardDescription className="text-xs sm:text-sm">
                         Upload your existing resume and tailor it to a specific job
                       </CardDescription>

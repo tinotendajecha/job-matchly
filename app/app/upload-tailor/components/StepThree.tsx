@@ -29,6 +29,22 @@ import { MarkdownPreview, splitChanges } from '../helpers/utils';
 import { downloadDocument } from '../helpers/api';
 import type { Analysis, StepStatus } from '../types';
 
+import { useTailorStore } from '@/lib/zustand/store';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+
+import { Palette } from 'lucide-react';
+import { TAILOR_TEMPLATES } from '../helpers/templates';
+
+
+
 interface StepThreeProps {
   tailoredMarkdown: string;
   resumeTitleFromLLM: string;
@@ -70,6 +86,10 @@ export const StepThree = ({
 
   const { body: previewMarkdown, changes: changesMarkdown } = splitChanges(tailoredMarkdown);
 
+  // import template id from store
+  const selectedTemplateId = useTailorStore((state) => state.selectedTemplateId);
+  const setSelectedTemplateId = useTailorStore((state) => state.setSelectedTemplateId);
+
 
   // Generate filename for cover letter downloads
   const getCoverLetterFilename = () => {
@@ -77,23 +97,23 @@ export const StepThree = ({
     if (coverTitle) {
       return coverTitle.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_').trim();
     }
-    
+
     // Fallback: try to extract name from cover letter content
     const nameMatch = generatedCoverLetter.match(/^Dear\s+(.+),/m);
     if (nameMatch) {
       return `Cover_Letter_For_${nameMatch[1].trim().replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_')}`;
     }
-    
+
     return 'Cover_Letter_For_User';
   };
 
   const handleResumeDownload = async () => {
     if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
-    
+
     try {
       await downloadDocument(
-        tailoredMarkdown, 
-        downloadFmt, 
+        tailoredMarkdown,
+        downloadFmt,
         resumeTitleFromLLM,
         downloadFmt === 'pdf' ? setDownloadingPdf : setDownloading
       );
@@ -106,12 +126,12 @@ export const StepThree = ({
 
   const handleCoverLetterDownload = async () => {
     if (!generatedCoverLetter) return toast.error('Generate cover letter first');
-    
+
     try {
       const filename = getCoverLetterFilename();
       await downloadDocument(
-        generatedCoverLetter, 
-        downloadFmt, 
+        generatedCoverLetter,
+        downloadFmt,
         filename,
         downloadFmt === 'pdf' ? setDownloadingPdf : setDownloading
       );
@@ -182,7 +202,7 @@ export const StepThree = ({
                     <span className="hidden sm:inline">Back to JD</span>
                   </Button>
 
-                  <Button
+                  {/* <Button
                     variant="outline"
                     size="sm"
                     onClick={copyMarkdown}
@@ -193,7 +213,57 @@ export const StepThree = ({
                   >
                     <Clipboard className="h-4 w-4 sm:mr-1.5" />
                     <span className="hidden sm:inline">Copy Markdown</span>
-                  </Button>
+                  </Button> */}
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        aria-label="Choose resume template"
+                        title="Choose template"
+                      >
+                        <Palette className="h-4 w-4 sm:mr-1.5" />
+                        <span className="hidden sm:inline">Template</span>
+                      </Button>
+                    </DialogTrigger>
+
+                    <DialogContent className="max-w-md w-[95vw] sm:w-full">
+                      <DialogHeader>
+                        <DialogTitle>Choose resume template</DialogTitle>
+                        <DialogDescription>
+                          Pick how your tailored resume should look. You can change this anytime.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-1">
+                        {Object.values(TAILOR_TEMPLATES).map((tpl) => (
+                          <button
+                            key={tpl.id}
+                            type="button"
+                            onClick={() => setSelectedTemplateId(tpl.id)}
+                            className={[
+                              'w-full rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                              selectedTemplateId === tpl.id
+                                ? 'border-primary bg-primary/5'
+                                : 'border-border bg-background hover:bg-muted/60',
+                            ].join(' ')}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium">{tpl.label}</span>
+                              {selectedTemplateId === tpl.id && (
+                                <Badge variant="default" className="text-[10px]">
+                                  Active
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">{tpl.description}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
 
                   <Button
                     variant="outline"
@@ -264,7 +334,7 @@ export const StepThree = ({
                   Your tailored resume will appear here after generation.
                 </div>
               ) : (
-                <MarkdownPreview value={previewMarkdown} />
+                <MarkdownPreview value={previewMarkdown} templateId={selectedTemplateId} />
               )}
             </CardContent>
           </Card>

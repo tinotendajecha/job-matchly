@@ -31,57 +31,6 @@ export async function POST(req: Request) {
 
     const llm = new ChatOpenAI({ model: "gpt-5" });
 
-    // --- Resume Tailoring ---
-//     const tailoringPrompt = [
-//       {
-//         role: "system",
-//         content: `Tailor the resume to the JD.
-
-// Rules:
-// - Never invent employers, titles, or dates.
-// - Bullets are one line, start with strong verbs; quantify where possible.
-// - Add JD keywords only if plausible from the resume content.
-// - Tone: ${tone}; Seniority: ${seniority}.
-// - Keep content ATS-safe (single column, no tables).
-
-// Header rules:
-// - First line: "# Full Name".
-// - Second line: contact: "Location · Phone · Email".
-
-// Experience formatting (IMPORTANT):
-// - For EACH role, put a single job header line (NOT a bullet) using:
-//   Role — Company, Location (Start – End)
-// - Then 3–6 bullet points for achievements.
-
-// For Summary, you can add 1-2 lines about the JD, showing motivation for the job and also including the company name so they can see you put your time for tailoring for the job.
-
-// Make sure to add projects the user have done before in their dedicated section Projects, if they are relevant to the JD. You can extract these from the resume they upload, but also do not invent any projects. If the resume JSON has a "projects" section, you can use that as a base to add more projects if needed. Also this depends on the type of profession of the user and if projects are relevant for that profession.
-
-// Sections & order:
-// ## Professional Summary
-// ## Skills
-// ## Experience
-// ## Education
-// ## Projects (only if present)
-// ## References (only if present; include the names, where they are from and a single-line contact)
-
-// At the END include a section "## Changes Summary" with 3–8 bullets describing edits (for on-screen review only; will be stripped before export).
-// Return the resume as Markdown exactly in that order.`,
-//       },
-//       {
-//         role: "user",
-//         content: `
-// JOB DESCRIPTION:
-// """${String(jdText).slice(0, 9000)}"""
-
-// RESUME JSON:
-// ${JSON.stringify(resumeJson ?? {}).slice(0, 9000)}
-
-// RESUME TEXT:
-// """${String(resumeText).slice(0, 9000)}"""`,
-//       },
-//     ];
-
 // --- ENHANCED Resume Tailoring Prompt ---
     
     const tailoringPrompt = [
@@ -104,6 +53,7 @@ export async function POST(req: Request) {
           ## Header Format (Exact Order)
           \`\`\`
           # Full Name
+          Professional Title (2–5 words, e.g. "Frontend Developer" or "Creative Director")
           Location · Phone · Email
           \`\`\`
 

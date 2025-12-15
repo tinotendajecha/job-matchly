@@ -1,7 +1,11 @@
 // lib/zustand/store.ts
 // ---- NEW: Zustand store (persist progress across refreshes)
+import { TailorTemplateId } from '@/app/app/upload-tailor/types';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+
+// New Templates Implementation
+
 
 type StepStatus = 'idle' | 'loading' | 'done' | 'error';
 type WizardStep = 1 | 2 | 3;
@@ -69,6 +73,9 @@ type Store = {
   downloadFmt: 'docx' | 'pdf';
   setDownloadFmt: (v: 'docx' | 'pdf') => void;
 
+  selectedTemplateId: TailorTemplateId;
+  setSelectedTemplateId: (id: TailorTemplateId) => void;
+
   // resets
   resetOCR: () => void;
   resetAll: () => void;
@@ -124,6 +131,10 @@ export const useTailorStore = create<Store>()(
       downloadFmt: 'docx',
       setDownloadFmt: (v) => set({ downloadFmt: v }),
 
+      // For Templates
+      selectedTemplateId: 'classic',
+      setSelectedTemplateId: (id) => set({ selectedTemplateId: id }), 
+
       resetOCR: () =>
         set({
           imageOCRDone: false,
@@ -152,7 +163,8 @@ export const useTailorStore = create<Store>()(
           steps: { parse: 'idle', normalize: 'idle', analyze: 'idle', tailor: 'idle', export: 'idle' },
           downloadFmt: 'docx',
           generatedCoverLetter: '',
-          generatedCoverTitle: ''
+          generatedCoverTitle: '',
+          selectedTemplateId: 'classic',
         }),
     }),
     { name: 'tailor-wizard' }

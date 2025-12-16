@@ -28,7 +28,6 @@ const RightMarkdown = ({ md }: { md: string }) => (
       li: (props) => (
         <li className="text-sm md:text-base leading-6 text-foreground/90" {...props} />
       ),
-
       strong: (props) => <strong className="font-extrabold text-foreground" {...props} />,
       em: (props) => <em className="italic text-foreground/80" {...props} />,
       a: (props) => (
@@ -74,9 +73,11 @@ function SideScrollHint({
         ].join(" ")}
       >
         <span className="font-medium">Scroll sideways</span>
+
         <span className="relative ml-1 inline-block h-4 w-10 overflow-hidden">
           <span className="absolute left-0 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-foreground/70 animate-[swipe_1.2s_ease-in-out_infinite]" />
         </span>
+
         <button
           onClick={onDismiss}
           className={[
@@ -156,11 +157,12 @@ export const TwoColumnPreview = ({ value }: TwoColumnPreviewProps) => {
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
-  // ZOOM
-  const PAGE_WIDTH = 900; // must match min-w below
+  // MOBILE ZOOM ONLY
+  const PAGE_WIDTH = 900; // corresponds to min-w-[900px]
   const MIN_ZOOM = 0.25;
-  const MAX_ZOOM = 1.25;
+  const MAX_ZOOM = 1;
 
+  const [isMobile, setIsMobile] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [showHint, setShowHint] = useState(false);
 
@@ -169,38 +171,52 @@ export const TwoColumnPreview = ({ value }: TwoColumnPreviewProps) => {
   const fitToWidth = () => {
     const el = scrollerRef.current;
     if (!el) return;
-    const target = clamp(el.clientWidth / PAGE_WIDTH);
-    setZoom(target);
+    const fit = clamp(el.clientWidth / PAGE_WIDTH);
+    setZoom(fit);
     el.scrollLeft = 0;
   };
 
+  // detect screen size (mobile = <640px)
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 640);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  // default: fit on mobile; reset zoom on desktop
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
 
-    // auto fit on small screens
-    if (window.innerWidth < 640) {
+    if (isMobile) {
       fitToWidth();
+    } else {
+      setZoom(1);
+      el.scrollLeft = 0;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, value]);
 
-    // show hint when overflow exists at current zoom
-    const hasOverflow = el.scrollWidth > el.clientWidth + 8;
-    setShowHint(hasOverflow);
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Re-check overflow when zoom changes
+  // hint logic based on overflow (at current zoom)
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
+
+    // If we scale down, the effective scroll width is reduced.
+    // We approximate by checking overflow of the unscaled content only when not scaled,
+    // and on mobile we always keep the hint off after fit.
     const hasOverflow = el.scrollWidth > el.clientWidth + 8;
+
+    // On mobile: show hint only if still overflowing after fit/zoom.
+    // On desktop: normal overflow hint.
     setShowHint(hasOverflow);
-  }, [zoom]);
+  }, [zoom, isMobile, value]);
 
-  return (
-    <div className="relative px-4 py-3">
-      <SideScrollHint visible={showHint} onDismiss={() => setShowHint(false)} />
+  const ZoomControls = () => {
+    if (!isMobile) return null;
 
-      {/* Zoom controls */}
+    return (
       <div className="sticky top-2 z-10 mb-2 flex justify-end">
         <div className="inline-flex items-center gap-1 rounded-full border bg-background/80 px-1.5 py-1 backdrop-blur">
           <button
@@ -230,25 +246,28 @@ export const TwoColumnPreview = ({ value }: TwoColumnPreviewProps) => {
           >
             Fit
           </button>
-          <button
-            type="button"
-            onClick={() => setZoom(1)}
-            className="rounded-full px-2 py-1 text-xs font-semibold hover:bg-muted"
-          >
-            100
-          </button>
         </div>
       </div>
+    );
+  };
 
-      {/* Scroller */}
+  return (
+    <div className="relative px-4 py-3">
+      <ZoomControls />
+      <SideScrollHint visible={showHint} onDismiss={() => setShowHint(false)} />
+
       <div ref={scrollerRef} className="overflow-x-auto">
-        {/* Zoom layer: scales the page but keeps layout */}
+        {/* Only scale on mobile */}
         <div
-          style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: "top left",
-            width: `${PAGE_WIDTH}px`,
-          }}
+          style={
+            isMobile
+              ? {
+                  transform: `scale(${zoom})`,
+                  transformOrigin: "top left",
+                  width: `${PAGE_WIDTH}px`,
+                }
+              : undefined
+          }
         >
           {/* page */}
           <div className="min-w-[900px]">
@@ -271,7 +290,7 @@ export const TwoColumnPreview = ({ value }: TwoColumnPreviewProps) => {
               <div className="pt-6">
                 <div className="border-t-[3px] border-foreground/70 mb-4" />
 
-                <div className="text-sm leading-5 text-foreground">
+                <div className="text-xl leading-5 text-foreground">
                   {!!nameLine && <div className="font-semibold">{nameLine}</div>}
 
                   <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
@@ -290,13 +309,11 @@ export const TwoColumnPreview = ({ value }: TwoColumnPreviewProps) => {
               {/* SECTIONS */}
               {sections.map((sec) => (
                 <div key={sec.title} className="contents">
-                  {/* LEFT label */}
                   <div className="pt-6">
                     <div className="h-[2px] w-12 bg-foreground/70 mb-2" />
                     <div className="text-[16px] font-extrabold text-foreground">{sec.title}</div>
                   </div>
 
-                  {/* RIGHT content */}
                   <div className="pt-4">
                     <div className="border-t-[2px] border-foreground/70 mb-2" />
                     <RightMarkdown md={sec.content} />
@@ -307,8 +324,8 @@ export const TwoColumnPreview = ({ value }: TwoColumnPreviewProps) => {
           </div>
         </div>
 
-        {/* Adds bottom padding so scaled content doesn't get clipped */}
-        <div style={{ height: Math.max(0, (zoom - 1) * 220) }} />
+        {/* Prevent scaled content from being visually clipped at the bottom on mobile */}
+        {isMobile ? <div style={{ height: 120 }} /> : null}
       </div>
     </div>
   );

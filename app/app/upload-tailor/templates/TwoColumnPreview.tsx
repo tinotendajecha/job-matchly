@@ -63,16 +63,27 @@ function SideScrollHint({
   if (!visible) return null;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
+    // Fixed + very high z-index so it sits above everything (including sticky bars)
+    <div className="fixed inset-x-0 top-16 z-[9999] pointer-events-none flex justify-center px-3">
+      {/* subtle overlay behind the pill to reduce text clash */}
+      <div className="pointer-events-none absolute inset-x-0 -top-6 h-28 bg-gradient-to-b from-background/60 to-transparent dark:from-background/40" />
+
       <div
         className={[
-          "pointer-events-auto mt-10 flex items-center gap-2",
-          "rounded-full border bg-background/90 px-3 py-1.5 text-xs text-foreground",
-          "shadow-sm backdrop-blur",
+          "pointer-events-auto",
+          "flex items-center gap-2",
+          "rounded-full border",
+          // stronger, theme-friendly surface + contrast
+          "bg-background/95 dark:bg-background/85",
+          "text-foreground",
+          "px-3 py-2 text-xs",
+          // stronger shadow so it reads on top of resume content
+          "shadow-[0_10px_30px_rgba(0,0,0,0.18)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.45)]",
+          "backdrop-blur",
           "animate-[hintGlow_6s_ease-in-out_infinite]",
         ].join(" ")}
       >
-        <span className="font-medium">Scroll sideways</span>
+        <span className="font-semibold tracking-tight">Scroll sideways after zooming!</span>
 
         <span className="relative ml-1 inline-block h-4 w-10 overflow-hidden">
           <span className="absolute left-0 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-foreground/70 animate-[swipe_1.2s_ease-in-out_infinite]" />
@@ -112,6 +123,8 @@ function SideScrollHint({
               opacity: 0.2;
             }
           }
+
+          /* gentle “classy” glow pulse starts after ~2s */
           @keyframes hintGlow {
             0%,
             32% {
@@ -119,13 +132,13 @@ function SideScrollHint({
               border-color: rgba(255, 255, 255, 0.12);
             }
             45% {
-              box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.08),
-                0 10px 28px rgba(249, 115, 22, 0.08);
-              border-color: rgba(249, 115, 22, 0.25);
+              box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.12),
+                0 10px 28px rgba(249, 115, 22, 0.10);
+              border-color: rgba(249, 115, 22, 0.35);
             }
             60% {
-              box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.05),
-                0 8px 22px rgba(249, 115, 22, 0.06);
+              box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.06),
+                0 8px 22px rgba(249, 115, 22, 0.08);
               border-color: rgba(255, 255, 255, 0.12);
             }
             100% {
@@ -133,6 +146,7 @@ function SideScrollHint({
               border-color: rgba(255, 255, 255, 0.12);
             }
           }
+
           @keyframes thumbBob {
             0%,
             100% {
@@ -147,6 +161,7 @@ function SideScrollHint({
     </div>
   );
 }
+
 
 export const TwoColumnPreview = ({ value }: TwoColumnPreviewProps) => {
   const { body } = splitChanges(value);

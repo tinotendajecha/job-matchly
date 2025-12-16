@@ -158,7 +158,7 @@ export const TwoColumnPreview = ({ value }: TwoColumnPreviewProps) => {
 
   // ZOOM
   const PAGE_WIDTH = 900; // must match min-w below
-  const MIN_ZOOM = 0.55;
+  const MIN_ZOOM = 0.25;
   const MAX_ZOOM = 1.25;
 
   const [zoom, setZoom] = useState(1);

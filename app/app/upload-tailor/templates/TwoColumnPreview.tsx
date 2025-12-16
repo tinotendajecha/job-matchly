@@ -66,7 +66,7 @@ function SideScrollHint({
     <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
       <div
         className={[
-          "pointer-events-auto mt-5 flex items-center gap-2",
+          "pointer-events-auto mt-10 flex items-center gap-2",
           "rounded-full border bg-background/90 px-3 py-1.5 text-xs text-foreground",
           "shadow-sm backdrop-blur",
           "animate-[hintGlow_6s_ease-in-out_infinite]",

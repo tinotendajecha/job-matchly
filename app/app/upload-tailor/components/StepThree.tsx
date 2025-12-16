@@ -546,7 +546,7 @@ export const StepThree = ({
           </Card>
 
           {/* Keyword analysis card */}
-          {keywordRows.length > 0 && (
+          {/* {keywordRows.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -577,7 +577,7 @@ export const StepThree = ({
                 </div>
               </CardContent>
             </Card>
-          )}
+          )} */}
         </div>
       )}
     </motion.div>

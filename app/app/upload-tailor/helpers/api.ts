@@ -2,22 +2,24 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import type { Analysis } from '../types';
 
+
+
 // ------------------ API helpers ------------------
-export async function apiExportPdf(markdown: string, filename?: string) {
+export async function apiExportPdf(markdown: string, filename?: string, templateId?: string) {
   const res = await fetch('/api/export/pdf', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ markdown, filename }),
+    body: JSON.stringify({ markdown, filename, templateId}),
   });
   if (!res.ok) throw new Error('Export failed');
   return res.blob();
 }
 
-export async function apiExportDocx(markdown: string, filename?: string) {
+export async function apiExportDocx(markdown: string, filename?: string, templateId?: string) {
   const res = await fetch('/api/export/docx', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ markdown, filename }),
+    body: JSON.stringify({ markdown, filename, templateId }),
   });
   if (!res.ok) throw new Error('Export failed');
   return res.blob();
@@ -28,6 +30,7 @@ export async function downloadDocument(
   markdown: string, 
   format: 'pdf' | 'docx', 
   filename: string,
+  templateId: string,
   setDownloading?: (loading: boolean) => void
 ) {
   if (!markdown) throw new Error('No content to download');
@@ -36,8 +39,8 @@ export async function downloadDocument(
     if (setDownloading) setDownloading(true);
     
     const blob = format === 'pdf' 
-      ? await apiExportPdf(markdown, filename)
-      : await apiExportDocx(markdown, filename);
+      ? await apiExportPdf(markdown, filename,templateId)
+      : await apiExportDocx(markdown, filename,templateId);
     
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

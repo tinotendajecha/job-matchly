@@ -141,7 +141,7 @@ const CSS = `
 
 export async function POST(req: Request) {
   try {
-    const { markdown, filename } = await req.json();
+    const { markdown, filename, templateId = "classic" } = await req.json();
 
     if (!markdown || typeof markdown !== "string") {
       return NextResponse.json({ ok: false, error: "Missing 'markdown'." }, { status: 400 });

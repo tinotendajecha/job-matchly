@@ -3,8 +3,17 @@ import { NextResponse } from "next/server";
 import playwright from "playwright"; // Import full playwright for local development
 import playwrightCore from "playwright-core"; // Import core for serverless
 import chromium from "@sparticuz/chromium";
+import { SERVER_TEMPLATES } from "../templates-server";
 
 export const runtime = "nodejs";
+
+import { TailorTemplateId } from "@/app/app/upload-tailor/types";
+
+type ExportPdfBody = {
+  markdown: string;
+  filename?: string;
+  templateId?: TailorTemplateId;
+}
 
 // Robustly remove just the "## Changes Summary" section
 function stripChangesSummary(md: string) {
@@ -122,36 +131,27 @@ function mdToHtml(md: string) {
   return html;
 }
 
-const CSS = `
-  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #111; }
-  h1 { font-size: 24pt; letter-spacing: 0.3pt; margin: 0 0 8pt 0; color: #0f2a43; }
-  h2 { font-size: 14pt; margin: 16pt 0 8pt 0; padding-bottom: 2pt; border-bottom: 1px solid #dcdcdc; color: #12467F; }
-  h2.exp { font-size: 15pt; color: #0e6ba8; }
-  section.exp p.jobline { margin: 8pt 0 6pt 0; font-size: 12pt; }
-  section.exp p.jobline strong { color: #0e6ba8; font-weight: 700; }
-  p { margin: 6pt 0; font-size: 11pt; line-height: 1.6; }
-  ul { margin: 6pt 0 8pt 18pt; padding: 0; }
-  li { margin: 4pt 0; font-size: 11pt; line-height: 1.5; }
-  a { color: #1155cc; text-decoration: none; }
-  h1 + p { color: #333; margin-top: 4pt; }
-  /* Enhanced cover letter formatting */
-  .cover-letter p { margin: 8pt 0; line-height: 1.7; }
-  .cover-letter h1 { font-size: 20pt; margin-bottom: 12pt; }
-  .cover-letter h2 { font-size: 16pt; margin: 14pt 0 10pt 0; }
-`;
-
 
 export async function POST(req: Request) {
   let browser = null;
   try {
-    const { markdown, filename } = await req.json();
+    // const { markdown, filename, templateId = "classic" } = await req.json();    // Will have to receive an extra parameter here templateId which determines which template are we downloading 
+
+    const body = (await req.json()) as ExportPdfBody
+
+    // CSS Variable will depend on the template id chosen
+    
+    const templateId: TailorTemplateId = body.templateId ?? 'classic';
+    const templateChosen = SERVER_TEMPLATES[templateId]; // now OK
+
+    const CSS = templateChosen.css
 
     // ... (Your existing markdown processing and HTML generation logic) ...
-    if (!markdown || typeof markdown !== "string") {
+    if (!body.markdown || typeof body.markdown !== "string") {
       return NextResponse.json({ ok: false, error: "Missing 'markdown'." }, { status: 400 });
     }
 
-    const safeMd = markdown.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+    const safeMd = body.markdown.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
     let cleaned = stripChangesSummary(safeMd).trim();
 
     if (!/\S/.test(cleaned)) {
@@ -174,12 +174,16 @@ export async function POST(req: Request) {
         return base.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
       };
       const fallback = isCoverLetter ? "Cover Letter" : "Resume";
-      const derived = titleFromFilename(filename) || fallback;
+      const derived = titleFromFilename(body.filename) || fallback;
       cleaned = `# ${derived}\n\n${cleaned}`;
     }
 
-    const bodyClass = isCoverLetter ? 'cover-letter' : '';
-    const html = `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body class="${bodyClass}">${mdToHtml(cleaned)}</body></html>`;
+    const bodyClassParts = [];
+    if (isCoverLetter) bodyClassParts.push('cover-letter');
+    if (templateChosen.bodyClass) bodyClassParts.push(templateChosen.bodyClass);
+    const bodyClassAttr = bodyClassParts.join(' ');
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body class="${bodyClassAttr}">${mdToHtml(cleaned)}</body></html>`;
 
     // ** CONDITIONAL PLAYWRIGHT LOGIC **
     if (process.env.VERCEL) {
@@ -217,7 +221,7 @@ export async function POST(req: Request) {
     return new Response(bytes, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${(filename && String(filename).trim()) || "resume.pdf"}"`,
+        "Content-Disposition": `attachment; filename="${(body.filename && String(body.filename).trim()) || "resume.pdf"}"`,
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
         "Content-Length": String(bytes.byteLength),

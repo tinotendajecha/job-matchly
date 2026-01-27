@@ -44,7 +44,6 @@ import { Palette } from 'lucide-react';
 import { TAILOR_TEMPLATES } from '../helpers/templates';
 
 
-
 interface StepThreeProps {
   tailoredMarkdown: string;
   resumeTitleFromLLM: string;
@@ -115,7 +114,8 @@ export const StepThree = ({
         tailoredMarkdown,
         downloadFmt,
         resumeTitleFromLLM,
-        downloadFmt === 'pdf' ? setDownloadingPdf : setDownloading
+        selectedTemplateId,
+        downloadFmt === 'pdf' ? setDownloadingPdf : setDownloading,
       );
       toast.success(`${downloadFmt.toUpperCase()} downloaded 📥`);
     } catch (err: any) {
@@ -133,6 +133,7 @@ export const StepThree = ({
         generatedCoverLetter,
         downloadFmt,
         filename,
+        selectedTemplateId,
         downloadFmt === 'pdf' ? setDownloadingPdf : setDownloading
       );
       toast.success(`${downloadFmt.toUpperCase()} downloaded 📥`);

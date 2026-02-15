@@ -89,6 +89,7 @@ export const StepThree = ({
   const selectedTemplateId = useTailorStore((state) => state.selectedTemplateId);
   const setSelectedTemplateId = useTailorStore((state) => state.setSelectedTemplateId);
 
+  const isDocxDisabledForTemplate = selectedTemplateId === 'twoColumn'
 
   // Generate filename for cover letter downloads
   const getCoverLetterFilename = () => {
@@ -313,7 +314,14 @@ export const StepThree = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem onClick={() => onDownloadFmtChange('docx')} className="flex items-center gap-2">
+                        <DropdownMenuItem onClick={() => {
+    if (isDocxDisabledForTemplate) {
+      toast.info('DOCX is not supported for this template.');
+      return;
+    }
+    onDownloadFmtChange('docx');
+  }}
+  disabled={isDocxDisabledForTemplate}className="flex items-center gap-2">
                           <FileText className="h-4 w-4" />
                           <span>DOCX</span>
                         </DropdownMenuItem>

@@ -315,13 +315,13 @@ export const StepThree = ({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40">
                         <DropdownMenuItem onClick={() => {
-    if (isDocxDisabledForTemplate) {
-      toast.info('DOCX is not supported for this template.');
-      return;
-    }
-    onDownloadFmtChange('docx');
-  }}
-  disabled={isDocxDisabledForTemplate}className="flex items-center gap-2">
+                          if (isDocxDisabledForTemplate) {
+                            toast.info('DOCX is not supported for this template.');
+                            return;
+                          }
+                          onDownloadFmtChange('docx');
+                        }}
+                        disabled={isDocxDisabledForTemplate}className="flex items-center gap-2">
                           <FileText className="h-4 w-4" />
                           <span>DOCX</span>
                         </DropdownMenuItem>

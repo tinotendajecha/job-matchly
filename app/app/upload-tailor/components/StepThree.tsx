@@ -28,6 +28,7 @@ import {
 import { MarkdownPreview, splitChanges } from '../helpers/utils';
 import { downloadDocument } from '../helpers/api';
 import type { Analysis, StepStatus } from '../types';
+import { useEffect } from 'react';
 
 import { useTailorStore } from '@/lib/zustand/store';
 
@@ -50,7 +51,7 @@ interface StepThreeProps {
   generatedCoverLetter: string;
   analysis: Analysis | null;
   atsScore: number;
-  downloadFmt: 'docx' | 'pdf';
+  downloadFmt: 'pdf' | 'docx';
   steps: {
     tailor: StepStatus;
     export: StepStatus;
@@ -90,6 +91,12 @@ export const StepThree = ({
   const setSelectedTemplateId = useTailorStore((state) => state.setSelectedTemplateId);
 
   const isDocxDisabledForTemplate = selectedTemplateId === 'twoColumn'
+
+  useEffect(() => {
+  if (selectedTemplateId === 'twoColumn' && downloadFmt === 'docx') {
+    onDownloadFmtChange('pdf');
+  }
+}, [selectedTemplateId, downloadFmt, onDownloadFmtChange]);
 
   // Generate filename for cover letter downloads
   const getCoverLetterFilename = () => {

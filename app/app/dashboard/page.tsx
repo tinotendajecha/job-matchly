@@ -48,6 +48,15 @@ const comingSoonFeatures = [
   { title: 'Referral Network', description: 'Connect with alumni in your target companies', icon: MapPin },
 ];
 
+const dashboardNavLinks = [
+  { label: 'Create Resume', href: '/app/builder/modern', icon: Plus },
+  { label: 'Upload & Tailor', href: '/app/upload-tailor', icon: Upload },
+  { label: 'My Documents', href: '/app/documents', icon: FileText },
+  { label: 'ATS Check', href: '', icon: Target, disabled: true, badge: 'Soon' },
+  { label: 'Add Credits', href: '/app/billing', icon: Sparkles },
+  { label: 'View Roadmap', href: '/app/coming-soon', icon: Star }
+];
+
 export default function DashboardPage() {
   interface user {
     name: string;
@@ -184,9 +193,56 @@ export default function DashboardPage() {
 
       <div className="w-full max-w-[100vw]">
         <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 md:gap-6">
+            {/* Left Navigation (Desktop) */}
+            <aside className="hidden lg:block lg:col-span-2 w-full min-w-0">
+              <div className="sticky top-24 space-y-4">
+                <Card className="w-full">
+                  <CardHeader className="pb-3 p-4">
+                    <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">
+                      Navigation
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2">
+                    <nav className="space-y-1">
+                      {dashboardNavLinks.map((item) => {
+                        const Icon = item.icon;
+                        const isDisabled = item.disabled;
+                        return (
+                          <Link
+                            key={item.label}
+                            href={item.href || '#'}
+                            aria-disabled={isDisabled}
+                            className={cn(
+                              'flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+                              isDisabled
+                                ? 'cursor-not-allowed text-muted-foreground/60'
+                                : 'text-foreground hover:bg-muted/50'
+                            )}
+                            onClick={(event) => {
+                              if (isDisabled) event.preventDefault();
+                            }}
+                          >
+                            <span className="flex items-center gap-2 min-w-0">
+                              <Icon className="h-4 w-4 flex-shrink-0" />
+                              <span className="truncate">{item.label}</span>
+                            </span>
+                            {item.badge && (
+                              <span className="text-[10px] uppercase bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                                {item.badge}
+                              </span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </nav>
+                  </CardContent>
+                </Card>
+              </div>
+            </aside>
+
             {/* Main Content */}
-            <div className="lg:col-span-3 space-y-4 sm:space-y-5 md:space-y-6 w-full min-w-0">
+            <div className="lg:col-span-7 space-y-4 sm:space-y-5 md:space-y-6 w-full min-w-0">
               {/* Welcome Card */}
               <motion.div {...fadeInUp}>
                 <Card className="bg-gradient-to-r from-primary/10 to-primary/5 w-full">
@@ -209,7 +265,7 @@ export default function DashboardPage() {
 
               {/* Primary Actions - Single column on mobile */}
               <motion.div
-                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6"
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 lg:hidden"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2, duration: 0.5 }}
@@ -416,7 +472,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Right Sidebar */}
-            <div className="space-y-4 sm:space-y-5 md:space-y-6 w-full min-w-0">
+            <div className="lg:col-span-3 space-y-4 sm:space-y-5 md:space-y-6 w-full min-w-0">
               {/* Credit Usage */}
               <motion.div {...fadeInUp}>
                 <Card className="w-full">

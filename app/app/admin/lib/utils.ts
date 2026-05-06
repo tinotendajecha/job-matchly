@@ -22,10 +22,11 @@ export const formatRelativeTime = (date: Date): string => {
   return formatDate(date);
 };
 
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
+export const formatCurrency = (amount: number, currency = 'USD'): string => {
+  const locale = currency === 'ZAR' ? 'en-ZA' : 'en-US';
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'USD',
+    currency,
   }).format(amount);
 };
 

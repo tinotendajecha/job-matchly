@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { formatNumber, formatDate } from '../lib/utils';
+import { formatCurrency, formatDate, formatNumber } from '../lib/utils';
 import { Users, UserCheck, UserPlus, UserX, Search, Download, AlertCircle, Loader2 } from 'lucide-react';
 import { UsersResponse, UserListItem, UserDetailResponse } from '../types';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -325,8 +325,11 @@ function UserDetailView({ user, detail }: { user: UserListItem; detail: UserDeta
             {detail.purchases.map((purchase) => (
               <div key={purchase.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
                 <div>
-                  <p className="text-sm font-medium">${purchase.amount.toFixed(2)}</p>
+                  <p className="text-sm font-medium">{purchase.description}</p>
                   <p className="text-xs text-muted-foreground">
+                    {formatCurrency(purchase.amount, purchase.currency)} · {purchase.provider} · {purchase.market} · {purchase.status}
+                  </p>
+                  <p className="hidden text-xs text-muted-foreground">
                     {purchase.credits} credits • {purchase.status}
                   </p>
                 </div>

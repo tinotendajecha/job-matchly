@@ -1,110 +1,160 @@
 'use client';
 
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import Link from 'next/link';
+import {
+  ArrowRight, CheckCircle, Star, FileText, Target, Zap,
+  BarChart3, TrendingUp, Smartphone, Coins, Sparkles,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { cubicBezier } from "framer-motion";
-import { 
-  FileText, 
-  Target, 
-  Zap, 
-  CheckCircle, 
-  Star,
-  ArrowRight,
-  Users,
-  TrendingUp,
-  Shield,
-  Smartphone,
-  Download,
-  BarChart3,
-  Calculator,
-  Sparkles,
-  Coins
-} from 'lucide-react';
-import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
-import { pricePerCreditUSD, computeSubtotalUSD } from '@/lib/pricing';
+import { useMarket } from '@/hooks/use-market';
+import {
+  pricePerCreditUSD, computeSubtotalUSD,
+  pricePerCreditZAR, computeSubtotalZAR,
+} from '@/lib/pricing';
 
-const fadeInUp = {
-  initial: { opacity: 0, y: 60 },
+/* ─── Animation helpers ─── */
+const ease = [0.16, 1, 0.3, 1] as const;
+
+const fadeUp = {
+  initial: { opacity: 0, y: 24 },
   whileInView: { opacity: 1, y: 0 },
-  transition: { duration: 0.6 }
+  viewport: { once: true, margin: '-60px' },
+  transition: { duration: 0.55, ease },
 };
 
-const staggerContainer = {
-  initial: {},
-  whileInView: {
-    transition: {
-      staggerChildren: 0.2
-    }
-  }
-};
+function stagger(delay = 0) {
+  return {
+    ...fadeUp,
+    transition: { duration: 0.55, ease, delay },
+  };
+}
 
-const floatAnimation = {
-  animate: {
-    y: [-10, 10, -10],
-    transition: {
-      duration: 6,
-      repeat: Infinity,
-      ease: cubicBezier(0.4, 0, 0.6, 1)
-    }
-  }
-};
+/* ─── Static data ─── */
+const testimonialsZA = [
+  {
+    name: 'Sipho Dlamini',
+    role: 'Software Developer · Capitec Bank',
+    photo: 'https://randomuser.me/api/portraits/men/75.jpg',
+    quote: 'Landed a senior dev role at Capitec after using JobMatchly. JD tailoring saved me hours of rewriting for every application.',
+    rating: 5,
+  },
+  {
+    name: 'Nomvula Khumalo',
+    role: 'HR Business Partner · Standard Bank',
+    photo: 'https://randomuser.me/api/portraits/women/72.jpg',
+    quote: "I recommend JobMatchly to every candidate I coach. The ATS optimisation alone doubles your chances of getting past the first screen.",
+    rating: 5,
+  },
+  {
+    name: 'Kagiso Sithole',
+    role: 'Data Analyst · Discovery',
+    photo: 'https://randomuser.me/api/portraits/men/34.jpg',
+    quote: 'Three weeks, four interviews, one offer. The keyword matching feature is a game-changer for the SA job market.',
+    rating: 5,
+  },
+];
 
-// Pricing Calculator Component
+const testimonialsZW = [
+  {
+    name: 'Takudzwa Moyo',
+    role: 'Systems Engineer · Econet Wireless',
+    photo: 'https://randomuser.me/api/portraits/men/52.jpg',
+    quote: 'Got my interview call within 10 days. The tailored CV stood out immediately — my recruiter mentioned it looked perfectly matched.',
+    rating: 5,
+  },
+  {
+    name: 'Ruvimbo Chikwanda',
+    role: 'UX Designer · ZB Financial Holdings',
+    photo: 'https://randomuser.me/api/portraits/women/58.jpg',
+    quote: 'The cover letter generator saved me so much time. Each one felt personal and matched the job perfectly. Highly recommend.',
+    rating: 5,
+  },
+  {
+    name: 'Farai Mutasa',
+    role: 'Marketing Lead · OK Zimbabwe',
+    photo: 'https://randomuser.me/api/portraits/men/45.jpg',
+    quote: "I'd been job hunting for months. JobMatchly showed me exactly what ATS was rejecting and helped me fix it. Hired in 3 weeks.",
+    rating: 5,
+  },
+];
+
+const features = [
+  { icon: FileText, title: 'Live Side-by-Side Builder', description: 'See your resume update in real-time as you type. No surprises on download.' },
+  { icon: Target, title: 'JD Keyword Tailoring', description: 'Paste any job description. Keywords light up across your CV automatically.' },
+  { icon: BarChart3, title: 'ATS Compatibility Score', description: 'Instant score with targeted fixes. Know exactly why you were rejected — before it happens.' },
+  { icon: Zap, title: 'AI Cover Letters', description: 'One click. A cover letter tailored to your resume and the exact role.' },
+  { icon: TrendingUp, title: 'Impact-Driven Bullets', description: 'Smart rewrites that quantify achievements and inject power verbs.' },
+  { icon: Smartphone, title: 'Mobile-First Design', description: 'Edit, preview, and apply from anywhere. Fully optimized for phones.' },
+];
+
+const stats = [
+  { value: '12K+', label: 'Active Users' },
+  { value: '94%', label: 'ATS Pass Rate' },
+  { value: '4.9★', label: 'User Rating' },
+];
+
+const problems = [
+  { stat: '75%', title: 'of resumes never reach a human', desc: 'ATS systems auto-reject most applications before a recruiter sees them.' },
+  { stat: '6s', title: 'average recruiter reading time', desc: 'Six seconds to make an impact. Every word on your CV must earn its place.' },
+  { stat: '40+', title: 'minutes wasted per application', desc: 'Manually tailoring each CV is slow, repetitive, and error-prone.' },
+  { stat: '60%', title: 'of candidates undersell themselves', desc: 'Vague bullets and missing keywords lose you interviews you deserved.' },
+];
+
+/* ─── Pricing Calculator ─── */
 function PricingCalculator() {
   const [credits, setCredits] = useState(10);
-  
-  const pricePerCredit = pricePerCreditUSD(credits);
-  const totalPrice = computeSubtotalUSD(credits);
-  
+  const { isSouthAfrica } = useMarket();
+
+  const pricePerCredit = isSouthAfrica ? pricePerCreditZAR(credits) : pricePerCreditUSD(credits);
+  const totalPrice = isSouthAfrica ? computeSubtotalZAR(credits) : computeSubtotalUSD(credits);
+  const priceDisplay = isSouthAfrica
+    ? `R${pricePerCredit.toFixed(0)} per credit`
+    : `$${pricePerCredit.toFixed(2)} per credit`;
+  const totalDisplay = isSouthAfrica ? `R${totalPrice.toFixed(0)}` : `$${totalPrice.toFixed(2)}`;
+
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      whileInView={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5 }}
-      className="bg-gradient-to-br from-background via-background to-primary/5 rounded-2xl border border-primary/20 p-8 backdrop-blur-sm"
-    >
-      <div className="text-center mb-8">
-        <h3 className="text-2xl font-bold mb-2">Credit Calculator</h3>
-        <p className="text-muted-foreground">Buy credits as you need them</p>
-      </div>
-      
-      <div className="space-y-6">
+    <div className="rounded-2xl border border-border bg-card p-7">
+      <h3 className="text-lg font-semibold mb-1">Credit Calculator</h3>
+      <p className="text-sm text-muted-foreground mb-6">
+        {isSouthAfrica ? 'Optional credits for cover letters & extras' : 'Buy credits as you need them'}
+      </p>
+
+      <div className="space-y-5">
         <div>
           <label className="text-sm font-medium mb-2 block">Number of Credits</label>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Input
               type="number"
               min="3"
               value={credits}
               onChange={(e) => setCredits(Math.max(3, parseInt(e.target.value) || 3))}
-              className="text-center font-mono"
+              className="text-center font-mono text-base"
             />
-            <div className="text-sm text-muted-foreground">
-              ${pricePerCredit.toFixed(2)} per credit
-            </div>
+            <span className="text-sm text-muted-foreground whitespace-nowrap shrink-0">{priceDisplay}</span>
           </div>
         </div>
-        
-        <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-4 border border-primary/20">
+
+        <div className="rounded-xl border border-primary/25 bg-primary/8 p-4">
           <div className="flex justify-between items-center">
-            <span className="font-medium">Total Price</span>
-            <span className="text-2xl font-bold text-primary">${totalPrice.toFixed(2)}</span>
+            <span className="text-sm font-medium">Total</span>
+            <span className="text-2xl font-bold text-primary font-display">{totalDisplay}</span>
           </div>
           {credits >= 10 && (
-            <div className="text-sm text-green-600 mt-1 flex items-center gap-1">
-              <CheckCircle className="h-4 w-4" />
+            <p className="text-xs text-primary mt-1.5 flex items-center gap-1">
+              <CheckCircle className="h-3 w-3" />
               Bulk discount applied
-            </div>
+            </p>
           )}
         </div>
-        
+
         <Button asChild className="w-full" size="lg">
           <Link href="/app/billing">
             <Coins className="h-4 w-4 mr-2" />
@@ -112,545 +162,408 @@ function PricingCalculator() {
           </Link>
         </Button>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
-const testimonials = [
-  {
-    name: "Sarah Chen",
-    role: "Software Engineer at Google",
-    avatar: "SC",
-    quote: "Got my interview in 2 weeks using JobMatchly. The ATS optimization made all the difference.",
-    rating: 5
-  },
-  {
-    name: "Marcus Johnson", 
-    role: "Data Analyst at Microsoft",
-    avatar: "MJ",
-    quote: "The keyword matching feature is incredible. My resume now speaks the same language as job posts.",
-    rating: 5
-  },
-  {
-    name: "Priya Patel",
-    role: "UX Designer at Figma", 
-    avatar: "PP",
-    quote: "Beautiful templates that actually pass ATS. Finally, design and function in one tool.",
-    rating: 5
-  }
-];
+/* ─── Hero Demo Card ─── */
+function HeroDemoCard() {
+  const keywords = ['React', 'TypeScript', 'Node.js', 'Agile', 'REST APIs'];
 
-const features = [
-  {
-    icon: FileText,
-    title: "Live Side-by-Side Builder",
-    description: "See your resume update in real-time as you edit. What you see is what you get."
-  },
-  {
-    icon: Target,
-    title: "JD Tailoring",
-    description: "Paste any job description and watch keywords highlight across your resume."
-  },
-  {
-    icon: BarChart3,
-    title: "ATS Score",
-    description: "Instant compatibility score with actionable tips to pass applicant tracking systems."
-  },
-  {
-    icon: Zap,
-    title: "Cover Letters",
-    description: "Generate tailored cover letters that match your resume and the role."
-  },
-  {
-    icon: TrendingUp,
-    title: "Impact-Driven Bullets",
-    description: "Smart suggestions help you quantify achievements and use power words."
-  },
-  {
-    icon: Smartphone,
-    title: "Mobile-First",
-    description: "Edit, preview, and apply from anywhere. Optimized for phone and tablet."
-  }
-];
+  return (
+    <div className="relative">
+      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-2xl shadow-black/40">
+        {/* Browser chrome */}
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-secondary/50">
+          <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
+          <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
+          <span className="ml-2 text-xs text-muted-foreground font-mono">jobmatchly.com — analysis</span>
+        </div>
 
-const painPoints = [
-  {
-    title: "ATS rejects up to 75%",
-    description: "Before a human even sees them",
-    icon: Shield
-  },
-  {
-    title: "Tailoring is slow",
-    description: "Hours per application adds up",
-    icon: TrendingUp
-  },
-  {
-    title: "Hard to quantify impact", 
-    description: "Vague bullets don't impress",
-    icon: Target
-  },
-  {
-    title: "Design vs ATS",
-    description: "Beautiful doesn't always pass",
-    icon: CheckCircle
-  }
-];
+        <div className="p-5 space-y-4">
+          {/* ATS Score */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">ATS Match Score</span>
+            <motion.span
+              className="text-2xl font-bold font-display text-primary"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.9, duration: 0.4 }}
+            >
+              92%
+            </motion.span>
+          </div>
 
+          <div className="h-2 bg-secondary rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-primary rounded-full"
+              initial={{ width: '0%' }}
+              animate={{ width: '92%' }}
+              transition={{ delay: 0.5, duration: 1.3, ease }}
+            />
+          </div>
+
+          {/* Keywords */}
+          <div className="border-t border-border pt-4">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-3">
+              Keywords Matched
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {keywords.map((kw, i) => (
+                <motion.span
+                  key={kw}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3 + i * 0.12, duration: 0.3 }}
+                  className="text-xs px-2.5 py-1 rounded-md bg-primary/15 text-primary font-medium border border-primary/20"
+                >
+                  {kw}
+                </motion.span>
+              ))}
+            </div>
+          </div>
+
+          {/* Checklist */}
+          <div className="border-t border-border pt-4 space-y-2">
+            {['14 keywords aligned', 'Cover letter generated', 'PDF ready to download'].map((item, i) => (
+              <motion.div
+                key={item}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 1.2 + i * 0.15, duration: 0.3 }}
+                className="flex items-center gap-2 text-sm"
+              >
+                <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+                <span>{item}</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Floating badge */}
+      <motion.div
+        className="absolute -top-3 -right-3 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/30"
+        animate={{ y: [0, -4, 0] }}
+        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        ATS Optimized ✓
+      </motion.div>
+    </div>
+  );
+}
+
+/* ─── Page ─── */
 export default function LandingPage() {
+  const { isSouthAfrica } = useMarket();
+  const testimonials = isSouthAfrica ? testimonialsZA : testimonialsZW;
+
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
-      <Header isPublic={true} />
-      
-      {/* Hero Section */}
-      <section className="relative overflow-hidden py-16 md:py-24">
-        {/* Futuristic Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
-        
-        {/* Floating Elements */}
-        <motion.div
-          {...floatAnimation}
-          className="absolute top-20 left-10 w-20 h-20 bg-primary/10 rounded-full blur-xl"
-        />
-        <motion.div
-          animate={{
-            y: [-15, 15, -15],
-            transition: { duration: 8, repeat: Infinity, ease: cubicBezier(0.4, 0, 0.6, 1) }
-          }}
-          className="absolute top-40 right-20 w-16 h-16 bg-primary/20 rounded-full blur-lg"
-        />
-        <motion.div
-          animate={{
-            y: [-20, 20, -20],
-            transition: { duration: 10, repeat: Infinity, ease: cubicBezier(0.4, 0, 0.6, 1) }
-          }}
-          className="absolute bottom-20 left-1/4 w-12 h-12 bg-primary/15 rounded-full blur-md"
-        />
-        
+      <Header isPublic />
+
+      {/* ══ HERO ══ */}
+      <section className="relative overflow-hidden py-20 md:py-28 lg:py-36">
+        {/* Background layers */}
+        <div className="absolute inset-0 bg-grid pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background pointer-events-none" />
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[450px] rounded-full bg-primary/8 blur-[140px] pointer-events-none" />
+
         <div className="container relative px-4 mx-auto max-w-7xl">
-          <div className="mx-auto max-w-5xl text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-            >
+          <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+            {/* Text */}
+            <div className="lg:col-span-7 text-center lg:text-left">
               <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="mb-8"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease }}
               >
-                <Badge 
-                  variant="outline" 
-                  className="mb-6 px-6 py-3 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 backdrop-blur-sm"
+                <Badge
+                  variant="outline"
+                  className="mb-6 gap-2 border-primary/30 bg-primary/8 text-primary px-4 py-1.5"
                 >
-                <motion.span
-                  animate={{ opacity: [1, 0.7, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                    className="flex items-center gap-2"
-                >
-                    <Sparkles className="h-4 w-4 text-primary" />
-                  Free for early users
-                </motion.span>
-              </Badge>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span className="text-xs font-medium">AI-Powered · Built for Africa</span>
+                </Badge>
               </motion.div>
-              
-              <motion.h1 
+
+              <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.3 }}
-                className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8"
+                transition={{ duration: 0.65, delay: 0.1, ease }}
+                className="text-5xl md:text-6xl lg:text-[4.5rem] font-bold tracking-tight leading-[1.06] mb-6"
               >
-                Build. Tailor.{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-primary/80 to-primary/60">
-                  Get Hired.
-                </span>
+                Your resume,{' '}
+                <span className="text-primary">matched</span>
+                <br className="hidden md:block" />
+                {' '}to every job<br className="hidden md:block" />
+                {' '}you apply for.
               </motion.h1>
-              
-              <motion.p 
+
+              <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-                className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed"
+                transition={{ duration: 0.65, delay: 0.2, ease }}
+                className="text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed"
               >
-                AI-powered resume builder that tailors your CV to each job — and passes ATS checks.
+                Paste any job post. Get a tailored CV in under 2 minutes —
+                ATS-optimized and ready to download.
               </motion.p>
 
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.5 }}
-                className="flex flex-col sm:flex-row gap-6 justify-center mb-16"
+                transition={{ duration: 0.65, delay: 0.3, ease }}
+                className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-12"
               >
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                <Button 
-                  size="lg" 
-                  asChild
-                  className={cn(
-                      "text-lg px-10 py-6 bg-gradient-to-r font-medium",
-                    "from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70",
-                      "text-primary-foreground shadow-2xl hover:shadow-primary/25 transition-all duration-300",
-                      "border border-primary/20 backdrop-blur-sm"
-                  )}
-                >
+                <Button asChild size="lg" className="text-base px-8 py-6 font-semibold shadow-lg shadow-primary/20">
                   <Link href="/auth/signup">
                     Start Free
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button 
-                    size="lg" 
-                    variant="outline"
-                    asChild
-                    className="text-lg px-10 py-6 border-2 hover:bg-muted/50 transition-all duration-300 backdrop-blur-sm bg-background/50"
-                  >
-                    <Link href="/templates">
-                      View Templates
-                    </Link>
+                <Button asChild size="lg" variant="outline" className="text-base px-8 py-6">
+                  <Link href="/templates">View Templates</Link>
                 </Button>
-                </motion.div>
               </motion.div>
-            </motion.div>
 
-            {/* Hero Interactive Demo */}
-            <motion.div
-              className="relative mx-auto max-w-5xl"
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-            >
-              <div className="grid md:grid-cols-2 gap-6 mb-8">
-                {/* Job Description Mock */}
-                <Card className="relative overflow-hidden">
-                  <CardContent className="p-6">
-                    <h3 className="font-semibold mb-4 text-left">Job Description</h3>
-                    <div className="text-sm text-left space-y-2 text-muted-foreground">
-                      <p>We&apos;re looking for a <motion.span 
-                        className="bg-primary/20 px-1 rounded"
-                        animate={{ opacity: [1, 0.7, 1] }}
-                        transition={{ duration: 2, repeat: Infinity, delay: 0 }}
-                      >Frontend Developer</motion.span> with experience in <motion.span 
-                        className="bg-primary/20 px-1 rounded"
-                        animate={{ opacity: [1, 0.7, 1] }}
-                        transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-                      >React</motion.span>, <motion.span 
-                        className="bg-primary/20 px-1 rounded"
-                        animate={{ opacity: [1, 0.7, 1] }}
-                        transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-                      >TypeScript</motion.span>, and modern web technologies.</p>
-                      <p>Strong <motion.span 
-                        className="bg-primary/20 px-1 rounded"
-                        animate={{ opacity: [1, 0.7, 1] }}
-                        transition={{ duration: 2, repeat: Infinity, delay: 1.5 }}
-                      >problem-solving skills</motion.span> and ability to work in <motion.span 
-                        className="bg-primary/20 px-1 rounded"
-                        animate={{ opacity: [1, 0.7, 1] }}
-                        transition={{ duration: 2, repeat: Infinity, delay: 2 }}
-                      >agile environments</motion.span>.</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Resume Mock */}
-                <Card className="relative overflow-hidden">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-semibold">Your Resume</h3>
-                      <motion.div
-                        className="text-sm font-medium text-green-600"
-                        animate={{ scale: [1, 1.1, 1] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      >
-                        ATS Score: 92%
-                      </motion.div>
-                    </div>
-                    <div className="text-sm text-left space-y-2">
-                      <p className="font-medium">John Doe</p>
-                      <p className="text-muted-foreground"><motion.span 
-                        className="bg-primary/20 px-1 rounded"
-                        animate={{ opacity: [1, 0.7, 1] }}
-                        transition={{ duration: 2, repeat: Infinity, delay: 0 }}
-                      >Frontend Developer</motion.span></p>
-                      <div className="space-y-1 text-muted-foreground">
-                        <p>• Built responsive web apps using <motion.span 
-                          className="bg-primary/20 px-1 rounded"
-                          animate={{ opacity: [1, 0.7, 1] }}
-                          transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-                        >React</motion.span> and <motion.span 
-                          className="bg-primary/20 px-1 rounded"
-                          animate={{ opacity: [1, 0.7, 1] }}
-                          transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-                        >TypeScript</motion.span></p>
-                        <p>• Applied <motion.span 
-                          className="bg-primary/20 px-1 rounded"
-                          animate={{ opacity: [1, 0.7, 1] }}
-                          transition={{ duration: 2, repeat: Infinity, delay: 1.5 }}
-                        >problem-solving skills</motion.span> to optimize performance</p>
-                        <p>• Collaborated in <motion.span 
-                          className="bg-primary/20 px-1 rounded"
-                          animate={{ opacity: [1, 0.7, 1] }}
-                          transition={{ duration: 2, repeat: Infinity, delay: 2 }}
-                        >agile environments</motion.span></p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Process Flow */}
-              <div className="flex justify-center items-center gap-4 text-sm text-muted-foreground">
-                <span>Build</span>
-                <ArrowRight className="h-4 w-4" />
-                <span>Tailor</span>
-                <ArrowRight className="h-4 w-4" />
-                <span>Score</span>
-                <ArrowRight className="h-4 w-4" />
-                <span className="text-primary font-medium">Apply</span>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Trust Strip */}
-      <section className="py-12 border-y bg-muted/30">
-        <div className="container px-4 mx-auto max-w-7xl">
-          <motion.div 
-            className="text-center mb-8"
-            {...fadeInUp}
-          >
-            <p className="text-sm text-muted-foreground">Trusted by students and professionals at</p>
-          </motion.div>
-          <div className="flex justify-center items-center gap-8 md:gap-12 flex-wrap opacity-60">
-            {['Google', 'Microsoft', 'Apple', 'Meta', 'Amazon'].map((company) => (
+              {/* Stats */}
               <motion.div
-                key={company}
-                className="text-lg font-semibold"
-                whileHover={{ scale: 1.05, opacity: 0.8 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.55 }}
+                className="flex flex-wrap gap-8 justify-center lg:justify-start"
               >
-                {company}
+                {stats.map((s) => (
+                  <div key={s.label}>
+                    <div className="text-2xl font-bold text-primary font-display">{s.value}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{s.label}</div>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+
+            {/* Demo card */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.7, delay: 0.4, ease }}
+              className="lg:col-span-5"
+            >
+              <HeroDemoCard />
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ TRUST STRIP ══ */}
+      <section className="py-10 border-y border-border/50">
+        <div className="container px-4 mx-auto max-w-7xl">
+          <div className="flex flex-col items-center gap-5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Trusted by professionals at
+            </p>
+            <div className="flex flex-wrap justify-center gap-8 md:gap-14">
+              {['Google', 'Microsoft', 'Capitec', 'Standard Bank', 'Discovery', 'Econet'].map((co) => (
+                <span
+                  key={co}
+                  className="text-sm font-semibold text-muted-foreground/50 hover:text-muted-foreground transition-colors duration-200"
+                >
+                  {co}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ PROBLEM ══ */}
+      <section className="py-24">
+        <div className="container px-4 mx-auto max-w-7xl">
+          <motion.div {...fadeUp} className="text-center mb-16">
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-4">The problem</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Job applications feel like a void
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              The system is stacked against you. Here&apos;s why most resumes fail.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-2 gap-5">
+            {problems.map((item, i) => (
+              <motion.div key={item.stat} {...stagger(i * 0.1)}>
+                <Card className="h-full group hover:border-primary/30 transition-colors duration-300">
+                  <CardContent className="p-6 flex items-start gap-5">
+                    <div className="text-4xl font-bold font-display text-primary/75 leading-none w-20 shrink-0">
+                      {item.stat}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">{item.title}</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+                    </div>
+                  </CardContent>
+                </Card>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Pain Points */}
-      <section className="py-20">
+      {/* ══ HOW IT WORKS ══ */}
+      <section className="py-24 bg-card/40">
         <div className="container px-4 mx-auto max-w-7xl">
-          <motion.div 
-            className="text-center mb-16"
-            {...fadeInUp}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">The Problem</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Job applications shouldn&apos;t feel like throwing resumes into a void
-            </p>
+          <motion.div {...fadeUp} className="text-center mb-16">
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-4">How it works</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">From blank page to hired</h2>
+            <p className="text-lg text-muted-foreground">Four steps. Under five minutes.</p>
           </motion.div>
 
-          <motion.div 
-            className="grid md:grid-cols-2 lg:grid-cols-4 gap-6"
-            variants={staggerContainer}
-            initial="initial"
-            whileInView="whileInView"
-          >
-            {painPoints.map((point, index) => (
-              <motion.div key={point.title} variants={fadeInUp}>
-                <Card className="h-full group hover:shadow-lg transition-shadow duration-300">
-                  <CardContent className="p-6 text-center">
-                    <div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                      <point.icon className="h-6 w-6 text-destructive" />
-                    </div>
-                    <h3 className="font-semibold mb-2">{point.title}</h3>
-                    <p className="text-sm text-muted-foreground">{point.description}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Solution */}
-      <section className="py-20 bg-muted/30">
-        <div className="container px-4 mx-auto max-w-7xl">
-          <motion.div 
-            className="text-center mb-16"
-            {...fadeInUp}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">How JobMatchly Solves It</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              From blank page to hired in minutes, not hours
-            </p>
-          </motion.div>
-
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              className="space-y-6"
-              initial={{ opacity: 0, x: -50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-            >
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="space-y-8">
               {[
-                { step: "01", title: "Build", desc: "Start from clean, ATS-friendly templates" },
-                { step: "02", title: "Tailor", desc: "Paste JD → keywords light up on your resume" },
-                { step: "03", title: "Score", desc: "Instant ATS compatibility check + fixes" },
-                { step: "04", title: "Apply", desc: "Download optimized PDF and cover letter" }
-              ].map((item, index) => (
+                { step: '01', title: 'Build', desc: 'Start from ATS-friendly templates or upload your existing CV — PDF, DOCX, or plain text.' },
+                { step: '02', title: 'Paste the JD', desc: 'Drop in any job description. Keywords highlight instantly across your entire resume.' },
+                { step: '03', title: 'Score it', desc: 'Get an ATS compatibility score with specific, targeted fixes — not vague advice.' },
+                { step: '04', title: 'Apply', desc: 'Download your optimized PDF or DOCX. Generate a cover letter in one click.' },
+              ].map((item, i) => (
                 <motion.div
                   key={item.step}
-                  className="flex items-center gap-4"
-                  initial={{ opacity: 0, x: -30 }}
+                  initial={{ opacity: 0, x: -20 }}
                   whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.2 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: i * 0.1, ease }}
+                  className="flex gap-5 group"
                 >
-                  <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold">
-                    {item.step}
+                  <div className="shrink-0 w-10 h-10 rounded-full border-2 border-primary/30 flex items-center justify-center group-hover:border-primary group-hover:bg-primary/10 transition-all duration-300">
+                    <span className="text-xs font-bold font-mono text-primary">{item.step}</span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">{item.title}</h3>
-                    <p className="text-muted-foreground">{item.desc}</p>
+                  <div className="pt-1.5">
+                    <h3 className="font-semibold text-lg mb-1">{item.title}</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">{item.desc}</p>
                   </div>
                 </motion.div>
               ))}
-            </motion.div>
+            </div>
 
             <motion.div
-              className="relative"
-              initial={{ opacity: 0, x: 50 }}
+              initial={{ opacity: 0, x: 30 }}
               whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, ease }}
             >
-              <Card className="overflow-hidden">
+              <Card className="overflow-hidden border-primary/20">
                 <CardContent className="p-0">
-                  <div className="bg-gradient-to-br from-primary/5 to-primary/10 p-8">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h4 className="font-semibold">John Doe - Frontend Developer</h4>
-                        <motion.div
-                          className="text-sm font-medium text-green-600"
-                          animate={{ scale: [1, 1.1, 1] }}
-                          transition={{ duration: 3, repeat: Infinity }}
-                        >
-                          ATS Score: 92%
-                        </motion.div>
-                      </div>
-                      <div className="space-y-2 text-sm text-muted-foreground">
-                        <p>• Built responsive applications using <span className="bg-primary/20 px-1 rounded">React</span> and <span className="bg-primary/20 px-1 rounded">TypeScript</span></p>
-                        <p>• Improved page load speed by <span className="bg-primary/20 px-1 rounded">40%</span></p>
-                        <p>• Led team of <span className="bg-primary/20 px-1 rounded">3 developers</span></p>
-                      </div>
+                  <div className="bg-secondary/50 p-5 border-b border-border">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold">John Doe — Frontend Developer</span>
+                      <motion.span
+                        className="text-sm font-bold text-primary font-display"
+                        animate={{ scale: [1, 1.06, 1] }}
+                        transition={{ duration: 2.5, repeat: Infinity }}
+                      >
+                        ATS: 92%
+                      </motion.span>
                     </div>
+                    <div className="h-1.5 bg-border rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full" style={{ width: '92%' }} />
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-3 text-sm text-muted-foreground">
+                    <p>
+                      {'• Built responsive apps using '}
+                      <Pill>React</Pill>
+                      {' and '}
+                      <Pill>TypeScript</Pill>
+                    </p>
+                    <p>
+                      {'• Improved page load speed by '}
+                      <Pill>40%</Pill>
+                    </p>
+                    <p>
+                      {'• Led team of '}
+                      <Pill>3 developers</Pill>
+                      {' in '}
+                      <Pill>agile</Pill>
+                      {' workflow'}
+                    </p>
+                    <p>
+                      {'• Integrated '}
+                      <Pill>REST APIs</Pill>
+                      {' with Node.js backend'}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
-
-              {/* Floating elements */}
-              <motion.div
-                className="absolute -top-4 -right-4 bg-primary rounded-full p-3"
-                animate={{ 
-                  y: [0, -10, 0],
-                  rotate: [0, 5, 0]
-                }}
-                transition={{ duration: 3, repeat: Infinity }}
-              >
-                <CheckCircle className="h-6 w-6 text-primary-foreground" />
-              </motion.div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="py-20 bg-gradient-to-br from-background to-muted/20">
+      {/* ══ FEATURES ══ */}
+      <section className="py-24">
         <div className="container px-4 mx-auto max-w-7xl">
-          <motion.div 
-            className="text-center mb-16"
-            {...fadeInUp}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Everything You Need</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Built for the modern job search, designed for results
+          <motion.div {...fadeUp} className="text-center mb-16">
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-4">Features</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Everything you need to get hired</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Built for the modern job search. Optimized for results.
             </p>
           </motion.div>
 
-          <motion.div 
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-            variants={staggerContainer}
-            initial="initial"
-            whileInView="whileInView"
-          >
-            {features.map((feature, index) => (
-              <motion.div 
-                key={feature.title} 
-                variants={fadeInUp}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="group"
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {features.map((feature, i) => (
+              <motion.div
+                key={feature.title}
+                {...stagger(i * 0.08)}
+                whileHover={{ y: -4 }}
               >
-                <Card className="h-full group hover:shadow-2xl transition-all duration-500 hover:shadow-primary/10 border-primary/20 bg-gradient-to-br from-background to-primary/5 backdrop-blur-sm">
+                <Card className="h-full group hover:border-primary/30 transition-all duration-300">
                   <CardContent className="p-6">
-                    <motion.div 
-                      className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:from-primary/30 group-hover:to-primary/20 transition-all duration-300"
-                      whileHover={{ rotate: 5 }}
-                    >
-                      <feature.icon className="h-6 w-6 text-primary" />
-                    </motion.div>
-                    <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors duration-300">{feature.title}</h3>
-                    <p className="text-muted-foreground group-hover:text-foreground/80 transition-colors duration-300">{feature.description}</p>
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors duration-300">
+                      <feature.icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="font-semibold mb-2">{feature.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
                   </CardContent>
                 </Card>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* Template Preview */}
-      <section className="py-20 bg-muted/30">
+      {/* ══ TESTIMONIALS ══ */}
+      <section className="py-24 bg-card/40">
         <div className="container px-4 mx-auto max-w-7xl">
-          <motion.div 
-            className="text-center mb-16"
-            {...fadeInUp}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Beautiful Templates</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              ATS-friendly designs that actually look great
+          <motion.div {...fadeUp} className="text-center mb-16">
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-4">Success stories</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Real people, real results</h2>
+            <p className="text-lg text-muted-foreground">
+              Join thousands who&apos;ve landed their dream roles
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {[
-              { name: "Classic", description: "Clean and professional" },
-              { name: "Modern", description: "Bold and creative" }
-            ].map((template, index) => (
-              <motion.div
-                key={template.name}
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.2 }}
-                whileHover={{ y: -5 }}
-                className="group cursor-pointer"
-              >
-                <Card className="overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="aspect-[8.5/11] bg-gradient-to-br from-primary/5 to-primary/10 flex items-center justify-center relative">
-                      <div className="text-center">
-                        <FileText className="h-16 w-16 text-primary/50 mx-auto mb-4" />
-                        <p className="text-sm text-muted-foreground">{template.name} Template</p>
-                      </div>
-                      <Badge className="absolute top-3 right-3">ATS-friendly</Badge>
+          <div className="grid md:grid-cols-3 gap-6">
+            {testimonials.map((t, i) => (
+              <motion.div key={t.name} {...stagger(i * 0.1)}>
+                <Card className="h-full hover:border-primary/20 transition-colors duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex gap-0.5 mb-4">
+                      {Array.from({ length: t.rating }).map((_, j) => (
+                        <Star key={j} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      ))}
                     </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold">{template.name}</h3>
-                      <p className="text-sm text-muted-foreground">{template.description}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-5">
+                      &ldquo;{t.quote}&rdquo;
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <img src={t.photo} alt={t.name} className="w-9 h-9 rounded-full object-cover" />
+                      <div>
+                        <p className="text-sm font-semibold">{t.name}</p>
+                        <p className="text-xs text-muted-foreground">{t.role}</p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -660,214 +573,119 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-20">
+      {/* ══ PRICING ══ */}
+      <section className="py-24">
         <div className="container px-4 mx-auto max-w-7xl">
-          <motion.div 
-            className="text-center mb-16"
-            {...fadeInUp}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Success Stories</h2>
-            <p className="text-xl text-muted-foreground">
-              Join thousands who&apos;ve landed their dream jobs
+          <motion.div {...fadeUp} className="text-center mb-16">
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-4">Pricing</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Simple, honest pricing</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              No subscription lock-in. Pay only for what you actually use.
             </p>
           </motion.div>
 
-          <motion.div 
-            className="grid md:grid-cols-3 gap-8"
-            variants={staggerContainer}
-            initial="initial"
-            whileInView="whileInView"
-          >
-            {testimonials.map((testimonial, index) => (
-              <motion.div key={testimonial.name} variants={fadeInUp}>
-                <Card className="h-full group hover:shadow-lg transition-shadow duration-300">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-1 mb-4">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ opacity: 0, scale: 0 }}
-                          whileInView={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: index * 0.1 + i * 0.1 }}
-                        >
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        </motion.div>
-                      ))}
-                    </div>
-                    <p className="text-muted-foreground mb-4 italic">&quot;{testimonial.quote}&quot;</p>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-semibold">{testimonial.avatar}</span>
-                      </div>
-                      <div className="text-left">
-                        <p className="font-semibold text-sm">{testimonial.name}</p>
-                        <p className="text-xs text-muted-foreground">{testimonial.role}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section className="py-20 bg-gradient-to-br from-background via-background to-primary/5">
-        <div className="container px-4 mx-auto max-w-7xl">
-          <motion.div 
-            className="text-center mb-16"
-            {...fadeInUp}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Simple, transparent pricing
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              No subscriptions, no hidden fees. Pay only for what you use.
-            </p>
-          </motion.div>
-
-          <motion.div 
-            className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto"
-            {...staggerContainer}
-          >
-            {/* Pricing Calculator */}
-            <motion.div {...fadeInUp}>
+          <div className="grid lg:grid-cols-2 gap-10 max-w-5xl mx-auto">
+            <motion.div {...stagger(0)}>
               <PricingCalculator />
             </motion.div>
 
-            {/* Pricing Plans */}
-            <motion.div 
-              className="space-y-6"
-              {...fadeInUp}
-            >
+            <motion.div {...stagger(0.15)} className="space-y-4">
               {[
                 {
-                  name: "Free Tier",
-                  price: "$0",
-                  credits: "3 credits",
-                  features: ["Basic resume builder", "PDF download", "Community support"],
-                  cta: "Get Started",
-                  href: "/auth/signup"
+                  name: 'Free',
+                  price: isSouthAfrica ? 'Free' : 'Free',
+                  desc: isSouthAfrica ? 'Unlimited tailoring, pay to download' : '3 starter credits',
+                  features: isSouthAfrica
+                    ? ['Unlimited resume tailoring', 'ATS basic check', 'PDF download (R25 each)']
+                    : ['1 resume build', 'PDF download', 'ATS basic check'],
+                  cta: 'Get Started',
+                  href: '/auth/signup',
                 },
                 {
-                  name: "Pay-as-you-go",
-                  price: "From $0.34",
-                  credits: "Buy as needed",
-                  features: ["Everything in Free", "Cover letter generation", "Advanced ATS insights", "Priority support"],
-                  cta: "Buy Credits",
-                  href: "/app/billing",
-                popular: true
-              },
-              { 
-                  name: "Enterprise",
-                  price: "Custom",
-                  credits: "Unlimited",
-                  features: ["Everything included", "Custom integrations", "Dedicated support", "Team management"],
-                  cta: "Contact Sales",
-                  href: "/contact"
-              }
-            ].map((plan, index) => (
-              <motion.div
-                key={plan.name}
-                  whileHover={{ scale: 1.02, y: -2 }}
+                  name: 'Pay-as-you-go',
+                  price: isSouthAfrica ? 'From R7' : 'From $0.34',
+                  desc: 'Per credit · no commitment',
+                  features: ['Cover letter generation', 'Advanced ATS insights', 'Priority support', 'Bulk discounts'],
+                  cta: 'Buy Credits',
+                  href: '/app/billing',
+                  popular: true,
+                },
+                {
+                  name: 'Enterprise',
+                  price: 'Custom',
+                  desc: 'For teams & organizations',
+                  features: ['Custom integrations', 'Dedicated support', 'Team management'],
+                  cta: 'Contact Sales',
+                  href: '/contact',
+                },
+              ].map((plan) => (
+                <div
+                  key={plan.name}
                   className={cn(
-                    "relative p-6 rounded-xl border transition-all duration-300 backdrop-blur-sm",
-                    plan.popular 
-                      ? "border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 shadow-lg" 
-                      : "border-border/50 bg-card/50 hover:border-primary/30"
+                    'relative rounded-xl border p-5 transition-all duration-200',
+                    plan.popular
+                      ? 'border-primary/40 bg-primary/5'
+                      : 'border-border hover:border-border/70',
                   )}
-              >
-                {plan.popular && (
-                    <div className="absolute -top-2 -right-2">
-                      <Badge className="bg-primary text-primary-foreground px-3 py-1 text-xs">
-                        Popular
-                  </Badge>
-                    </div>
+                >
+                  {plan.popular && (
+                    <Badge className="absolute -top-2.5 right-4 bg-primary text-primary-foreground text-xs">
+                      Most Popular
+                    </Badge>
                   )}
-                  
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold">{plan.name}</h3>
-                    <div className="text-right">
-                      <div className="text-xl font-bold">{plan.price}</div>
-                      <div className="text-sm text-muted-foreground">{plan.credits}</div>
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-semibold">{plan.name}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">{plan.desc}</p>
                     </div>
+                    <span className="text-xl font-bold font-display">{plan.price}</span>
                   </div>
-                  
-                  <ul className="space-y-2 mb-4">
-                    {plan.features.map((feature, i) => (
-                      <li key={i} className="flex items-center gap-2 text-sm">
-                        <CheckCircle className="h-3 w-3 text-primary flex-shrink-0" />
-                        <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  
-                    <Button 
-                      asChild
+                  <ul className="space-y-1.5 mb-4">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    asChild
                     size="sm"
-                    className={cn(
-                      "w-full",
-                      plan.popular 
-                        ? "bg-primary hover:bg-primary/90 text-primary-foreground" 
-                        : "bg-secondary hover:bg-secondary/80"
-                    )}
+                    variant={plan.popular ? 'default' : 'outline'}
+                    className="w-full"
                   >
-                    <Link href={plan.href}>
-                      {plan.cta}
-                    </Link>
-                    </Button>
-              </motion.div>
-            ))}
+                    <Link href={plan.href}>{plan.cta}</Link>
+                  </Button>
+                </div>
+              ))}
             </motion.div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/10" />
-        <motion.div
-          className="absolute inset-0"
-          animate={{
-            background: [
-              "radial-gradient(600px circle at 0% 0%, rgba(164, 255, 60, 0.1), transparent 50%)",
-              "radial-gradient(600px circle at 100% 100%, rgba(255, 107, 44, 0.1), transparent 50%)",
-              "radial-gradient(600px circle at 0% 0%, rgba(164, 255, 60, 0.1), transparent 50%)"
-            ]
-          }}
-          transition={{ duration: 8, repeat: Infinity }}
-        />
-        
-        <div className="container relative px-4 text-center">
-          <motion.div
-            {...fadeInUp}
-            className="max-w-3xl mx-auto"
-          >
-            <h2 className="text-3xl md:text-5xl font-bold mb-6">
-              Ready to land your next role?
+      {/* ══ FINAL CTA ══ */}
+      <section className="py-28 relative overflow-hidden">
+        <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
+        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
+
+        <div className="container relative px-4 mx-auto max-w-4xl text-center">
+          <motion.div {...fadeUp}>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
+              Ready to land<br />your next role?
             </h2>
-            <p className="text-xl text-muted-foreground mb-8">
-              Join thousands of job seekers who&apos;ve transformed their applications with JobMatchly
+            <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
+              Join thousands of job seekers who&apos;ve transformed their applications.
+              Start free — no credit card required.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg" 
-                className={cn(
-                  "text-lg px-8 py-6 bg-gradient-to-r font-medium shadow-lg hover:shadow-xl transition-all duration-300",
-                  "from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70",
-                  "text-primary-foreground"
-                )}
-                asChild
-              >
+              <Button asChild size="lg" className="text-base px-10 py-6 font-semibold shadow-lg shadow-primary/20">
                 <Link href="/auth/signup">
                   Start Building Now
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="text-lg px-8 py-6" asChild>
-                <Link href="/templates">Explore Templates</Link>
+              <Button asChild size="lg" variant="outline" className="text-base px-10 py-6">
+                <Link href="/pricing">See Pricing</Link>
               </Button>
             </div>
           </motion.div>
@@ -876,5 +694,14 @@ export default function LandingPage() {
 
       <Footer />
     </div>
+  );
+}
+
+/* ─── Small helper ─── */
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="bg-primary/15 text-primary px-1.5 py-0.5 rounded text-xs font-medium">
+      {children}
+    </span>
   );
 }

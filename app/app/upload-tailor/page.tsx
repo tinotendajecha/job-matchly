@@ -37,6 +37,8 @@ export default function UploadTailorWizardPage() {
     analysis, setAnalysis,
     atsScore, setAtsScore,
     tailoredMarkdown, setTailoredMarkdown,
+    tailoredDocumentId, setTailoredDocumentId,
+    tailoredDownloadState, setTailoredDownloadState,
     generatedResumeTitle, setGeneratedResumeTitle,
     steps, setStepStatus,
     downloadFmt, setDownloadFmt,
@@ -142,6 +144,8 @@ export default function UploadTailorWizardPage() {
             onStepChange={(step) => setStep(step as any)}
             onAnalysisComplete={setAnalysis}
             onTailoredMarkdownChange={setTailoredMarkdown}
+            onTailoredDocumentIdChange={setTailoredDocumentId}
+            onTailoredDownloadStateChange={setTailoredDownloadState}
             onGeneratedResumeTitle = {setGeneratedResumeTitle}
             onAtsScoreChange={setAtsScore}
             onResetOCR={resetOCR}
@@ -153,6 +157,8 @@ export default function UploadTailorWizardPage() {
         {step === 3 && (
           <StepThree
             tailoredMarkdown={tailoredMarkdown}
+            documentId={tailoredDocumentId}
+            downloadState={tailoredDownloadState}
             resumeTitleFromLLM= {generatedResumeTitle}
             generatedCoverLetter={generatedCoverLetter}
             analysis={analysis}

@@ -15,21 +15,10 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import {
-  User,
-  Settings,
-  CreditCard,
-  LogOut,
-  FileText,
-  Coins,
-  Sun,
-  Moon,
-} from 'lucide-react';
+import { CreditCard, LogOut, Coins, Sun, Moon, Zap, Crown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-toastify';
-import { Crown } from 'lucide-react';
-
 import { useTailorStore } from '@/lib/zustand/store';
 
 interface HeaderProps {
@@ -42,55 +31,43 @@ type Me = {
   name: string | null;
   credits: number;
   isAdmin: boolean;
+  market?: 'ZW' | 'ZA';
 };
 
 function initialsFrom(name?: string | null, email?: string | null) {
   if (name && name.trim()) {
     const parts = name.trim().split(/\s+/);
-    const a = parts[0]?.[0] || '';
-    const b = parts[1]?.[0] || '';
-    return (a + b).toUpperCase() || 'U';
+    return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || 'U';
   }
-  if (email) return email[0]?.toUpperCase() || 'U';
-  return 'U';
+  return email?.[0]?.toUpperCase() || 'U';
 }
 
 export function Header({ isPublic = false }: HeaderProps) {
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
-
-  // get resetAll from store
+  const [scrolled, setScrolled] = useState(false);
   const resetAll = useTailorStore((s) => s.resetAll);
-
-  // ---- Dark/Light toggle using next-themes ----
   const { theme, setTheme } = useTheme();
-  const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
-  };
 
-  // ---- Load / refresh current user (credits, etc) ----
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 16);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   useEffect(() => {
     if (isPublic) return;
-
     let mounted = true;
     const load = async () => {
       try {
-        const res = await fetch('/api/auth/me', {
-          cache: 'no-store',
-          credentials: 'include',
-        });
+        const res = await fetch('/api/auth/me', { cache: 'no-store', credentials: 'include' });
         if (!mounted) return;
-        if (res.ok) {
-          const j = await res.json();
-          setMe(j.user);
-        } else {
-          setMe(null);
-        }
+        if (res.ok) setMe((await res.json()).user);
+        else setMe(null);
       } catch {
         if (mounted) setMe(null);
       }
     };
-
     load();
     const onFocus = () => load();
     window.addEventListener('visibilitychange', onFocus);
@@ -103,6 +80,9 @@ export function Header({ isPublic = false }: HeaderProps) {
   }, [isPublic]);
 
   const credits = useMemo(() => me?.credits ?? 0, [me]);
+  const isAuthed = !!me;
+  const showCreditsBadge = Boolean(!isPublic && isAuthed && me?.market !== 'ZA');
+  const creditsLabel = `${credits} credits`;
 
   const handleLogout = async () => {
     try {
@@ -118,156 +98,124 @@ export function Header({ isPublic = false }: HeaderProps) {
     }
   };
 
-  const isAuthed = !!me;
-
   return (
     <motion.header
-      className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.3 }}
+      className={cn(
+        'sticky top-0 z-50 w-full transition-all duration-300',
+        scrolled || !isPublic
+          ? 'border-b border-border/60 bg-background/95 backdrop-blur-xl'
+          : 'bg-transparent',
+      )}
+      initial={{ y: -60, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className="container flex h-16 items-center justify-between px-4 mx-auto max-w-7xl">
         {/* Brand */}
         <Link
           href={isAuthed ? '/app/dashboard' : '/'}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2.5 group"
         >
-          <motion.div
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <FileText className="h-4 w-4 text-primary-foreground" />
-          </motion.div>
-          <span className="text-lg sm:text-xl font-bold">JobMatchly</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary transition-transform duration-200 group-hover:scale-105">
+            <Zap className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
+          </div>
+          <span className="text-base font-bold tracking-tight font-display">JobMatchly</span>
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-6">
-          <Link
-            href="/templates"
-            className="text-sm font-medium transition-colors hover:text-primary"
-          >
-            Templates
-          </Link>
-          <Link
-            href="/pricing"
-            className="text-sm font-medium transition-colors hover:text-primary"
-          >
-            Pricing
-          </Link>
+        <nav className="hidden md:flex items-center gap-1">
+          {[
+            { href: '/templates', label: 'Templates' },
+            { href: '/pricing', label: 'Pricing' },
+          ].map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg transition-colors hover:text-foreground hover:bg-accent"
+            >
+              {link.label}
+            </Link>
+          ))}
         </nav>
 
         {/* Right cluster */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {!isPublic && isAuthed && (
-            <motion.div whileHover={{ scale: 1.05 }} className="hidden sm:block">
-              <Badge variant="outline" className="gap-1">
-                <Coins className="h-3 w-3" />
-                {credits} credits
-              </Badge>
-            </motion.div>
+        <div className="flex items-center gap-2">
+          {showCreditsBadge && (
+            <Badge variant="outline" className="gap-1.5 hidden sm:flex border-primary/30 bg-primary/5 text-primary">
+              <Coins className="h-3 w-3" />
+              <span className="text-xs font-medium">{creditsLabel}</span>
+            </Badge>
           )}
 
-          {/* Dark/Light toggle (no system) */}
           <Button
             variant="ghost"
             size="icon"
             aria-label="Toggle color theme"
-            onClick={toggleTheme}
-            className="h-9 w-9"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="h-9 w-9 rounded-lg"
           >
-            {theme === 'dark' ? (
-              <Sun className="h-5 w-5" />
-            ) : (
-              <Moon className="h-5 w-5" />
-            )}
-            <span className="sr-only">Toggle theme</span>
+            {theme === 'dark'
+              ? <Sun className="h-4 w-4" />
+              : <Moon className="h-4 w-4" />
+            }
           </Button>
 
-          {/* Auth area */}
           {isPublic || !isAuthed ? (
-            <div className="flex items-center gap-1 sm:gap-2">
-              <Button variant="ghost" asChild className="h-9 px-3">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" asChild className="h-9 px-3 hidden sm:flex text-sm">
                 <Link href="/auth/signin">Sign in</Link>
               </Button>
-              {/* <Button
-                asChild
-                className={cn(
-                  'h-9 px-3 bg-gradient-to-r font-medium',
-                  'light:from-[#A4FF3C] light:to-[#8AE324] light:text-black light:hover:from-[#8AE324] light:hover:to-[#7DD121]',
-                  'dark:from-[#FF6B2C] dark:to-[#FF5722] dark:text-white dark:hover:from-[#FF5722] dark:hover:to-[#FF3D00]'
-                )}
-              >
+              <Button asChild className="h-9 px-4 font-semibold text-sm">
                 <Link href="/auth/signup">Start Free</Link>
-              </Button> */}
+              </Button>
             </div>
           ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback>{initialsFrom(me?.name, me?.email)}</AvatarFallback>
+                  <Avatar className="h-9 w-9 border border-border">
+                    <AvatarFallback className="text-xs font-bold bg-primary text-primary-foreground">
+                      {initialsFrom(me?.name, me?.email)}
+                    </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
 
               <DropdownMenuContent className="w-64" align="end" forceMount>
                 <DropdownMenuLabel className="space-y-1">
-                  <div className="font-medium truncate">{me?.name || 'Your Account'}</div>
+                  <div className="font-semibold truncate">{me?.name || 'Your Account'}</div>
                   <div className="text-xs text-muted-foreground truncate">{me?.email}</div>
-                  <div className="mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs">
+                  <div className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                     <Coins className="h-3 w-3" />
-                    {credits} credits
+                    {creditsLabel}
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
 
-                {/* <DropdownMenuItem asChild>
-                  <Link href="/app/profile" className="flex cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </Link>
-                </DropdownMenuItem> */}
-
-                <DropdownMenuItem asChild>
-                  {
-                    me?.isAdmin == true && (
-                      <Link
-                        href="/app/admin"
-                        className="text-sm font-medium transition-colors hover:text-primary flex gap-2"
-                      >
-                        <Crown color='yellow' size={16} />
-                        <span className='flex items-center gap-2'>Admin </span>
-                      </Link>
-                    )
-                  }
-                </DropdownMenuItem>
+                {me?.isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/app/admin" className="flex cursor-pointer items-center">
+                      <Crown className="mr-2 h-4 w-4 text-yellow-500" />
+                      Admin Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                )}
 
                 <DropdownMenuItem asChild>
                   <Link href="/app/billing" className="flex cursor-pointer">
                     <CreditCard className="mr-2 h-4 w-4" />
-                    <span>Billing</span>
+                    Billing
                   </Link>
                 </DropdownMenuItem>
-                
-                {/* 
-                <DropdownMenuItem asChild>
-                  <Link href="/app/settings" className="flex cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </Link>
-                </DropdownMenuItem> */}
 
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
                   onClick={handleLogout}
-                  className="text-red-600 focus:text-red-700"
+                  className="text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
+                  Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

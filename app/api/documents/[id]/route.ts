@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
+import { getDocumentDownloadState } from '@/lib/documents/access';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
@@ -14,6 +15,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         title: true,
         kind: true,
         markdown: true,
+        market: true,
+        downloadPriceMinor: true,
+        downloadCurrency: true,
+        unlockedAt: true,
         createdAt: true,
         updatedAt: true,
         sourceMeta: true,
@@ -26,6 +31,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       ok: true,
       document: {
         ...doc,
+        downloadState: getDocumentDownloadState(doc),
         createdAt: doc.createdAt.toISOString(),
         updatedAt: doc.updatedAt.toISOString(),
       },

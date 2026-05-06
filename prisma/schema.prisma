@@ -24,6 +24,17 @@ enum PaymentStatus {
   BONUS
 }
 
+enum MarketCode {
+  ZW
+  ZA
+}
+
+enum PurchaseType {
+  CREDIT_TOPUP
+  RESUME_DOWNLOAD_UNLOCK
+  SYSTEM_BONUS
+}
+
 model User {
   id                 String    @id @default(cuid())
   name               String?
@@ -98,38 +109,54 @@ model Session {
 }
 
 model Document {
-  id         String       @id @default(cuid())
-  userId     String
-  kind       DocumentKind
-  title      String       @default("")
-  markdown   String // full content
-  sections   Json // parsed sections for editor/preview
-  sourceMeta Json? // snapshot of jd/resume/env
+  id                String      @id @default(cuid())
+  userId            String
+  kind              DocumentKind
+  title             String      @default("")
+  markdown          String // full content
+  sections          Json // parsed sections for editor/preview
+  sourceMeta        Json? // snapshot of jd/resume/env
+  market            MarketCode  @default(ZW)
+  downloadPriceMinor Int?
+  downloadCurrency  String?
+  unlockedAt        DateTime?
+  unlockPurchaseId  String?     @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user           User      @relation(fields: [userId], references: [id])
+  purchases      Purchase[] @relation("PurchaseTargetDocument")
+  unlockPurchase Purchase?  @relation("DocumentUnlockPurchase", fields: [unlockPurchaseId], references: [id])
 
   @@index([userId, kind, createdAt])
+  @@index([market])
 }
 
 model Purchase {
   id          String        @id @default(cuid())
   userId      String
   provider    String        @default("PESEPAY") // keep simple, future providers optional
+  type        PurchaseType  @default(CREDIT_TOPUP)
+  market      MarketCode    @default(ZW)
   amount      Int // minor units (e.g., cents)
   currency    String        @default("USD")
   credits     Int // how many credits this purchase grants
   status      PaymentStatus @default(PENDING)
   providerRef String?       @unique // e.g., pesepay reference/transaction id
+  documentId  String?
+  fulfilledAt DateTime?
   meta        Json? // raw payloads / fields from provider
 
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
+  document  Document? @relation("PurchaseTargetDocument", fields: [documentId], references: [id])
+  unlockedDocument Document? @relation("DocumentUnlockPurchase")
 
   @@index([userId, createdAt])
   @@index([status])
+  @@index([market, type, createdAt])
+  @@index([documentId])
 }
 
 /**

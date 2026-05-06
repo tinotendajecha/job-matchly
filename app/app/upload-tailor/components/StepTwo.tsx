@@ -18,6 +18,7 @@ import {
 import Tesseract from 'tesseract.js';
 import { apiNormalizeJDFromText, apiAnalyze, apiTailor } from '../helpers/api';
 import type { StepStatus } from '../types';
+import type { DocumentDownloadState } from '@/lib/documents/access';
 
 interface StepTwoProps {
   jobDescription: string;
@@ -41,6 +42,8 @@ interface StepTwoProps {
   onStepChange: (step: number) => void;
   onAnalysisComplete: (analysis: any) => void;
   onTailoredMarkdownChange: (markdown: string) => void;
+  onTailoredDocumentIdChange: (documentId: string | null) => void;
+  onTailoredDownloadStateChange: (downloadState: DocumentDownloadState | null) => void;
   onGeneratedResumeTitle: (title: string) => void;
   onAtsScoreChange: (score: number) => void;
   onResetOCR: () => void;
@@ -77,6 +80,8 @@ export const StepTwo = ({
   onStepChange,
   onAnalysisComplete,
   onTailoredMarkdownChange,
+  onTailoredDocumentIdChange,
+  onTailoredDownloadStateChange,
   onGeneratedResumeTitle,
   onAtsScoreChange,
   onResetOCR,
@@ -149,6 +154,8 @@ export const StepTwo = ({
               jdText: finalJD,
             });
             onTailoredMarkdownChange(tailored.tailoredMarkdown || '');
+            onTailoredDocumentIdChange(tailored.documentId || null);
+            onTailoredDownloadStateChange(tailored.downloadState || null);
             onGeneratedResumeTitle(tailored.title || '')
             onSetStepStatus('tailor', 'done');
             toast.success('Tailored and ready! ✨');
@@ -210,6 +217,8 @@ export const StepTwo = ({
         jdText: finalJD,
       });
       onTailoredMarkdownChange(tailored.tailoredMarkdown || '');
+      onTailoredDocumentIdChange(tailored.documentId || null);
+      onTailoredDownloadStateChange(tailored.downloadState || null);
 
       // save the generated title as well
       onGeneratedResumeTitle(tailored.title || '')

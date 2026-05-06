@@ -1,6 +1,7 @@
 // lib/zustand/store.ts
 // ---- NEW: Zustand store (persist progress across refreshes)
 import { TailorTemplateId } from '@/app/app/upload-tailor/types';
+import type { DocumentDownloadState } from '@/lib/documents/access';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -56,6 +57,10 @@ type Store = {
   setAtsScore: (n: number) => void;
   tailoredMarkdown: string;
   setTailoredMarkdown: (s: string) => void;
+  tailoredDocumentId: string | null;
+  setTailoredDocumentId: (s: string | null) => void;
+  tailoredDownloadState: DocumentDownloadState | null;
+  setTailoredDownloadState: (value: DocumentDownloadState | null) => void;
   generatedResumeTitle: string,
   setGeneratedResumeTitle: (s: string) => void,
 
@@ -114,6 +119,10 @@ export const useTailorStore = create<Store>()(
       setAtsScore: (n) => set({ atsScore: n }),
       tailoredMarkdown: '',
       setTailoredMarkdown: (s) => set({ tailoredMarkdown: s }),
+      tailoredDocumentId: null,
+      setTailoredDocumentId: (s) => set({ tailoredDocumentId: s }),
+      tailoredDownloadState: null,
+      setTailoredDownloadState: (value) => set({ tailoredDownloadState: value }),
 
       generatedResumeTitle: '',
       setGeneratedResumeTitle: (s) => set({generatedResumeTitle: s}),
@@ -159,6 +168,8 @@ export const useTailorStore = create<Store>()(
           analysis: null,
           atsScore: 0,
           tailoredMarkdown: '',
+          tailoredDocumentId: null,
+          tailoredDownloadState: null,
           generatedResumeTitle: '',
           steps: { parse: 'idle', normalize: 'idle', analyze: 'idle', tailor: 'idle', export: 'idle' },
           downloadFmt: 'docx',

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
+import { getDocumentDownloadState } from '@/lib/documents/access';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(req: Request) {
@@ -38,12 +39,25 @@ export async function GET(req: Request) {
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
-        select: { id: true, title: true, kind: true, createdAt: true },
+        select: {
+          id: true,
+          title: true,
+          kind: true,
+          market: true,
+          downloadPriceMinor: true,
+          downloadCurrency: true,
+          unlockedAt: true,
+          createdAt: true,
+        },
       }),
     ]);
 
     const totalPages = Math.max(1, Math.ceil(totalCount / limit));
-    const documents = docs.map((d) => ({ ...d, createdAt: d.createdAt.toISOString() }));
+    const documents = docs.map((d) => ({
+      ...d,
+      downloadState: getDocumentDownloadState(d),
+      createdAt: d.createdAt.toISOString(),
+    }));
 
     return NextResponse.json({
       ok: true,

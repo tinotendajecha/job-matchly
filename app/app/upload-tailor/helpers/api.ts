@@ -1,6 +1,8 @@
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import type { Analysis } from '../types';
+import type { DocumentDownloadState } from '@/lib/documents/access';
+import { useTailorStore } from '@/lib/zustand/store';
 
 
 
@@ -37,6 +39,31 @@ export async function downloadDocument(
   
   try {
     if (setDownloading) setDownloading(true);
+
+    const state = useTailorStore.getState();
+    const isCurrentTailoredResume =
+      Boolean(state.tailoredDocumentId) &&
+      Boolean(state.tailoredMarkdown) &&
+      state.tailoredMarkdown === markdown;
+
+    if (isCurrentTailoredResume && state.tailoredDocumentId) {
+      if (state.tailoredDownloadState?.isLocked) {
+        const unlock = await startDocumentUnlock(state.tailoredDocumentId);
+        if (!unlock.alreadyUnlocked) {
+          if (!unlock.url) throw new Error('Checkout URL missing');
+          window.location.href = unlock.url;
+          return true;
+        }
+      }
+
+      return downloadSavedDocument(
+        state.tailoredDocumentId,
+        format,
+        filename,
+        templateId,
+        setDownloading,
+      );
+    }
     
     const blob = format === 'pdf' 
       ? await apiExportPdf(markdown, filename,templateId)
@@ -56,6 +83,61 @@ export async function downloadDocument(
   } finally {
     if (setDownloading) setDownloading(false);
   }
+}
+
+export async function downloadSavedDocument(
+  documentId: string,
+  format: 'pdf' | 'docx',
+  filename: string,
+  templateId: string,
+  setDownloading?: (loading: boolean) => void
+) {
+  try {
+    if (setDownloading) setDownloading(true);
+
+    const res = await fetch(`/api/documents/${documentId}/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ format, templateId }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error || 'Download failed');
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    return true;
+  } finally {
+    if (setDownloading) setDownloading(false);
+  }
+}
+
+export async function startDocumentUnlock(documentId: string) {
+  const res = await fetch(`/api/documents/${documentId}/unlock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  const data = await res.json();
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.error || 'Could not start checkout');
+  }
+
+  return data as {
+    ok: true;
+    alreadyUnlocked: boolean;
+    purchaseId: string | null;
+    url: string | null;
+    provider?: string;
+    market?: string;
+  };
 }
 
 export async function apiParseResume(file: File, router: ReturnType<typeof useRouter>) {
@@ -116,5 +198,12 @@ export async function apiTailor(payload: { resumeJson: any; resumeText: string; 
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error((await res.json()).error || 'Tailor failed');
-  return res.json() as Promise<{ ok: boolean; tailoredMarkdown: string; documentId?: string; title?: string }>;
+  return res.json() as Promise<{
+    ok: boolean;
+    tailoredMarkdown: string;
+    documentId?: string;
+    title?: string;
+    market?: string;
+    downloadState?: DocumentDownloadState;
+  }>;
 }

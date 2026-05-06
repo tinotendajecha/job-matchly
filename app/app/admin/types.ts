@@ -103,8 +103,12 @@ export interface UserPurchase {
   id: string;
   amount: number;
   credits: number;
+  type: string;
+  market: string;
+  currency: string;
   status: string;
   provider: string;
+  description: string;
   createdAt: Date | string;
 }
 

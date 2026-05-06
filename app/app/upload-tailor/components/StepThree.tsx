@@ -26,9 +26,10 @@ import {
   FileType2
 } from 'lucide-react';
 import { MarkdownPreview, splitChanges } from '../helpers/utils';
-import { downloadDocument } from '../helpers/api';
+import { downloadDocument, downloadSavedDocument, startDocumentUnlock } from '../helpers/api';
 import type { Analysis, StepStatus } from '../types';
 import { useEffect } from 'react';
+import type { DocumentDownloadState } from '@/lib/documents/access';
 
 import { useTailorStore } from '@/lib/zustand/store';
 
@@ -47,6 +48,8 @@ import { TAILOR_TEMPLATES } from '../helpers/templates';
 
 interface StepThreeProps {
   tailoredMarkdown: string;
+  documentId: string | null;
+  downloadState: DocumentDownloadState | null;
   resumeTitleFromLLM: string;
   generatedCoverLetter: string;
   analysis: Analysis | null;
@@ -67,6 +70,8 @@ interface StepThreeProps {
 
 export const StepThree = ({
   tailoredMarkdown,
+  documentId,
+  downloadState,
   resumeTitleFromLLM,
   generatedCoverLetter,
   analysis,
@@ -118,6 +123,29 @@ export const StepThree = ({
     if (!tailoredMarkdown) return toast.error('Generate the tailored resume first');
 
     try {
+      if (documentId) {
+        const setDownloadingState = downloadFmt === 'pdf' ? setDownloadingPdf : setDownloading;
+
+        if (downloadState?.isLocked) {
+          const unlock = await startDocumentUnlock(documentId);
+          if (!unlock.alreadyUnlocked && unlock.url) {
+            toast.info(`Complete checkout to unlock this resume for ${downloadState.priceDisplay || 'download'}.`);
+            window.location.href = unlock.url;
+            return;
+          }
+        }
+
+        await downloadSavedDocument(
+          documentId,
+          downloadFmt,
+          resumeTitleFromLLM,
+          selectedTemplateId,
+          setDownloadingState,
+        );
+        toast.success(`${downloadFmt.toUpperCase()} downloaded successfully.`);
+        return;
+      }
+
       await downloadDocument(
         tailoredMarkdown,
         downloadFmt,
@@ -158,6 +186,10 @@ export const StepThree = ({
   };
 
   const isDownloading = downloading || downloadingPdf;
+  const resumeIsLocked = Boolean(downloadState?.isLocked);
+  const resumeDownloadLabel = resumeIsLocked
+    ? `Pay ${downloadState?.priceDisplay || ''} to download`.trim()
+    : 'Download';
 
   // keyword rows
   const keywordRows = (() => {
@@ -193,6 +225,8 @@ export const StepThree = ({
               <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">Tailored Resume Preview</span>
+                  {downloadState?.isLocked && <Badge variant="outline">Locked until payment</Badge>}
+                  {downloadState?.canDownload && <Badge variant="secondary">Ready to download</Badge>}
                   {steps.tailor === "loading" && (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   )}
@@ -301,9 +335,10 @@ export const StepThree = ({
                       ) : (
                         <Download className="h-4 w-4 sm:mr-2" />
                       )}
-                      <span className="hidden sm:inline">Download</span>
+                      <span className="hidden sm:inline">{resumeDownloadLabel}</span>
+                      <span className="sm:hidden">{resumeIsLocked ? 'Pay' : 'Download'}</span>
                       <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-foreground">
-                        {downloadFmt.toUpperCase()}
+                        {resumeIsLocked ? (downloadState?.priceDisplay || 'PAY') : downloadFmt.toUpperCase()}
                       </span>
                     </Button>
 

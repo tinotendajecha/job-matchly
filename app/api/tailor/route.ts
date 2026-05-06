@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { ChatOpenAI } from "@langchain/openai";
 import { getCurrentUser } from "@/lib/auth";
 import { spendCredits } from "@/lib/credits";
+import { getDocumentDownloadState } from "@/lib/documents/access";
+import { getMarketConfig } from "@/lib/market/config";
+import { getMarketFromRequest } from "@/lib/market/request";
 import { prisma } from "@/lib/prisma";
 import { safeFileName } from "@/lib/files";
 
@@ -11,6 +14,8 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
+    const market = getMarketFromRequest(req);
+    const marketConfig = getMarketConfig(market);
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
     if (!user.emailVerified) return NextResponse.json({ ok: false, error: "Email not verified" }, { status: 403 });
@@ -19,14 +24,15 @@ export async function POST(req: Request) {
     if (!resumeText || !jdText)
       return NextResponse.json({ ok: false, error: "Missing inputs" }, { status: 400 });
 
-    // Spend 1 credit
-    try {
-      await spendCredits(user.id, 1);
-    } catch (e: any) {
-      if (e?.message === "INSUFFICIENT_CREDITS") {
-        return NextResponse.json({ ok: false, error: "Insufficient credits" }, { status: 402 });
+    if (marketConfig.tailoringRequiresCreditsUpfront) {
+      try {
+        await spendCredits(user.id, 1);
+      } catch (e: any) {
+        if (e?.message === "INSUFFICIENT_CREDITS") {
+          return NextResponse.json({ ok: false, error: "Insufficient credits" }, { status: 402 });
+        }
+        throw e;
       }
-      throw e;
     }
 
     const llm = new ChatOpenAI({ model: "gpt-5" });
@@ -207,24 +213,40 @@ Job Description:
         markdown: tailoredMarkdown,
         sections: {},
         sourceMeta: { fileStem },
+        market,
+        downloadPriceMinor: marketConfig.pricePerDownloadMinor,
+        downloadCurrency: marketConfig.pricePerDownloadMinor ? marketConfig.currency : null,
+        unlockedAt: marketConfig.downloadRequiresPayment ? null : new Date(),
       },
-      select: { id: true, title: true },
+      select: {
+        id: true,
+        title: true,
+        kind: true,
+        market: true,
+        downloadPriceMinor: true,
+        downloadCurrency: true,
+        unlockedAt: true,
+      },
     });
 
     await prisma.ledger.create({
       data: {
         userId: user.id,
         type: "RESUME_GENERATED",
-        credits: -1,
-        meta: { documentId: doc.id, title: generatedTitle },
+        credits: marketConfig.tailoringRequiresCreditsUpfront ? -1 : 0,
+        meta: { documentId: doc.id, title: generatedTitle, market },
       },
     });
+
+    const downloadState = getDocumentDownloadState(doc);
 
     return NextResponse.json({
       ok: true,
       tailoredMarkdown,
       documentId: doc.id,
       title: generatedTitle,
+      market,
+      downloadState,
     });
   } catch (err: any) {
     console.error("tailor fatal:", err?.message || err);

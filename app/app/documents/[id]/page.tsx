@@ -35,13 +35,19 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { TAILOR_TEMPLATES } from '@/app/app/upload-tailor/helpers/templates';
 import { useTailorStore } from '@/lib/zustand/store';
-import { downloadDocument } from '@/app/app/upload-tailor/helpers/api';
+import { downloadSavedDocument, startDocumentUnlock } from '@/app/app/upload-tailor/helpers/api';
 
 interface DocumentDetail {
   id: string;
   title: string;
   kind: 'TAILORED_RESUME' | 'CREATED_RESUME' | 'COVER_LETTER' | string;
   markdown: string;
+  market?: string;
+  downloadState?: {
+    isLocked: boolean;
+    canDownload: boolean;
+    priceDisplay: string | null;
+  };
   createdAt: string;
   updatedAt: string;
   sourceMeta?: any;
@@ -109,8 +115,17 @@ export default function DocumentDetailPage() {
     }
 
     try {
-      await downloadDocument(
-        document.markdown,
+      if (document.downloadState?.isLocked) {
+        const unlock = await startDocumentUnlock(document.id);
+        if (!unlock.alreadyUnlocked) {
+          if (!unlock.url) throw new Error('Checkout URL missing');
+          window.location.href = unlock.url;
+          return;
+        }
+      }
+
+      await downloadSavedDocument(
+        document.id,
         downloadFmt,
         document.title || 'Document',
         selectedTemplateId,
@@ -142,6 +157,12 @@ export default function DocumentDetailPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <Badge variant="secondary">{kindLabel}</Badge>
+              {document?.downloadState?.isLocked && (
+                <Badge variant="outline">Pay {document.downloadState.priceDisplay || ''} to download</Badge>
+              )}
+              {document?.downloadState?.canDownload && document?.kind === 'TAILORED_RESUME' && (
+                <Badge variant="secondary">Ready to download</Badge>
+              )}
               {document?.createdAt && (
                 <span>
                   Created {formatDistanceToNow(new Date(document.createdAt), { addSuffix: true })}
@@ -207,9 +228,16 @@ export default function DocumentDetailPage() {
                 ) : (
                   <Download className="h-4 w-4 sm:mr-2" />
                 )}
-                <span className="hidden sm:inline">Download</span>
+                <span className="hidden sm:inline">
+                  {document?.downloadState?.isLocked
+                    ? `Pay ${document.downloadState.priceDisplay || ''} to download`
+                    : 'Download'}
+                </span>
+                <span className="sm:hidden">{document?.downloadState?.isLocked ? 'Pay' : 'Download'}</span>
                 <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-foreground">
-                  {downloadFmt.toUpperCase()}
+                  {document?.downloadState?.isLocked
+                    ? (document.downloadState.priceDisplay || 'PAY')
+                    : downloadFmt.toUpperCase()}
                 </span>
               </Button>
               <DropdownMenu>

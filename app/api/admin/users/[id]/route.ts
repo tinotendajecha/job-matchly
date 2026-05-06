@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { describePurchase } from '@/lib/payments/service';
 import { requireAdmin } from '../../middleware';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -32,8 +33,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             id: true,
             amount: true,
             credits: true,
+            type: true,
+            market: true,
+            currency: true,
             status: true,
             provider: true,
+            document: {
+              select: {
+                title: true,
+              },
+            },
             createdAt: true,
           },
         },
@@ -89,8 +98,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         },
         documents: user.documents,
         purchases: user.purchases.map((p) => ({
-          ...p,
-          amount: p.amount / 100, // Convert cents to dollars
+          id: p.id,
+          amount: p.amount / 100,
+          credits: p.credits,
+          type: p.type,
+          market: p.market,
+          currency: p.currency,
+          status: p.status,
+          provider: p.provider,
+          description: describePurchase(p),
+          createdAt: p.createdAt,
         })),
         creditHistory: user.Ledger,
       },

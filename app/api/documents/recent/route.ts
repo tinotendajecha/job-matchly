@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
+import { getDocumentDownloadState } from '@/lib/documents/access';
 
 export const runtime = 'nodejs';
 
@@ -17,11 +18,24 @@ export async function GET(req: Request) {
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       take: limit,
-      select: { id: true, title: true, kind: true, createdAt: true },
+      select: {
+        id: true,
+        title: true,
+        kind: true,
+        market: true,
+        downloadPriceMinor: true,
+        downloadCurrency: true,
+        unlockedAt: true,
+        createdAt: true,
+      },
     });
 
     // Normalize dates to ISO strings
-    const documents = docs.map(d => ({ ...d, createdAt: d.createdAt.toISOString() }));
+    const documents = docs.map(d => ({
+      ...d,
+      downloadState: getDocumentDownloadState(d),
+      createdAt: d.createdAt.toISOString(),
+    }));
 
     return NextResponse.json({ ok: true, documents });
   } catch (err: any) {

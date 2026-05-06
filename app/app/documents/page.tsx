@@ -44,6 +44,12 @@ interface DocumentListItem {
   id: string;
   title: string;
   kind: 'TAILORED_RESUME' | 'CREATED_RESUME' | 'COVER_LETTER' | string;
+  market?: string;
+  downloadState?: {
+    isLocked: boolean;
+    canDownload: boolean;
+    priceDisplay: string | null;
+  };
   createdAt: string;
 }
 
@@ -60,7 +66,7 @@ const docNavLinks = [
   { label: 'Create Resume', href: '/app/builder/modern', icon: Plus },
   { label: 'Upload & Tailor', href: '/app/upload-tailor', icon: Upload },
   { label: 'My Documents', href: '/app/documents', icon: FileText },
-  { label: 'Add Credits', href: '/app/billing', icon: Sparkles },
+  { label: 'Billing', href: '/app/billing', icon: Sparkles },
   { label: 'Roadmap', href: '/app/coming-soon', icon: Sparkles },
 ];
 
@@ -316,6 +322,14 @@ export default function DocumentsPage() {
                                   </td>
                                   <td className="px-4 py-4 align-top">
                                     <div className="font-semibold truncate max-w-[48ch]">{doc.title || 'Untitled'}</div>
+                                    {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.isLocked && (
+                                      <div className="text-xs text-amber-600 mt-1">
+                                        Pay {doc.downloadState.priceDisplay || ''} to download
+                                      </div>
+                                    )}
+                                    {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.canDownload && (
+                                      <div className="text-xs text-emerald-600 mt-1">Ready to download</div>
+                                    )}
                                   </td>
                                   <td className="px-4 py-4 align-top">
                                     <Badge variant="secondary" className="text-[12px]">
@@ -390,6 +404,16 @@ export default function DocumentsPage() {
                                 <Badge variant="secondary" className="text-[10px]">
                                   {getKindLabel(doc.kind)}
                                 </Badge>
+                                {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.isLocked && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    Pay {doc.downloadState.priceDisplay || ''}
+                                  </Badge>
+                                )}
+                                {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.canDownload && (
+                                  <Badge variant="secondary" className="text-[10px]">
+                                    Downloadable
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-xs text-muted-foreground">
                                 Created {formatDistanceToNow(new Date(doc.createdAt), { addSuffix: true })}

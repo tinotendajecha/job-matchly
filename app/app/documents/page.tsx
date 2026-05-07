@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Header } from '@/components/layout/header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AppSidebar } from '@/components/layout/app-sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,10 +21,9 @@ import {
   Plus,
   Upload,
   Target,
-  Sparkles,
-  LayoutDashboard,
   ChevronRight,
   Trash2,
+  Search,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -60,15 +59,6 @@ interface PaginationInfo {
   totalCount: number;
   hasMore: boolean;
 }
-
-const docNavLinks = [
-  { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
-  { label: 'Create Resume', href: '/app/builder/modern', icon: Plus },
-  { label: 'Upload & Tailor', href: '/app/upload-tailor', icon: Upload },
-  { label: 'My Documents', href: '/app/documents', icon: FileText },
-  { label: 'Billing', href: '/app/billing', icon: Sparkles },
-  { label: 'Roadmap', href: '/app/coming-soon', icon: Sparkles },
-];
 
 export default function DocumentsPage() {
   const pathname = usePathname();
@@ -120,39 +110,23 @@ export default function DocumentsPage() {
 
   const getKindLabel = (kind: string) => {
     switch (kind) {
-      case 'TAILORED_RESUME':
-        return 'Tailored Resume';
-      case 'CREATED_RESUME':
-        return 'Created Resume';
-      case 'COVER_LETTER':
-        return 'Cover Letter';
-      default:
-        return 'Document';
+      case 'TAILORED_RESUME': return 'Tailored Resume';
+      case 'CREATED_RESUME': return 'Created Resume';
+      case 'COVER_LETTER': return 'Cover Letter';
+      default: return 'Document';
     }
   };
 
   const getKindStyles = (kind: string) => {
     switch (kind) {
       case 'TAILORED_RESUME':
-        return {
-          bg: 'bg-blue-100 dark:bg-blue-900/40',
-          text: 'text-blue-600 dark:text-blue-300',
-          icon: FileText,
-        };
+        return { bg: 'bg-blue-500/15', text: 'text-blue-400', badge: 'bg-blue-500/15 text-blue-400 border-0', icon: FileText };
       case 'CREATED_RESUME':
-        return {
-          bg: 'bg-emerald-100 dark:bg-emerald-900/40',
-          text: 'text-emerald-600 dark:text-emerald-300',
-          icon: FileText,
-        };
+        return { bg: 'bg-emerald-500/15', text: 'text-emerald-400', badge: 'bg-emerald-500/15 text-emerald-400 border-0', icon: FileText };
       case 'COVER_LETTER':
-        return {
-          bg: 'bg-purple-100 dark:bg-purple-900/40',
-          text: 'text-purple-600 dark:text-purple-300',
-          icon: Target,
-        };
+        return { bg: 'bg-violet-500/15', text: 'text-violet-400', badge: 'bg-violet-500/15 text-violet-400 border-0', icon: Target };
       default:
-        return { bg: 'bg-muted', text: 'text-muted-foreground', icon: FileText };
+        return { bg: 'bg-muted', text: 'text-muted-foreground', badge: '', icon: FileText };
     }
   };
 
@@ -176,291 +150,220 @@ export default function DocumentsPage() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-6 md:py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 md:gap-6">
-          {/* Left Navigation (Desktop) */}
-          <aside className="hidden lg:block lg:col-span-2 w-full min-w-0">
-            <div className="sticky top-24 space-y-4">
-              <Card className="w-full">
-                <CardHeader className="pb-3 p-4">
-                  <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">
-                    Navigation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-2">
-                  <nav className="space-y-1">
-                    {docNavLinks.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = pathname === item.href;
-                      return (
-                        <Link
-                          key={item.label}
-                          href={item.href}
-                          className={cn(
-                            'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-                            isActive
-                              ? 'bg-primary/10 text-primary'
-                              : 'text-foreground hover:bg-muted/50'
-                          )}
-                        >
-                          <Icon className="h-4 w-4" />
-                          <span className="truncate">{item.label}</span>
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                </CardContent>
-              </Card>
-            </div>
-          </aside>
+      <div className="flex">
+        <AppSidebar />
 
-          {/* Main Content */}
-          <div className="lg:col-span-10 space-y-5 sm:space-y-6 md:space-y-8 w-full min-w-0">
+        <main className="flex-1 min-w-0 overflow-x-hidden">
+          <div className="px-4 sm:px-6 lg:px-8 py-6 md:py-8 max-w-6xl mx-auto space-y-6">
+
+            {/* Page header */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
-                  <FileText className="h-6 w-6 text-primary" />
-                  Your Documents
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">{totalCountLabel}</p>
+                <h1 className="text-2xl font-bold font-display tracking-tight">My Documents</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">{totalCountLabel}</p>
               </div>
               <div className="flex gap-2">
                 <Button asChild variant="outline" size="sm">
                   <Link href="/app/builder/modern">
-                    <Plus className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-1.5" />
                     Create Resume
                   </Link>
                 </Button>
                 <Button asChild size="sm">
                   <Link href="/app/upload-tailor">
-                    <Upload className="h-4 w-4 mr-2" />
+                    <Upload className="h-4 w-4 mr-1.5" />
                     Upload & Tailor
                   </Link>
                 </Button>
               </div>
             </div>
 
-            <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/10">
-              <CardContent className="p-4 sm:p-5 md:p-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-medium">Keep your work organized</p>
-                  <p className="text-xs text-muted-foreground">
-                    View every tailored resume and cover letter in one place.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  Built for fast access
-                </div>
-              </CardContent>
-            </Card>
+            {/* Filter bar */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search documents..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={filterType} onValueChange={(val) => setFilterType(val as any)}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="tailored">Tailored Resumes</SelectItem>
+                  <SelectItem value="cover">Cover Letters</SelectItem>
+                  <SelectItem value="created">Created Resumes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Browse Documents</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div className="flex-1">
-                    <Input
-                      placeholder="Search by title..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="bg-input border-input"
-                    />
-                  </div>
-                  <Select value={filterType} onValueChange={(val) => setFilterType(val as any)}>
-                    <SelectTrigger className="w-full sm:w-[200px] bg-input border-input">
-                      <SelectValue placeholder="Filter by type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="tailored">Tailored Resumes</SelectItem>
-                      <SelectItem value="cover">Cover Letters</SelectItem>
-                      <SelectItem value="created">Created Resumes</SelectItem>
-                    </SelectContent>
-                  </Select>
+            {/* Documents table */}
+            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+              {loading ? (
+                <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span className="text-sm">Loading documents...</span>
                 </div>
-
-                {loading ? (
-                  <div className="flex items-center justify-center py-12 text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                    Loading documents...
+              ) : documents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
                   </div>
-                ) : documents.length === 0 ? (
-                  <div className="border border-dashed rounded-lg p-10 text-center">
-                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                      <FileText className="h-6 w-6 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">No documents found</p>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href="/app/upload-tailor">Create your first document</Link>
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {/* Desktop table */}
+                  <div className="hidden lg:block">
+                    <div className="grid grid-cols-[40px_1fr_160px_140px_80px_48px] px-4 py-2.5 border-b border-border/60 bg-muted/30">
+                      <div />
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Document</div>
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</div>
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Created</div>
+                      <div />
+                      <div />
                     </div>
-                    <p className="text-sm text-muted-foreground">No documents found yet.</p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Desktop: table view */}
-                    <div className="hidden lg:block">
-                      <div className="overflow-hidden rounded-lg border">
-                        <table className="w-full text-left">
-                          <thead className="bg-muted/50 text-sm text-muted-foreground">
-                            <tr>
-                              <th className="px-4 py-3 w-[56px]"> </th>
-                              <th className="px-4 py-3">Document</th>
-                              <th className="px-4 py-3 w-[180px]">Type</th>
-                              <th className="px-4 py-3 w-[160px]">Created</th>
-                              <th className="px-4 py-3 w-[140px]"> </th>
-                              <th className="px-4 py-3 w-[80px]"> </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {documents.map((doc) => {
-                              const { bg, text, icon: KindIcon } = getKindStyles(doc.kind);
-                              return (
-                                <tr key={doc.id} className="border-t hover:bg-muted/40 transition-colors">
-                                  <td className="px-4 py-4 align-top">
-                                    <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center', bg)}>
-                                      <KindIcon className={cn('h-5 w-5', text)} />
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-4 align-top">
-                                    <div className="font-semibold truncate max-w-[48ch]">{doc.title || 'Untitled'}</div>
-                                    {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.isLocked && (
-                                      <div className="text-xs text-amber-600 mt-1">
-                                        Pay {doc.downloadState.priceDisplay || ''} to download
-                                      </div>
-                                    )}
-                                    {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.canDownload && (
-                                      <div className="text-xs text-emerald-600 mt-1">Ready to download</div>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-4 align-top">
-                                    <Badge variant="secondary" className="text-[12px]">
-                                      {getKindLabel(doc.kind)}
-                                    </Badge>
-                                  </td>
-                                  <td className="px-4 py-4 align-top text-sm text-muted-foreground">
-                                    {formatDistanceToNow(new Date(doc.createdAt), { addSuffix: true })}
-                                  </td>
-                                  <td className="px-4 py-4 align-top">
-                                    <Link href={`/app/documents/${doc.id}`} className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
-                                      Open
-                                      <ChevronRight className="h-4 w-4" />
-                                    </Link>
-                                  </td>
-                                  <td className="px-4 py-4 align-top">
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogTitle>Delete Document</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Are you sure you want to delete "{doc.title || 'Untitled'}"? This action cannot be undone.
-                                        </AlertDialogDescription>
-                                        <div className="flex gap-3 justify-end">
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction
-                                            onClick={() => handleDelete(doc.id)}
-                                            disabled={deletingId === doc.id}
-                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                          >
-                                            {deletingId === doc.id ? (
-                                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                            ) : null}
-                                            Delete
-                                          </AlertDialogAction>
-                                        </div>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {/* Mobile / Tablet: stacked list */}
-                    <div className="lg:hidden divide-y rounded-lg border">
+                    <div className="divide-y divide-border/40">
                       {documents.map((doc) => {
-                        const { bg, text, icon: KindIcon } = getKindStyles(doc.kind);
+                        const { bg, text, badge, icon: KindIcon } = getKindStyles(doc.kind);
                         return (
-                          <Link
-                            key={doc.id}
-                            href={`/app/documents/${doc.id}`}
-                            className="group flex flex-col gap-3 p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center"
-                          >
-                            <div className={cn('h-11 w-11 rounded-xl flex items-center justify-center', bg)}>
-                              <KindIcon className={cn('h-5 w-5', text)} />
+                          <div key={doc.id} className="grid grid-cols-[40px_1fr_160px_140px_80px_48px] items-center px-4 py-3.5 hover:bg-muted/30 transition-colors group">
+                            <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0', bg)}>
+                              <KindIcon className={cn('h-3.5 w-3.5', text)} />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="font-semibold truncate">{doc.title || 'Untitled'}</p>
-                                <Badge variant="secondary" className="text-[10px]">
-                                  {getKindLabel(doc.kind)}
-                                </Badge>
-                                {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.isLocked && (
-                                  <Badge variant="outline" className="text-[10px]">
-                                    Pay {doc.downloadState.priceDisplay || ''}
-                                  </Badge>
-                                )}
-                                {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.canDownload && (
-                                  <Badge variant="secondary" className="text-[10px]">
-                                    Downloadable
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                Created {formatDistanceToNow(new Date(doc.createdAt), { addSuffix: true })}
-                              </p>
+                            <div className="px-4 min-w-0">
+                              <div className="font-medium text-sm truncate">{doc.title || 'Untitled'}</div>
+                              {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.isLocked && (
+                                <div className="text-xs text-amber-500 mt-0.5">
+                                  Pay {doc.downloadState.priceDisplay || ''} to download
+                                </div>
+                              )}
+                              {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.canDownload && (
+                                <div className="text-xs text-emerald-500 mt-0.5">Ready to download</div>
+                              )}
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="self-start sm:self-auto opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              Open
-                              <ChevronRight className="h-4 w-4 ml-1" />
-                            </Button>
-                          </Link>
+                            <div>
+                              <Badge variant="outline" className={cn('text-[11px] font-medium', badge)}>
+                                {getKindLabel(doc.kind)}
+                              </Badge>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(doc.createdAt), { addSuffix: true })}
+                            </div>
+                            <div>
+                              <Link
+                                href={`/app/documents/${doc.id}`}
+                                className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium"
+                              >
+                                Open
+                                <ChevronRight className="h-3.5 w-3.5" />
+                              </Link>
+                            </div>
+                            <div className="flex justify-end">
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogTitle>Delete Document</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{doc.title || 'Untitled'}"? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                  <div className="flex gap-3 justify-end">
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDelete(doc.id)}
+                                      disabled={deletingId === doc.id}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      {deletingId === doc.id && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                                      Delete
+                                    </AlertDialogAction>
+                                  </div>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
-                  </>
-                )}
-
-                {pagination && pagination.totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                    >
-                      Previous
-                    </Button>
-                    <span className="text-xs text-muted-foreground">
-                      Page {page} of {pagination.totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                      disabled={page === pagination.totalPages}
-                    >
-                      Next
-                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+
+                  {/* Mobile list */}
+                  <div className="lg:hidden divide-y divide-border/40">
+                    {documents.map((doc) => {
+                      const { bg, text, badge, icon: KindIcon } = getKindStyles(doc.kind);
+                      return (
+                        <Link
+                          key={doc.id}
+                          href={`/app/documents/${doc.id}`}
+                          className="group flex items-center gap-3 p-4 hover:bg-muted/40 transition-colors"
+                        >
+                          <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0', bg)}>
+                            <KindIcon className={cn('h-4 w-4', text)} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                              <p className="font-semibold text-sm truncate">{doc.title || 'Untitled'}</p>
+                              <Badge variant="outline" className={cn('text-[10px]', badge)}>
+                                {getKindLabel(doc.kind)}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(doc.createdAt), { addSuffix: true })}
+                            </p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* Pagination */}
+              {pagination && pagination.totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 px-4 py-3 border-t border-border/60">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="h-8 text-xs"
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-xs text-muted-foreground px-2">
+                    Page {page} of {pagination.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+                    disabled={page === pagination.totalPages}
+                    className="h-8 text-xs"
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

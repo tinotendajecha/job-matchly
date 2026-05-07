@@ -1,8 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import {
   FileText,
   Upload,
@@ -16,22 +16,19 @@ import {
   MapPin,
   Star,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Coins,
+  ArrowRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
+import { AppSidebar } from '@/components/layout/app-sidebar';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import DashboardLoader from '@/components/dashboard-loader';
 import { formatDistanceToNow } from 'date-fns';
-
-const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  whileInView: { opacity: 1, y: 0 },
-  transition: { duration: 0.5 }
-};
 
 // Fallback data
 const FALLBACK_RECENT: { action: string; item: string; time: string; type: 'create' | 'tailor' | 'cover' | 'check' }[] = [
@@ -48,13 +45,47 @@ const comingSoonFeatures = [
   { title: 'Referral Network', description: 'Connect with alumni in your target companies', icon: MapPin },
 ];
 
-const dashboardNavLinks = [
-  { label: 'Create Resume', href: '/app/builder/modern', icon: Plus },
-  { label: 'Upload & Tailor', href: '/app/upload-tailor', icon: Upload },
-  { label: 'My Documents', href: '/app/documents', icon: FileText },
-  { label: 'ATS Check', href: '', icon: Target, disabled: true, badge: 'Soon' },
-  { label: 'Add Credits', href: '/app/billing', icon: Sparkles },
-  { label: 'View Roadmap', href: '/app/coming-soon', icon: Star }
+const typeConfig = {
+  create: { label: 'Created', bg: 'bg-blue-500/15', text: 'text-blue-400', icon: FileText },
+  tailor: { label: 'Tailored', bg: 'bg-emerald-500/15', text: 'text-emerald-400', icon: Upload },
+  cover: { label: 'Cover Letter', bg: 'bg-violet-500/15', text: 'text-violet-400', icon: FileText },
+  check: { label: 'ATS Check', bg: 'bg-amber-500/15', text: 'text-amber-400', icon: CheckCircle },
+};
+
+const quickActions = [
+  {
+    label: 'Build from Scratch',
+    description: 'Start with a clean template',
+    href: '/app/builder/modern',
+    icon: FileText,
+    iconBg: 'bg-blue-500/15',
+    iconColor: 'text-blue-400',
+    badge: 'Beta',
+    badgeColor: 'bg-emerald-600 text-white',
+    disabled: false,
+  },
+  {
+    label: 'Upload & Tailor',
+    description: 'Match to a job description',
+    href: '/app/upload-tailor',
+    icon: Upload,
+    iconBg: 'bg-emerald-500/15',
+    iconColor: 'text-emerald-400',
+    badge: 'Live',
+    badgeColor: 'bg-emerald-600 text-white',
+    disabled: false,
+  },
+  {
+    label: 'ATS Check',
+    description: 'Test compatibility',
+    href: '',
+    icon: Target,
+    iconBg: 'bg-amber-500/15',
+    iconColor: 'text-amber-400',
+    badge: 'Soon',
+    badgeColor: 'bg-amber-500 text-white',
+    disabled: true,
+  },
 ];
 
 export default function DashboardPage() {
@@ -188,384 +219,291 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-background">
       <Header />
 
-      <div className="w-full max-w-[100vw]">
-        <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 md:gap-6">
-            {/* Left Navigation (Desktop) */}
-            <aside className="hidden lg:block lg:col-span-2 w-full min-w-0">
-              <div className="sticky top-24 space-y-4">
-                <Card className="w-full">
-                  <CardHeader className="pb-3 p-4">
-                    <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">
-                      Navigation
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2">
-                    <nav className="space-y-1">
-                      {dashboardNavLinks.map((item) => {
-                        const Icon = item.icon;
-                        const isDisabled = item.disabled;
-                        return (
-                          <Link
-                            key={item.label}
-                            href={item.href || '#'}
-                            aria-disabled={isDisabled}
-                            className={cn(
-                              'flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
-                              isDisabled
-                                ? 'cursor-not-allowed text-muted-foreground/60'
-                                : 'text-foreground hover:bg-muted/50'
-                            )}
-                            onClick={(event) => {
-                              if (isDisabled) event.preventDefault();
-                            }}
-                          >
-                            <span className="flex items-center gap-2 min-w-0">
-                              <Icon className="h-4 w-4 flex-shrink-0" />
-                              <span className="truncate">{item.label}</span>
-                            </span>
-                            {item.badge && (
-                              <span className="text-[10px] uppercase bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                                {item.badge}
-                              </span>
-                            )}
-                          </Link>
-                        );
-                      })}
-                    </nav>
-                  </CardContent>
-                </Card>
-              </div>
-            </aside>
+      <div className="flex">
+        <AppSidebar credits={userData.credits} />
 
-            {/* Main Content */}
-            <div className="lg:col-span-7 space-y-4 sm:space-y-5 md:space-y-6 w-full min-w-0">
-              {/* Welcome Card */}
-              <motion.div {...fadeInUp}>
-                <Card className="bg-gradient-to-r from-primary/10 to-primary/5 w-full">
-                  <CardContent className="p-4 sm:p-5 md:p-6">
-                    <h1 className="text-lg sm:text-xl md:text-2xl font-bold mb-2 break-words">
-                      Welcome back, {userData.name}👋
-                    </h1>
-                    <p className="text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4">
-                      You have {userData.credits} credits remaining. Ready to tailor your next application?
-                    </p>
-                    <Button asChild className="w-full sm:w-auto text-sm sm:text-base">
+        <main className="flex-1 min-w-0 overflow-x-hidden">
+          <div className="px-4 sm:px-6 lg:px-8 py-6 md:py-8 max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_260px] gap-6">
+
+              {/* Main column */}
+              <div className="space-y-5 min-w-0">
+
+                {/* Welcome banner */}
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 sm:p-6"
+                >
+                  <div className="absolute inset-0 bg-grid opacity-[0.07] pointer-events-none" />
+                  <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
+                        <h1 className="text-xl font-bold font-display">
+                          Welcome back{userData.name ? `, ${userData.name}` : ''}
+                        </h1>
+                        <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-medium gap-1">
+                          <Coins className="h-2.5 w-2.5" />
+                          {userData.credits} credits
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Ready to tailor your next application?
+                      </p>
+                    </div>
+                    <Button asChild size="sm" className="shrink-0 font-semibold gap-1.5">
                       <Link href="/app/builder/modern">
-                        <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-2" />
-                        Create Your First Resume
+                        <Plus className="h-4 w-4" />
+                        Create Resume
                       </Link>
                     </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Primary Actions - Single column on mobile */}
-              <motion.div
-                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 lg:hidden"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2, duration: 0.5 }}
-              >
-                {/* Build from Scratch */}
-                <motion.div whileHover={{ y: -5 }} className="group relative w-full">
-                  <div className="absolute top-2 right-2 z-10">
-                    <span className="bg-emerald-600 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
-                      Beta
-                    </span>
                   </div>
-
-                  <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300">
-                    <CardHeader className="text-center pb-3 sm:pb-4 p-4 sm:p-6">
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 group-hover:bg-primary/20 transition-colors">
-                        <FileText className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
-                      </div>
-                      <CardTitle className="text-base sm:text-lg">Build from Scratch</CardTitle>
-                      <CardDescription className="text-xs sm:text-sm">
-                        Start with a clean template and build your resume step by step
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0 p-4 sm:p-6">
-                      <Button className="w-full text-sm" variant="outline" asChild>
-                        <Link href="/app/builder/modern">Start Building</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
                 </motion.div>
 
-                {/* Upload & Tailor */}
-                <motion.div whileHover={{ y: -5 }} className="group relative w-full">
-                  <div className="absolute top-2 right-2 z-10">
-                    <span className="bg-emerald-600 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
-                      Live
-                    </span>
-                  </div>
-
-                  <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300">
-                    <CardHeader className="text-center pb-3 sm:pb-4 p-4 sm:p-6">
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 group-hover:bg-primary/20 transition-colors">
-                        <Upload className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
-                      </div>
-                      <CardTitle className="text-base sm:text-lg">Tailor Your Resume</CardTitle>
-                      <CardDescription className="text-xs sm:text-sm">
-                        Upload your existing resume and tailor it to a specific job
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0 p-4 sm:p-6">
-                      <Button className="w-full text-sm" variant="outline" asChild>
-                        <Link href="/app//upload-tailor">Upload & Tailor</Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-
-
-                {/* ATS Check */}
-                <motion.div whileHover={{ y: -5 }} className="group relative w-full sm:col-span-2 md:col-span-1">
-                  <div className="absolute top-2 right-2 z-10">
-                    <span className="bg-yellow-500 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:py-1 rounded-full shadow-md">
-                      Coming Soon
-                    </span>
-                  </div>
-
-                  <Card className="h-full cursor-pointer hover:shadow-lg transition-all duration-300 opacity-70 pointer-events-none">
-                    <CardHeader className="text-center pb-3 sm:pb-4 p-4 sm:p-6">
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 group-hover:bg-primary/20 transition-colors">
-                        <Target className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
-                      </div>
-                      <CardTitle className="text-base sm:text-lg">ATS Check</CardTitle>
-                      <CardDescription className="text-xs sm:text-sm">
-                        Test any resume for ATS compatibility and get improvement tips
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0 p-4 sm:p-6">
-                      <Button className="w-full text-sm" variant="outline" disabled>
-                        Check ATS
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </motion.div>
-
-              {/* Recent Activity with Pagination */}
-              <motion.div {...fadeInUp}>
-                <Card className="w-full">
-                  <CardHeader className="p-4 sm:p-5 md:p-6 pb-3 sm:pb-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
-                        <Clock className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                        <span>Recent Activity</span>
-                      </CardTitle>
-                      {totalPages > 1 && (
-                        <div className="text-xs sm:text-sm text-muted-foreground">
-                          Page {currentPage} of {totalPages}
+                {/* Quick actions */}
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.06 }}
+                  className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+                >
+                  {quickActions.map((action) => {
+                    const Icon = action.icon;
+                    const inner = (
+                      <div className={cn(
+                        'flex items-center gap-3 rounded-xl border border-border/60 bg-card p-4 transition-all h-full',
+                        action.disabled
+                          ? 'opacity-55 cursor-not-allowed'
+                          : 'hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm'
+                      )}>
+                        <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0', action.iconBg)}>
+                          <Icon className={cn('h-4 w-4', action.iconColor)} />
                         </div>
-                      )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold">{action.label}</p>
+                          <p className="text-xs text-muted-foreground truncate">{action.description}</p>
+                        </div>
+                        <Badge className={cn('text-[10px] border-0 flex-shrink-0 px-1.5', action.badgeColor)}>
+                          {action.badge}
+                        </Badge>
+                      </div>
+                    );
+
+                    if (action.disabled) return <div key={action.label}>{inner}</div>;
+                    return <Link key={action.label} href={action.href}>{inner}</Link>;
+                  })}
+                </motion.div>
+
+                {/* Recent Activity */}
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.12 }}
+                  className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                >
+                  <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/60">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <h2 className="text-sm font-semibold">Recent Activity</h2>
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
-                    <div className="space-y-3 sm:space-y-4">
-                      {currentActivities.map((activity, index) => (
+                    <div className="flex items-center gap-2">
+                      {totalPages > 1 && (
+                        <span className="text-xs text-muted-foreground">{currentPage}/{totalPages}</span>
+                      )}
+                      <Link href="/app/documents">
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground">
+                          View all
+                          <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-border/40">
+                    {currentActivities.map((activity, index) => {
+                      const cfg = typeConfig[activity.type];
+                      const Icon = cfg.icon;
+                      return (
                         <motion.div
                           key={startIndex + index}
-                          initial={{ opacity: 0, x: -20 }}
+                          initial={{ opacity: 0, x: -8 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="flex items-start sm:items-center gap-3 p-2.5 sm:p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                          transition={{ delay: index * 0.05 }}
+                          className="flex items-center gap-4 px-5 py-3.5 hover:bg-muted/30 transition-colors"
                         >
-                          <div
-                            className={cn(
-                              'w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center flex-shrink-0',
-                              activity.type === 'create' && 'bg-blue-100 dark:bg-blue-900',
-                              activity.type === 'tailor' && 'bg-green-100 dark:bg-green-900',
-                              activity.type === 'cover' && 'bg-purple-100 dark:bg-purple-900',
-                              activity.type === 'check' && 'bg-orange-100 dark:bg-orange-900'
-                            )}
-                          >
-                            {activity.type === 'create' && <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                            {activity.type === 'tailor' && <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                            {activity.type === 'cover' && <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-                            {activity.type === 'check' && <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                          <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0', cfg.bg)}>
+                            <Icon className={cn('h-3.5 w-3.5', cfg.text)} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs sm:text-sm font-medium truncate">{activity.action}</p>
-                            <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{activity.item}</p>
+                            <p className="text-sm font-medium truncate">{activity.item}</p>
+                            <p className="text-xs text-muted-foreground">{activity.action}</p>
                           </div>
-                          <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                          <Badge
+                            variant="outline"
+                            className={cn('text-[10px] font-medium hidden sm:inline-flex border-0', cfg.bg, cfg.text)}
+                          >
+                            {cfg.label}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0 hidden md:block">
                             {activity.time}
                           </span>
                         </motion.div>
-                      ))}
-                    </div>
+                      );
+                    })}
+                  </div>
 
-                    {/* Pagination Controls */}
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between sm:justify-center gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 border-t">
-                        {/* Previous Button */}
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={handlePreviousPage}
-                          disabled={currentPage === 1}
-                          className={cn(
-                            'group flex items-center justify-center gap-1 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-2 rounded-lg font-medium transition-all duration-200',
-                            'bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10',
-                            'disabled:opacity-40 disabled:cursor-not-allowed',
-                            'border border-primary/20 hover:border-primary/30',
-                            'min-h-[40px] sm:min-h-[44px]'
-                          )}
-                        >
-                          <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 group-hover:-translate-x-0.5" />
-                          <span className="text-xs sm:text-sm hidden sm:inline">Prev</span>
-                        </motion.button>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-2 px-5 py-3 border-t border-border/60">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handlePreviousPage}
+                        disabled={currentPage === 1}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-border/60 hover:bg-muted/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5" />
+                        Prev
+                      </motion.button>
 
-                        {/* Page Indicators - Desktop/Tablet only */}
-                        <div className="hidden sm:flex items-center gap-1.5 sm:gap-2">
-                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                            <motion.button
-                              key={page}
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={() => setCurrentPage(page)}
-                              className={cn(
-                                'w-8 h-8 sm:w-9 sm:h-9 rounded-full font-medium text-xs sm:text-sm transition-all duration-200',
-                                page === currentPage
-                                  ? 'bg-primary text-primary-foreground shadow-md'
-                                  : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                              )}
-                            >
-                              {page}
-                            </motion.button>
-                          ))}
-                        </div>
-
-                        {/* Mobile Page Counter */}
-                        <div className="sm:hidden text-xs text-muted-foreground font-medium px-2">
-                          {currentPage} / {totalPages}
-                        </div>
-
-                        {/* Next Button */}
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={handleNextPage}
-                          disabled={currentPage === totalPages}
-                          className={cn(
-                            'group flex items-center justify-center gap-1 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-2 rounded-lg font-medium transition-all duration-200',
-                            'bg-gradient-to-r from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/20',
-                            'disabled:opacity-40 disabled:cursor-not-allowed',
-                            'border border-primary/20 hover:border-primary/30',
-                            'min-h-[40px] sm:min-h-[44px]'
-                          )}
-                        >
-                          <span className="text-xs sm:text-sm hidden sm:inline">Next</span>
-                          <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
-                        </motion.button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={cn(
+                              'w-7 h-7 rounded-md text-xs font-medium transition-colors',
+                              page === currentPage
+                                ? 'bg-primary text-primary-foreground'
+                                : 'hover:bg-muted/60 text-muted-foreground'
+                            )}
+                          >
+                            {page}
+                          </button>
+                        ))}
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </div>
 
-            {/* Right Sidebar */}
-            <div className="lg:col-span-3 space-y-4 sm:space-y-5 md:space-y-6 w-full min-w-0">
-              {/* Credit Usage */}
-              <motion.div {...fadeInUp}>
-                <Card className="w-full">
-                  <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-5 md:p-6">
-                    <CardTitle className="text-base sm:text-lg">Credit Usage</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-5 md:p-6 pt-0">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleNextPage}
+                        disabled={currentPage === totalPages}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-border/60 hover:bg-muted/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Next
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </motion.button>
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+
+              {/* Right panel */}
+              <div className="space-y-4">
+                {/* Credit Usage */}
+                <motion.div
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.08 }}
+                  className="rounded-xl border border-border/60 bg-card p-4"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold">Credit Usage</h3>
+                    <Link href="/app/billing">
+                      <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-primary hover:text-primary hover:bg-primary/10">
+                        Add
+                      </Button>
+                    </Link>
+                  </div>
+                  <div className="space-y-3">
                     <div>
-                      <div className="flex justify-between text-xs sm:text-sm mb-2">
-                        <span>This month</span>
-                        <span className="text-right truncate ml-2">
+                      <div className="flex justify-between text-xs mb-1.5">
+                        <span className="text-muted-foreground">This month</span>
+                        <span className="font-medium tabular-nums">
                           {creditUsage.used > 0
-                            ? `${creditUsage.used}/${creditUsage.total} used`
+                            ? `${creditUsage.used}/${creditUsage.total}`
                             : `${creditUsage.breakdown.resume + creditUsage.breakdown.cover} used`}
                         </span>
                       </div>
                       <Progress
-                        value={((creditUsage.breakdown.tailor + creditUsage.breakdown.cover) / creditUsage.total) * 100}
-                        className="h-2"
+                        value={creditUsage.total > 0
+                          ? ((creditUsage.breakdown.tailor + creditUsage.breakdown.cover) / creditUsage.total) * 100
+                          : 0}
+                        className="h-1.5"
                       />
                     </div>
-
-                    <div className="space-y-2 text-xs sm:text-sm">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground truncate mr-2">JD Tailoring</span>
-                        <span className="font-medium flex-shrink-0">{creditUsage.breakdown.resume}</span>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">JD Tailoring</span>
+                        <span className="font-medium tabular-nums">{creditUsage.breakdown.resume}</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground truncate mr-2">Cover Letters</span>
-                        <span className="font-medium flex-shrink-0">{creditUsage.breakdown.cover}</span>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Cover Letters</span>
+                        <span className="font-medium tabular-nums">{creditUsage.breakdown.cover}</span>
                       </div>
-                      <div className="flex justify-between items-center opacity-60">
-                        <span className="text-muted-foreground text-[11px] sm:text-xs truncate mr-2">Resume Builds (Soon)</span>
-                        <span className="flex-shrink-0">-</span>
+                      <div className="flex justify-between opacity-50">
+                        <span className="text-muted-foreground">Resume Builds</span>
+                        <span>–</span>
                       </div>
                     </div>
+                  </div>
+                </motion.div>
 
-                    <Button variant="outline" size="sm" className="w-full text-xs sm:text-sm" asChild>
-                      <Link href="/app/billing">Add Credits</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Coming Soon */}
-              <motion.div {...fadeInUp}>
-                <Card className="w-full">
-                  <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-5 md:p-6">
-                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                      <span>Coming Soon</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2 sm:space-y-3 p-4 sm:p-5 md:p-6 pt-0">
+                {/* Coming Soon */}
+                <motion.div
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.14 }}
+                  className="rounded-xl border border-border/60 bg-card p-4"
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold">Coming Soon</h3>
+                  </div>
+                  <div className="space-y-1.5">
                     {comingSoonFeatures.slice(0, 3).map((feature, index) => (
                       <motion.div
                         key={feature.title}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex items-start gap-2.5 sm:gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.2 + index * 0.07 }}
+                        className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-muted/40 transition-colors"
                       >
-                        <feature.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0 mt-0.5" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs sm:text-sm font-medium truncate">{feature.title}</p>
-                          <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-2">{feature.description}</p>
+                        <feature.icon className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium">{feature.title}</p>
+                          <p className="text-[11px] text-muted-foreground line-clamp-1">{feature.description}</p>
                         </div>
                       </motion.div>
                     ))}
-                    <Button variant="ghost" size="sm" className="w-full text-xs sm:text-sm mt-2" asChild>
-                      <Link href="/app/coming-soon">View Roadmap</Link>
+                  </div>
+                  <Link href="/app/coming-soon">
+                    <Button variant="ghost" size="sm" className="w-full mt-2 h-7 text-xs">
+                      View Roadmap
                     </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                  </Link>
+                </motion.div>
 
-              {/* Quick Tips */}
-              <motion.div {...fadeInUp}>
-                <Card className="bg-gradient-to-br from-primary/5 to-primary/10 w-full">
-                  <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-5 md:p-6">
-                    <CardTitle className="text-base sm:text-lg">💡 Today's Tip</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
-                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                      Use action verbs like "increased," "improved," and "led" to start your resume bullets.
-                      They're more impactful than passive language.
-                    </p>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                {/* Tip */}
+                <motion.div
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                  className="rounded-xl border border-primary/20 bg-primary/5 p-4"
+                >
+                  <p className="text-xs font-semibold text-primary mb-1.5">Today's Tip</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Use action verbs like "increased," "improved," and "led" to start your resume bullets.
+                    They're more impactful than passive language.
+                  </p>
+                </motion.div>
+              </div>
             </div>
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

@@ -1,10 +1,11 @@
 // middleware.ts
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { addMarketPrefix, getMarketPrefix, stripMarketPrefix } from '@/lib/market/path';
 import { resolveMarket, type MarketCode } from '@/lib/market/config';
 
 const MARKET_COOKIE = 'jm_market';
+const ZA_DOMAIN = 'jobmatchly.co.za';
+const ZW_DOMAIN = 'jobmatchly.site';
 
 function isSkippablePath(pathname: string) {
   return (
@@ -16,78 +17,82 @@ function isSkippablePath(pathname: string) {
   );
 }
 
-// On Vercel, req.geo.country is the visitor's ISO country code.
-// We only resolve ZA and ZW — all other countries fall through to
-// the hostname / DEFAULT_MARKET fallback.
-function getGeoMarket(req: NextRequest): MarketCode | null {
-  const country = (req as any).geo?.country as string | undefined;
-  if (country === 'ZA') return 'ZA';
-  if (country === 'ZW') return 'ZW';
+function getHostname(req: NextRequest): string {
+  return (req.headers.get('x-forwarded-host') || req.headers.get('host') || '')
+    .replace(/:\d+$/, '')
+    .toLowerCase();
+}
+
+function isLocalOrPreview(hostname: string): boolean {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname.endsWith('.vercel.app')
+  );
+}
+
+// Vercel provides req.geo.country for the visitor's ISO country code.
+// Redirect visitors to the correct market domain when they land on the wrong one.
+// On localhost / Vercel preview URLs we skip this so dev/testing is unaffected.
+function getGeoRedirectUrl(req: NextRequest, pathname: string, hostname: string): string | null {
+  if (isLocalOrPreview(hostname)) return null;
+
+  const geoCountry = (req as any).geo?.country as string | undefined;
+  if (!geoCountry) return null;
+
+  const onZA = hostname === ZA_DOMAIN || hostname.endsWith(`.${ZA_DOMAIN}`);
+  const onZW = hostname === ZW_DOMAIN || hostname.endsWith(`.${ZW_DOMAIN}`);
+
+  if (geoCountry === 'ZA' && !onZA) return `https://${ZA_DOMAIN}${pathname}`;
+  if (geoCountry === 'ZW' && !onZW) return `https://${ZW_DOMAIN}${pathname}`;
   return null;
 }
 
 export function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
 
-  if (isSkippablePath(pathname)) {
-    return NextResponse.next();
-  }
+  if (isSkippablePath(pathname)) return NextResponse.next();
 
+  const hostname = getHostname(req);
   const hasSession = !!req.cookies.get('session_token')?.value;
 
-  // Market resolution order:
-  // 1. Explicit /za/ or /zw/ path prefix (user or link already chose a market)
-  // 2. Vercel geo detection (SA visitor → ZA, ZW visitor → ZW)
-  // 3. Hostname mapping (jobmatchly.co.za → ZA, jobmatchly.site → ZW)
-  // 4. DEFAULT_MARKET env var
-  const marketFromPath = getMarketPrefix(pathname);
-  const marketFromGeo = !marketFromPath ? getGeoMarket(req) : null;
-  const marketFromHost = resolveMarket(req.headers.get('x-forwarded-host') || req.headers.get('host'));
-  const market: MarketCode = marketFromPath || marketFromGeo || marketFromHost;
+  // Geo-redirect to correct market domain in production
+  const geoRedirect = getGeoRedirectUrl(req, pathname, hostname);
+  if (geoRedirect) return NextResponse.redirect(geoRedirect);
 
+  // Market is determined entirely by hostname (or DEFAULT_MARKET on localhost)
+  const market: MarketCode = resolveMarket(hostname);
+
+  // Pass market downstream via header so server components and API routes can read it
   const rewriteHeaders = new Headers(req.headers);
   rewriteHeaders.set('x-market', market);
-  rewriteHeaders.set('x-market-path', pathname);
-
-  // Path already has a market prefix — strip it and rewrite internally
-  if (marketFromPath) {
-    const rewrittenUrl = req.nextUrl.clone();
-    rewrittenUrl.pathname = stripMarketPrefix(pathname);
-
-    const response = NextResponse.rewrite(rewrittenUrl, { request: { headers: rewriteHeaders } });
-    response.cookies.set(MARKET_COOKIE, market, { path: '/', sameSite: 'lax', httpOnly: false });
-    return response;
-  }
 
   // Protect /app/* and /onboarding
   if (pathname.startsWith('/app') || pathname === '/onboarding') {
     if (!hasSession) {
       const signInUrl = req.nextUrl.clone();
-      signInUrl.pathname = addMarketPrefix('/auth/signin', market);
-      signInUrl.searchParams.set('next', pathname + (searchParams.toString() ? `?${searchParams}` : ''));
-
-      const response = NextResponse.redirect(signInUrl);
-      response.cookies.set(MARKET_COOKIE, market, { path: '/', sameSite: 'lax', httpOnly: false });
-      return response;
+      signInUrl.pathname = '/auth/signin';
+      signInUrl.searchParams.set(
+        'next',
+        pathname + (searchParams.toString() ? `?${searchParams}` : '')
+      );
+      const res = NextResponse.redirect(signInUrl);
+      res.cookies.set(MARKET_COOKIE, market, { path: '/', sameSite: 'lax', httpOnly: false });
+      return res;
     }
   }
 
   // Keep logged-in users out of auth pages
   if (hasSession && (pathname === '/auth/signin' || pathname === '/auth/signup')) {
     const url = req.nextUrl.clone();
-    url.pathname = addMarketPrefix('/app/dashboard', market);
+    url.pathname = '/app/dashboard';
     return NextResponse.redirect(url);
   }
 
-  // Add the market prefix to the URL so every page has an explicit /za/ or /zw/ prefix.
-  // This is where geo-detected or hostname-detected market gets stamped into the URL.
-  const redirectUrl = req.nextUrl.clone();
-  redirectUrl.pathname = addMarketPrefix(pathname, market);
-
-  const response =
-    pathname === redirectUrl.pathname ? NextResponse.next() : NextResponse.redirect(redirectUrl);
-  response.cookies.set(MARKET_COOKIE, market, { path: '/', sameSite: 'lax', httpOnly: false });
-  return response;
+  const res = NextResponse.next({ request: { headers: rewriteHeaders } });
+  res.cookies.set(MARKET_COOKIE, market, { path: '/', sameSite: 'lax', httpOnly: false });
+  return res;
 }
 
 export const config = {

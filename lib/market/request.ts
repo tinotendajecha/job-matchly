@@ -1,6 +1,5 @@
 import { headers } from "next/headers";
 import { getMarketConfig, resolveMarket, type MarketCode } from "./config";
-import { getMarketPrefix } from "./path";
 
 type HeaderSource =
   | Headers
@@ -35,11 +34,11 @@ export function getHostnameFromRequest(source?: HeaderSource) {
 }
 
 export function getMarketFromRequest(source?: HeaderSource): MarketCode {
+  // Check x-market header first — set by middleware for page requests
   if (source instanceof Request) {
-    const marketFromPath = getMarketPrefix(new URL(source.url).pathname);
-    if (marketFromPath) return marketFromPath;
+    const headerMarket = source.headers.get('x-market');
+    if (headerMarket === 'ZA' || headerMarket === 'ZW') return headerMarket;
   }
-
   return resolveMarket(getHostnameFromRequest(source));
 }
 

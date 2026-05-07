@@ -4,6 +4,8 @@
 
 @layer base {
   :root {
+    --font-display: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+    --font-body: 'DM Sans Variable', system-ui, sans-serif;
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;

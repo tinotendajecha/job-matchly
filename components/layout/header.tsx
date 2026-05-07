@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -15,7 +16,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { CreditCard, LogOut, Coins, Sun, Moon, Zap, Crown } from 'lucide-react';
+import { CreditCard, LogOut, Coins, Sun, Moon, Crown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-toastify';
@@ -116,9 +117,13 @@ export function Header({ isPublic = false }: HeaderProps) {
           href={isAuthed ? '/app/dashboard' : '/'}
           className="flex items-center gap-2.5 group"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary transition-transform duration-200 group-hover:scale-105">
-            <Zap className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
-          </div>
+          <Image
+            src="/jobmatchly-logo.svg"
+            alt="JobMatchly"
+            width={38}
+            height={38}
+            className="rounded-lg transition-transform duration-200 group-hover:scale-105"
+          />
           <span className="text-base font-bold tracking-tight font-display">JobMatchly</span>
         </Link>
 

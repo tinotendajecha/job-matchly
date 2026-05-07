@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Zap } from 'lucide-react';
+import Image from 'next/image';
 
 export function Footer() {
   return (
@@ -11,9 +11,7 @@ export function Footer() {
           {/* Brand col */}
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-2.5 mb-4 w-fit">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                <Zap className="h-4 w-4 text-primary-foreground" strokeWidth={2.5} />
-              </div>
+              <Image src="/jobmatchly-logo.svg" alt="JobMatchly" width={38} height={38} className="rounded-lg" />
               <span className="text-base font-bold font-display">JobMatchly</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">

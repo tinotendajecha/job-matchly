@@ -1,0 +1,24 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradFull" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#A4FF3C;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#6DC200;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Main badge body -->
+  <path d="M 50 70 L 50 100 Q 50 130 70 135 L 130 135 Q 150 130 150 100 L 150 70 Q 150 50 130 50 L 70 50 Q 50 50 50 70" fill="url(#gradFull)" stroke="none"/>
+
+  <!-- Handle arc -->
+  <path d="M 75 50 Q 75 30 100 25 Q 125 30 125 50" fill="none" stroke="#6DC200" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- J letter — black for contrast on lime -->
+  <text x="100" y="110" font-size="55" font-weight="700" fill="#000000" text-anchor="middle" font-family="'Segoe UI', sans-serif">J</text>
+
+  <!-- Accent rivets -->
+  <circle cx="45" cy="85" r="4" fill="rgba(0,0,0,0.25)"/>
+  <circle cx="155" cy="85" r="4" fill="rgba(0,0,0,0.25)"/>
+
+  <!-- Bottom detail line -->
+  <line x1="70" y1="140" x2="130" y2="140" stroke="rgba(0,0,0,0.2)" stroke-width="2" stroke-linecap="round"/>
+</svg>

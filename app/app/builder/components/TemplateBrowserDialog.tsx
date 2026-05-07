@@ -1,376 +1,382 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import Image from 'next/image';
-import { toast } from 'react-toastify';
 import { X } from 'lucide-react';
-import { ResumeData, ResumeTemplate, templateRegistry } from '../lib/template-registry';
-import '../lib/register-templates';
-import '../styles/print.css';
-import '../styles/resume-preview.css';
 
-export type TemplateId = 'classic' | 'modern' | 'sleek' | 'minimal' | 'executive';
-const SELECTABLE_TEMPLATE_IDS = ['classic', 'modern'] as const;
-type SelectableTemplateId = typeof SELECTABLE_TEMPLATE_IDS[number];
+export type SelectableTemplateId = 'classic' | 'modern';
 
-type AvailableTemplateItem = {
-  id: SelectableTemplateId;
-  name: string;
-  description: string;
-  available: true;
-  component: ResumeTemplate['component'];
-};
+// ─── Dynamic scale wrapper (same approach as /templates page) ────────────────
+function TemplatePreview({ children }: { children: React.ReactNode }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.35);
 
-type UpcomingTemplateItem = {
-  id: Exclude<TemplateId, SelectableTemplateId>;
-  name: string;
-  description: string;
-  available: false;
-  preview: string;
-};
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(([entry]) => {
+      setScale(entry.contentRect.width / 794);
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
-type TemplateGalleryItem = AvailableTemplateItem | UpcomingTemplateItem;
+  return (
+    <div
+      ref={containerRef}
+      style={{ aspectRatio: '8.5/11', background: '#fff', position: 'relative', overflow: 'hidden', width: '100%' }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '794px',
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+          pointerEvents: 'none',
+          userSelect: 'none',
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
-const templateDescriptions: Record<TemplateId, string> = {
-  classic: 'Clean ATS-friendly layout with subtle dividers and easy scanning.',
-  modern: 'Two-column layout with bold accent color and modern typography.',
-  sleek: 'Bold section titles, accent bars, and clean columns built for tech roles.',
-  minimal: 'Whitespace-forward layout perfect for creative portfolios and design leads.',
-  executive: 'Serif typography with elegant section framing for leadership positions.',
-};
+// ─── Classic preview ──────────────────────────────────────────────────────────
+function ClassicPreview() {
+  return (
+    <div style={{ width: '794px', background: '#fff', color: '#111827', fontFamily: "'Georgia','Times New Roman',serif", padding: '52px 56px 40px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+        <div style={{ fontSize: '26px', fontWeight: 700, color: '#111827', letterSpacing: '0.02em' }}>John Kamau</div>
+        <div style={{ fontSize: '14px', color: '#4B5563', marginTop: '5px', fontStyle: 'italic' }}>Senior Software Engineer</div>
+        <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '8px', display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <span>john.kamau@gmail.com</span><span>·</span><span>+254 722 000 123</span><span>·</span><span>Nairobi, Kenya</span>
+        </div>
+      </div>
+      <div style={{ borderTop: '1px solid #D1D5DB', marginBottom: '20px' }} />
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>Professional Summary</div>
+        <div style={{ fontSize: '11.5px', color: '#374151', lineHeight: '1.65' }}>Results-driven Software Engineer with 4+ years of experience designing and building scalable web applications. Adept at leading cross-functional teams and delivering high-quality solutions on time.</div>
+      </div>
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Experience</div>
+        <div style={{ marginBottom: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+            <div><span style={{ fontSize: '12px', fontWeight: 700 }}>Senior Software Developer</span><span style={{ fontSize: '11.5px', color: '#4B5563' }}> — MTN Digital Labs</span></div>
+            <span style={{ fontSize: '11px', color: '#6B7280' }}>Jan 2022 – Present</span>
+          </div>
+          <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '11px', color: '#374151', lineHeight: '1.7' }}>
+            <li>Engineered core payment API handling 50K+ daily transactions with 99.9% uptime</li>
+            <li>Reduced system latency by 38% through advanced query optimisation and caching</li>
+          </ul>
+        </div>
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+            <div><span style={{ fontSize: '12px', fontWeight: 700 }}>Junior Developer</span><span style={{ fontSize: '11.5px', color: '#4B5563' }}> — TechBridge Africa</span></div>
+            <span style={{ fontSize: '11px', color: '#6B7280' }}>Mar 2020 – Dec 2021</span>
+          </div>
+          <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '11px', color: '#374151', lineHeight: '1.7' }}>
+            <li>Built RESTful APIs for mobile banking platform used by 200K+ users</li>
+          </ul>
+        </div>
+      </div>
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Education</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div><div style={{ fontSize: '12px', fontWeight: 700 }}>BSc Computer Science</div><div style={{ fontSize: '11px', color: '#4B5563' }}>University of Nairobi</div></div>
+          <span style={{ fontSize: '11px', color: '#6B7280' }}>2020</span>
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Skills</div>
+        <div style={{ fontSize: '11px', color: '#374151', lineHeight: '1.8' }}>
+          <span style={{ fontWeight: 600 }}>Technical: </span>Python · JavaScript · TypeScript · React · Node.js · PostgreSQL · Docker · AWS
+        </div>
+        <div style={{ fontSize: '11px', color: '#374151', marginTop: '4px' }}>
+          <span style={{ fontWeight: 600 }}>Soft Skills: </span>Leadership · Communication · Problem Solving · Agile Methodology
+        </div>
+      </div>
+    </div>
+  );
+}
 
-const registeredTemplates = templateRegistry.getAll();
+// ─── Modern preview ───────────────────────────────────────────────────────────
+function ModernPreview() {
+  const blue = '#2563EB';
+  const pill = { display: 'inline-block' as const, background: '#EFF6FF', color: '#1D4ED8', fontSize: '10px', fontWeight: 600, padding: '2px 9px', borderRadius: '4px', marginRight: '5px', marginBottom: '4px' };
+  return (
+    <div style={{ width: '794px', background: '#fff', color: '#111827', fontFamily: 'system-ui,-apple-system,sans-serif', padding: '48px 52px 40px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+        <div style={{ fontSize: '28px', fontWeight: 800, color: blue, letterSpacing: '-0.01em' }}>Aisha Diallo</div>
+        <div style={{ fontSize: '15px', color: '#4B5563', marginTop: '4px' }}>Product Designer</div>
+        <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '8px', display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <span>aisha@creative.io</span><span>·</span><span>+234 901 234 567</span><span>·</span><span>Lagos, Nigeria</span>
+        </div>
+      </div>
+      <div style={{ borderTop: `2px solid ${blue}`, marginBottom: '20px' }} />
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: blue, borderBottom: `2px solid ${blue}`, paddingBottom: '4px', marginBottom: '10px' }}>Professional Summary</div>
+        <div style={{ fontSize: '11.5px', color: '#374151', lineHeight: '1.65' }}>Creative and detail-oriented Product Designer with 5+ years crafting intuitive digital experiences for fintech and e-commerce platforms across West Africa.</div>
+      </div>
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: blue, borderBottom: `2px solid ${blue}`, paddingBottom: '4px', marginBottom: '10px' }}>Skills</div>
+        <div style={{ display: 'flex', gap: '24px' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Technical</div>
+            <div>{['Figma', 'Sketch', 'Adobe XD', 'Prototyping', 'Framer'].map(s => <span key={s} style={pill}>{s}</span>)}</div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Soft Skills</div>
+            <div>{['Leadership', 'Agile', 'User Research', 'Storytelling'].map(s => <span key={s} style={pill}>{s}</span>)}</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: blue, borderBottom: `2px solid ${blue}`, paddingBottom: '4px', marginBottom: '10px' }}>Experience</div>
+        <div style={{ marginBottom: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+            <div><span style={{ fontSize: '12.5px', fontWeight: 700 }}>Lead Product Designer</span><span style={{ fontSize: '11.5px', color: '#4B5563' }}> — Flutterwave</span></div>
+            <span style={{ fontSize: '11px', color: '#6B7280' }}>2022 – Present</span>
+          </div>
+          <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '11px', color: '#374151', lineHeight: '1.7' }}>
+            <li>Redesigned onboarding flow, boosting activation rate by 35%</li>
+            <li>Built and maintained a design system adopted across 5 products</li>
+          </ul>
+        </div>
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+            <div><span style={{ fontSize: '12.5px', fontWeight: 700 }}>UI/UX Designer</span><span style={{ fontSize: '11.5px', color: '#4B5563' }}> — Andela</span></div>
+            <span style={{ fontSize: '11px', color: '#6B7280' }}>2019 – 2022</span>
+          </div>
+          <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '11px', color: '#374151', lineHeight: '1.7' }}>
+            <li>Delivered 12+ end-to-end product designs for global SaaS clients</li>
+          </ul>
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: blue, borderBottom: `2px solid ${blue}`, paddingBottom: '4px', marginBottom: '10px' }}>Education</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div><div style={{ fontSize: '12px', fontWeight: 700 }}>BA Visual Arts & Design</div><div style={{ fontSize: '11px', color: '#4B5563' }}>University of Lagos</div></div>
+          <span style={{ fontSize: '11px', color: '#6B7280' }}>2019</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-const availableTemplates: AvailableTemplateItem[] = registeredTemplates
-  .filter((template): template is ResumeTemplate & { id: SelectableTemplateId } =>
-    SELECTABLE_TEMPLATE_IDS.includes(template.id as SelectableTemplateId)
-  )
-  .map((template) => ({
-    id: template.id as SelectableTemplateId,
-    name: template.name,
-    description: templateDescriptions[template.id as TemplateId] ?? templateDescriptions.classic,
-    available: true,
-    component: template.component,
-  }));
+// ─── Two Column preview ───────────────────────────────────────────────────────
+function TwoColumnPreview() {
+  const orange = '#f97316';
+  const dark = '#111827';
+  const muted = '#6B7280';
+  const shortRule = { width: '48px', borderTop: `2px solid ${dark}`, marginBottom: '8px' };
+  const rule = { borderTop: `2px solid ${dark}`, marginBottom: '10px' };
+  return (
+    <div style={{ width: '794px', background: '#fff', color: dark, fontFamily: 'system-ui,-apple-system,sans-serif', padding: '44px 48px 40px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '250px 1fr', gap: '0 40px' }}>
+        <div style={{ paddingTop: '4px' }}>
+          <div style={{ fontSize: '44px', fontWeight: 900, lineHeight: 1.02, color: dark, letterSpacing: '-0.02em' }}>Kwame<br />Asante</div>
+          <div style={{ marginTop: '10px', fontSize: '20px', fontWeight: 700, color: orange, lineHeight: 1.3 }}>Full-Stack Engineer</div>
+        </div>
+        <div style={{ paddingTop: '4px' }}>
+          <div style={{ borderTop: `3px solid ${dark}`, marginBottom: '14px' }} />
+          <div style={{ fontSize: '14px', fontWeight: 600, color: dark, marginBottom: '6px' }}>Kwame Asante</div>
+          <div style={{ fontSize: '11px', lineHeight: '1.9', color: muted }}>
+            <div style={{ color: orange }}>kwame.asante@gmail.com</div>
+            <div style={{ color: orange }}>+233 550 100 200</div>
+            <div>Accra, Ghana</div>
+            <div>github.com/kwameasante</div>
+          </div>
+        </div>
+        <div style={{ paddingTop: '20px' }}>
+          <div style={shortRule} />
+          <div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Experience</div>
+        </div>
+        <div style={{ paddingTop: '20px' }}>
+          <div style={rule} />
+          <div style={{ marginBottom: '13px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700 }}>Senior Full-Stack Developer</div>
+              <div style={{ fontSize: '10px', color: muted }}>2022 – Present</div>
+            </div>
+            <div style={{ fontSize: '11px', color: muted, marginBottom: '5px' }}>Paystack · Accra</div>
+            <ul style={{ margin: 0, paddingLeft: '14px', fontSize: '10.5px', color: '#374151', lineHeight: '1.75' }}>
+              <li>Built payment APIs handling 300K+ daily transactions</li>
+              <li>Reduced frontend load time by 52% via code splitting</li>
+            </ul>
+          </div>
+        </div>
+        <div style={{ paddingTop: '18px' }}>
+          <div style={shortRule} />
+          <div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Skills</div>
+        </div>
+        <div style={{ paddingTop: '18px' }}>
+          <div style={rule} />
+          <div style={{ fontSize: '10.5px', color: '#374151', lineHeight: '1.85' }}>
+            <span style={{ fontWeight: 700, color: dark }}>Languages: </span>TypeScript · Python · Go · SQL<br />
+            <span style={{ fontWeight: 700, color: dark }}>Frontend: </span>React · Next.js · Tailwind CSS<br />
+            <span style={{ fontWeight: 700, color: dark }}>Backend: </span>Node.js · FastAPI · PostgreSQL · Redis
+          </div>
+        </div>
+        <div style={{ paddingTop: '18px' }}>
+          <div style={shortRule} />
+          <div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Education</div>
+        </div>
+        <div style={{ paddingTop: '18px' }}>
+          <div style={rule} />
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 700 }}>BSc Computer Science</div>
+              <div style={{ fontSize: '11px', color: muted }}>University of Ghana · Legon</div>
+            </div>
+            <div style={{ fontSize: '10px', color: muted }}>2020</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-const upcomingTemplates: UpcomingTemplateItem[] = [
+// ─── Template data ────────────────────────────────────────────────────────────
+const TEMPLATES = [
   {
-    id: 'sleek',
-    name: 'Sleek Professional',
-    description: templateDescriptions.sleek,
-    available: false,
-    preview: '/api/placeholder/320/420?text=Sleek',
+    id: 'classic' as const,
+    name: 'Classic',
+    tag: 'Professional',
+    accentColor: '#374151',
+    description: 'Clean ATS-friendly layout with subtle dividers and easy scanning.',
+    selectable: true,
+    actionLabel: 'Use Template',
+    preview: <ClassicPreview />,
   },
   {
-    id: 'minimal',
-    name: 'Minimal Chic',
-    description: templateDescriptions.minimal,
-    available: false,
-    preview: '/api/placeholder/320/420?text=Minimal',
+    id: 'modern' as const,
+    name: 'Modern',
+    tag: 'Trending',
+    accentColor: '#2563EB',
+    description: 'Bold blue accents and modern typography. Stands out while staying ATS-friendly.',
+    selectable: true,
+    actionLabel: 'Use Template',
+    preview: <ModernPreview />,
   },
   {
-    id: 'executive',
-    name: 'Executive Edge',
-    description: templateDescriptions.executive,
-    available: false,
-    preview: '/api/placeholder/320/420?text=Executive',
+    id: 'two-column' as const,
+    name: 'Two Column',
+    tag: 'Bold',
+    accentColor: '#f97316',
+    description: 'Editorial two-column layout with bold typography and orange accents.',
+    selectable: false,
+    actionLabel: 'Tailor with This Style',
+    href: '/app/upload-tailor',
+    preview: <TwoColumnPreview />,
   },
 ];
 
-const templateGallery: TemplateGalleryItem[] = [...availableTemplates, ...upcomingTemplates];
-
-const previewFallback: ResumeData = {
-  header: {
-    name: 'Alex Taylor',
-    title: 'Product Manager',
-    email: 'alex.taylor@gmail.com',
-    phone: '(555) 123-4567',
-    location: 'San Francisco, CA',
-    website: 'linkedin.com/in/alextaylor',
-  },
-  professionalSummary:
-    'Product leader with 7+ years building data-driven solutions that delight users and drive measurable growth across SaaS, mobile, and marketplace products.',
-  skills: {
-    technical: ['Product Strategy', 'SQL', 'User Research', 'Experimentation'],
-    soft: ['Stakeholder Management', 'Leadership', 'Communication'],
-  },
-  experience: [
-    {
-      id: 'preview-exp-1',
-      company: 'Nova Labs',
-      role: 'Senior Product Manager',
-      startDate: '2020-04',
-      endDate: '',
-      isCurrent: true,
-      achievements: [
-        'Launched experimentation platform that increased activation rate by 18%.',
-        'Led cross-functional squad of 12 engineers, designers, and analysts.',
-      ],
-    },
-  ],
-  education: [
-    {
-      id: 'preview-edu-1',
-      institution: 'University of Washington',
-      degree: 'B.S. Computer Science',
-      fieldOfStudy: 'Human Centered Design',
-      graduationYear: '2016',
-    },
-  ],
-  projects: [
-    {
-      id: 'preview-proj-1',
-      name: 'Growth Experiment Hub',
-      description: 'Centralized experimentation backlog that improved test velocity by 2.3x.',
-      technologies: ['React', 'Next.js', 'Postgres'],
-    },
-  ],
-  certifications: [
-    {
-      id: 'preview-cert-1',
-      name: 'Certified Scrum Product Owner',
-      issuer: 'Scrum Alliance',
-      date: '2019-02',
-      expiryDate: '',
-    },
-  ],
-  references: [
-    {
-      id: 'preview-ref-1',
-      name: 'Jordan Lee',
-      title: 'VP Product',
-      company: 'Nova Labs',
-      email: 'jordan.lee@novalabs.com',
-      phone: '',
-    },
-  ],
-  changesSummary: '',
-};
-
-function buildPreviewData(data: ResumeData): ResumeData {
-  return {
-    header: {
-      ...previewFallback.header,
-      ...data.header,
-    },
-    professionalSummary: data.professionalSummary || previewFallback.professionalSummary,
-    skills: {
-      technical: data.skills.technical.length ? data.skills.technical : previewFallback.skills.technical,
-      soft: data.skills.soft.length ? data.skills.soft : previewFallback.skills.soft,
-    },
-    experience: data.experience.length ? data.experience : previewFallback.experience,
-    education: data.education.length ? data.education : previewFallback.education,
-    projects: data.projects.length ? data.projects : previewFallback.projects,
-    certifications: data.certifications.length ? data.certifications : previewFallback.certifications,
-    references: data.references.length ? data.references : previewFallback.references,
-    changesSummary: data.changesSummary || previewFallback.changesSummary,
-  };
-}
-
+// ─── Dialog ───────────────────────────────────────────────────────────────────
 interface TemplateBrowserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectTemplate: (templateId: SelectableTemplateId) => void;
-  resumeData: ResumeData;
 }
 
-export function TemplateBrowserDialog({
-  open,
-  onOpenChange,
-  onSelectTemplate,
-  resumeData,
-}: TemplateBrowserDialogProps) {
-  const templateCarouselRef = useRef<HTMLDivElement>(null);
-  const [galleryScrollProgress, setGalleryScrollProgress] = useState(0);
-  const previewData = useMemo(() => buildPreviewData(resumeData), [resumeData]);
+export function TemplateBrowserDialog({ open, onOpenChange, onSelectTemplate }: TemplateBrowserDialogProps) {
+  const router = useRouter();
 
-  const handleTemplateScroll = () => {
-    const el = templateCarouselRef.current;
-    if (!el) return;
-    const maxScroll = el.scrollWidth - el.clientWidth;
-    const progress = maxScroll > 0 ? el.scrollLeft / maxScroll : 0;
-    setGalleryScrollProgress(progress);
+  const handleAction = (t: typeof TEMPLATES[number]) => {
+    if (t.selectable) {
+      onSelectTemplate(t.id as SelectableTemplateId);
+    } else if (t.href) {
+      router.push(t.href);
+    }
   };
-
-  const upcomingProgress = useMemo(() => Math.max(0.05, galleryScrollProgress), [galleryScrollProgress]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:w-full sm:max-w-3xl lg:max-w-5xl h-[90vh] p-0 overflow-hidden gap-0 flex flex-col">
+      {/*
+        [&>button:last-child]:hidden — removes the shadcn/ui auto-generated close button
+        that's always appended as the last child of DialogContent.
+        We render our own X in the header instead.
+      */}
+      <DialogContent className="w-[95vw] max-w-[95vw] sm:w-full sm:max-w-3xl lg:max-w-5xl h-[90vh] p-0 overflow-hidden gap-0 flex flex-col [&>button:last-child]:hidden">
+        {/* Header */}
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1 text-left">
               <DialogTitle className="text-xl font-semibold">Explore Templates</DialogTitle>
-              <DialogDescription className="text-sm sm:text-base text-muted-foreground/90 leading-relaxed max-w-2xl">
-                Tap a design to instantly apply it. Upcoming templates arrive soon.
+              <DialogDescription className="text-sm text-muted-foreground/90">
+                Tap a design to instantly apply it to your resume.
               </DialogDescription>
             </div>
             <DialogClose asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Close template browser"
-              >
+              <Button variant="ghost" size="icon" aria-label="Close">
                 <X className="h-5 w-5" />
               </Button>
             </DialogClose>
           </div>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col bg-muted/5">
-          {/* Mobile / Tablet */}
-          <div className="lg:hidden flex-1 flex flex-col min-h-0">
-            <div
-              ref={templateCarouselRef}
-              onScroll={handleTemplateScroll}
-              className="flex-1 flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth px-6 py-6 items-stretch no-scrollbar"
-              style={{ scrollPaddingInline: '1.5rem' }}
-            >
-              {templateGallery.map((template) => (
-                <div
-                  key={template.id}
-                  className="w-[85vw] max-w-[360px] shrink-0 snap-center flex flex-col h-full max-h-[620px] bg-background border rounded-2xl shadow-sm overflow-hidden"
-                >
-                  <div className="relative w-full aspect-[3/4] bg-muted border-b">
-                    {template.available ? (
-                      <TemplatePreview templateComponent={template.component} resumeData={previewData} />
-                    ) : (
-                      <Image
-                        src={template.preview}
-                        alt={`${template.name} preview`}
-                        fill
-                        sizes="(max-width: 640px) 85vw, 360px"
-                        className="object-cover"
-                      />
-                    )}
-                    {!template.available && (
-                      <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] flex items-center justify-center">
-                        <Badge variant="secondary" className="text-sm px-3 py-1 shadow-sm">Coming Soon</Badge>
-                      </div>
-                    )}
-                    <div className="absolute bottom-3 left-3 right-3 rounded-full bg-black/70 px-3 py-1 text-[11px] text-white flex items-center justify-between">
-                      <span className="font-medium truncate">{template.name}</span>
-                      <span className="uppercase tracking-wide text-[10px]">
-                        {template.available ? 'Live' : 'Soon'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 flex flex-col p-5">
-                    <div className="space-y-2 mb-4">
-                      <h4 className="text-xl font-semibold tracking-tight">{template.name}</h4>
-                      <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                        {template.description}
-                      </p>
-                    </div>
-
-                    <div className="mt-auto flex flex-col gap-3">
-                      <Button
-                        size="lg"
-                        className="w-full font-medium"
-                        disabled={!template.available}
-                        onClick={() =>
-                          template.available
-                            ? onSelectTemplate(template.id)
-                            : toast.info('Coming soon!')
-                        }
-                      >
-                        {template.available ? 'Use Template' : 'Notify Me'}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full text-muted-foreground hover:text-foreground"
-                        onClick={() => toast.info('Full preview coming soon!')}
-                      >
-                        Preview Design
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="h-1 bg-muted w-full mt-auto mb-1">
+        {/* Grid */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {TEMPLATES.map((t) => (
               <div
-                className="h-full bg-primary transition-all duration-300 ease-out"
-                style={{ width: `${upcomingProgress * 100}%` }}
-              />
-            </div>
-          </div>
+                key={t.id}
+                className="group relative flex flex-col rounded-xl border overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 bg-card"
+              >
+                {/* Accent bar */}
+                <div className="absolute top-0 left-0 right-0 h-0.5 z-10" style={{ background: t.accentColor }} />
 
-          {/* Desktop */}
-          <div className="hidden lg:block h-full overflow-y-auto p-8">
-            <div className="grid grid-cols-3 gap-6 pb-10">
-              {templateGallery.map((template) => (
-                <div
-                  key={template.id}
-                  className="group relative flex flex-col bg-background border rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200"
-                >
-                  <div className="relative aspect-[4/5] bg-muted overflow-hidden">
-                    {template.available ? (
-                      <TemplatePreview templateComponent={template.component} resumeData={previewData} />
-                    ) : (
-                      <Image
-                        src={template.preview}
-                        alt={template.name}
-                        fill
-                        sizes="33vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    )}
-                    {template.available ? (
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
-                        <Button
-                          className="w-full bg-white text-black hover:bg-white/90"
-                          onClick={() => onSelectTemplate(template.id)}
-                        >
-                          Select Template
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <Badge variant="secondary" className="text-xs px-3 py-1">Coming Soon</Badge>
-                      </div>
-                    )}
-                  </div>
+                {/* Preview area */}
+                <div className="relative overflow-hidden border-b border-border/40 bg-white">
+                  <TemplatePreview>{t.preview}</TemplatePreview>
 
-                  <div className="p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-lg">{template.name}</h4>
-                      {!template.available && <Badge variant="secondary" className="text-xs">Soon</Badge>}
-                    </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {template.description}
-                    </p>
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="shadow-lg font-medium"
+                      onClick={() => handleAction(t)}
+                    >
+                      {t.actionLabel}
+                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                {/* Info */}
+                <div className="p-4 flex flex-col flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-semibold text-base">{t.name}</h4>
+                    <span
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: `${t.accentColor}18`, color: t.accentColor }}
+                    >
+                      {t.tag}
+                    </span>
+                    {!t.selectable && (
+                      <Badge variant="secondary" className="text-[10px] ml-auto">Builder coming soon</Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">{t.description}</p>
+                  <Button
+                    size="sm"
+                    className="w-full font-medium"
+                    variant={t.selectable ? 'default' : 'outline'}
+                    onClick={() => handleAction(t)}
+                  >
+                    {t.actionLabel}
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function TemplatePreview({
-  templateComponent: TemplateComponent,
-  resumeData,
-}: {
-  templateComponent: ResumeTemplate['component'];
-  resumeData: ResumeData;
-}) {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center">
-      <div className="scale-[0.28] origin-top pointer-events-none" style={{ width: '210mm', minHeight: '297mm' }}>
-        <div className="bg-white shadow-sm border mx-auto">
-          <TemplateComponent data={resumeData} />
-        </div>
-      </div>
-    </div>
   );
 }

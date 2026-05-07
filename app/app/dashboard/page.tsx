@@ -60,7 +60,7 @@ const quickActions = [
     icon: FileText,
     iconBg: 'bg-blue-500/15',
     iconColor: 'text-blue-400',
-    badge: 'Beta',
+    badge: 'Live',
     badgeColor: 'bg-emerald-600 text-white',
     disabled: false,
   },

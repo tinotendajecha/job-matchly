@@ -190,7 +190,7 @@ export default function ResumeBuilderPage() {
                   onClick={() => setShowTemplateBrowser(true)}
                 >
                   <Maximize className="h-4 w-4" />
-                  Browse templates
+                  Browse more templates
                 </Button>
 
                 <div className="flex items-center gap-2">
@@ -277,7 +277,7 @@ export default function ResumeBuilderPage() {
                 onClick={() => setShowTemplateBrowser(true)}
               >
                 <Maximize className="h-4 w-4" />
-                Browse templates
+                Browse more templates
               </Button>
               <div className="flex items-center gap-2">
                 <Button

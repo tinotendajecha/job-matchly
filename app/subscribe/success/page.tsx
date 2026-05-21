@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export default function SubscribeSuccessPage() {
+function SubscribeSuccessPageContent() {
   const router = useRouter();
   const params = useSearchParams();
   const reference = params.get('reference');
@@ -71,5 +71,13 @@ export default function SubscribeSuccessPage() {
         <Link href="/pricing">Back to pricing</Link>
       </Button>
     </div>
+  );
+}
+
+export default function SubscribeSuccessPage() {
+  return (
+    <Suspense>
+      <SubscribeSuccessPageContent />
+    </Suspense>
   );
 }

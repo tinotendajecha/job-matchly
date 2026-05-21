@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
@@ -19,7 +19,7 @@ const TIER_DESCRIPTIONS: Record<string, string> = {
   PLUS: 'Unlimited tailors · Unlimited downloads · PDF + DOCX',
 };
 
-export default function SubscribePage() {
+function SubscribePageContent() {
   const router = useRouter();
   const params = useSearchParams();
   const { market } = useMarket();
@@ -178,5 +178,13 @@ export default function SubscribePage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function SubscribePage() {
+  return (
+    <Suspense>
+      <SubscribePageContent />
+    </Suspense>
   );
 }

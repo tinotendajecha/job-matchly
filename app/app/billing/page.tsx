@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
@@ -73,7 +73,7 @@ function UsageBar({ label, count, limit }: { label: string; count: number; limit
   );
 }
 
-export default function BillingPage() {
+function BillingPageContent() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [sub, setSub] = useState<SubscriptionData | null>(null);
@@ -327,5 +327,13 @@ export default function BillingPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <Suspense>
+      <BillingPageContent />
+    </Suspense>
   );
 }

@@ -2,10 +2,10 @@
 import { NextResponse } from "next/server";
 import { ChatOpenAI } from "@langchain/openai";
 import { getCurrentUser } from "@/lib/auth";
-import { spendCredits, refundCredits } from "@/lib/credits";
 import { prisma } from "@/lib/prisma";
 import { safeFileName } from "@/lib/files";
 import { extractCompanyAndRoleLC } from "@/lib/extract";
+import { requireAndConsumeUsage, SubscriptionGateError } from "@/lib/subscription/gates";
 
 export const runtime = "nodejs";
 
@@ -31,11 +31,12 @@ export async function POST(req: Request) {
     }
   }
 
-  // Charge 1 credit
+  // Subscription gate: must have active subscription + cover letter quota remaining
   try {
-    await spendCredits(user.id, 1);
-  } catch {
-    return NextResponse.json({ ok: false, error: "Insufficient credits" }, { status: 402 });
+    await requireAndConsumeUsage(user.id, "cover_letter");
+  } catch (err) {
+    if (err instanceof SubscriptionGateError) return err.toResponse();
+    throw err;
   }
 
   try {
@@ -121,25 +122,13 @@ Company: ${company || ""}
       data: {
         userId: user.id,
         type: "COVER_LETTER_GENERATED",
-        credits: -1,
+        credits: 0,
         meta: { documentId: doc.id, company, role, title },
       },
     });
 
     return NextResponse.json({ ok: true, id: doc.id, markdown, title, fileStem });
   } catch (e: any) {
-    // Refund on failure + ledger note
-    await refundCredits(user.id, 1).catch(() => {});
-    await prisma.ledger
-      .create({
-        data: {
-          userId: user.id,
-          type: "COVER_LETTER_GENERATION_FAILED",
-          credits: +1,
-          meta: { error: String(e?.message || e) },
-        },
-      })
-      .catch(() => {});
     console.error("cover-letter fatal:", e?.message || e);
     return NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
   }

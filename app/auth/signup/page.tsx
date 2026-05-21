@@ -9,16 +9,20 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Eye, EyeOff, Chrome, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { cn } from '@/lib/utils';
+import { useMarket } from '@/hooks/use-market';
 
 export default function SignUpPage() {
   const router = useRouter();
+  const { market, isSouthAfrica } = useMarket();
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [consentGiven, setConsentGiven] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
 
   const passwordRequirements = [
@@ -28,17 +32,22 @@ export default function SignUpPage() {
   ];
   const passwordStrength = passwordRequirements.filter(req => req.met).length;
 
+  const consentVersion = `${market}-2026-v1`;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
-    // basic client-side checks
     if (passwordStrength < 3) {
       toast.error('Please meet all password requirements');
       return;
     }
     if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
       toast.error('Please enter a valid email');
+      return;
+    }
+    if (!consentGiven) {
+      toast.error('Please agree to the Data Protection & Consent Agreement to continue');
       return;
     }
 
@@ -51,6 +60,8 @@ export default function SignUpPage() {
           name: formData.name.trim(),
           email: formData.email.trim().toLowerCase(),
           password: formData.password,
+          consentGiven: true,
+          consentVersion,
         }),
       });
 
@@ -58,7 +69,6 @@ export default function SignUpPage() {
       try { data = await res.json(); } catch {}
 
       if (!res.ok || !data?.ok) {
-        // Map common errors
         const msg =
           data?.error ||
           (res.status === 400 ? 'Email already in use or invalid data' :
@@ -68,7 +78,6 @@ export default function SignUpPage() {
         return;
       }
 
-      // Success → verification
       const email = formData.email.trim().toLowerCase();
       try { localStorage.setItem('pendingVerifyEmail', email); } catch {}
       toast.success('Verification code sent. Check your email 📩');
@@ -158,7 +167,53 @@ export default function SignUpPage() {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || passwordStrength < 3}>
+              {/* Consent checkbox */}
+              <div className={cn(
+                'rounded-lg border p-4 space-y-3 transition-colors',
+                consentGiven ? 'border-primary/40 bg-primary/5' : 'border-border bg-muted/20'
+              )}>
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="consent"
+                    checked={consentGiven}
+                    onCheckedChange={(checked) => setConsentGiven(checked === true)}
+                    disabled={isSubmitting}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <Label
+                    htmlFor="consent"
+                    className="text-xs text-muted-foreground leading-relaxed cursor-pointer"
+                  >
+                    I agree to Jobmatchly&apos;s{' '}
+                    <Link href="/terms" target="_blank" className="text-primary hover:underline font-medium">
+                      Data Protection, Privacy &amp; Candidate Consent Agreement
+                    </Link>
+                    , and I authorise Jobmatchly to process and share my employment-related information
+                    with verified recruiters, employers, and hiring partners for job matching and
+                    recruitment purposes.
+                  </Label>
+                </div>
+                {isSouthAfrica && (
+                  <p className="text-xs text-muted-foreground pl-7">
+                    This consent is collected in compliance with{' '}
+                    <span className="font-medium text-foreground/70">POPIA</span>{' '}
+                    (Protection of Personal Information Act, South Africa).
+                  </p>
+                )}
+                {!isSouthAfrica && (
+                  <p className="text-xs text-muted-foreground pl-7">
+                    This consent is collected in accordance with applicable Zimbabwean and international
+                    data protection regulations.
+                  </p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
+                disabled={isSubmitting || passwordStrength < 3 || !consentGiven}
+              >
                 {isSubmitting ? 'Creating account…' : 'Create Account'}
               </Button>
             </form>
@@ -187,7 +242,8 @@ export default function SignUpPage() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          By creating an account, you agree to our <Link href="/terms" className="hover:underline">Terms of Service</Link> and <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+          By creating an account, you agree to our{' '}
+          <Link href="/terms" className="hover:underline">Data Protection &amp; Consent Agreement</Link>
         </p>
       </motion.div>
     </div>

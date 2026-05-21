@@ -50,8 +50,8 @@ export function Footer() {
             </p>
             <ul className="space-y-3">
               {[
-                { href: '/privacy', label: 'Privacy' },
-                { href: '/terms', label: 'Terms' },
+                { href: '/terms', label: 'Privacy & Terms' },
+                { href: '/terms#16', label: 'Consent Agreement' },
               ].map((l) => (
                 <li key={l.href}>
                   <Link
@@ -90,7 +90,7 @@ export function Footer() {
 
         <div className="flex flex-col sm:flex-row justify-between items-center pt-8 border-t border-border/60 gap-3">
           <p className="text-xs text-muted-foreground">
-            © 2025 JobMatchly. All rights reserved.
+            © 2026 Jobmatchly · Point Pro POS Solutions. All rights reserved.
           </p>
           <p className="text-xs text-muted-foreground">
             Built by Gen Z Tech Labs

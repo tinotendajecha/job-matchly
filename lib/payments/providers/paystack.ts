@@ -92,6 +92,77 @@ export const paystackProvider: PaymentProvider = {
   },
 };
 
+// Plan codes stored as env vars: PAYSTACK_PLAN_{TIER}_{CYCLE}
+// e.g. PAYSTACK_PLAN_PRO_MONTHLY, PAYSTACK_PLAN_STARTER_YEARLY
+export function getPaystackPlanEnvKey(tier: string, cycle: 'MONTHLY' | 'YEARLY'): string {
+  return `PAYSTACK_PLAN_${tier.toUpperCase()}_${cycle}`;
+}
+
+export async function getOrCreatePaystackPlan(
+  tier: string,
+  cycle: 'MONTHLY' | 'YEARLY',
+  amountMinor: number,
+  currency: string,
+): Promise<string> {
+  const envKey = getPaystackPlanEnvKey(tier, cycle);
+  const stored = process.env[envKey];
+  if (stored) return stored;
+
+  // Create the plan programmatically if not pre-configured
+  const interval = cycle === 'YEARLY' ? 'annually' : 'monthly';
+  const payload = await paystackRequest<any>('/plan', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: `Jobmatchly ${tier} ${cycle.toLowerCase()}`,
+      interval,
+      amount: amountMinor,
+      currency,
+    }),
+  });
+
+  const planCode: string = payload?.data?.plan_code;
+  if (!planCode) throw new Error('Paystack did not return a plan code');
+
+  // Log so the operator can pin it in .env for future reuse
+  console.log(`[paystack] Created plan ${envKey}=${planCode} — add to .env to reuse`);
+  return planCode;
+}
+
+export async function createPaystackSubscription(input: {
+  customerCode: string;
+  planCode: string;
+  authCode: string;
+  startDate: Date;
+}): Promise<{ subscriptionCode: string; emailToken: string | null }> {
+  const payload = await paystackRequest<any>('/subscription', {
+    method: 'POST',
+    body: JSON.stringify({
+      customer: input.customerCode,
+      plan: input.planCode,
+      authorization: input.authCode,
+      start_date: input.startDate.toISOString(),
+    }),
+  });
+
+  const subscriptionCode: string = payload?.data?.subscription_code;
+  if (!subscriptionCode) throw new Error('Paystack did not return a subscription_code');
+
+  return {
+    subscriptionCode,
+    emailToken: payload?.data?.email_token ?? null,
+  };
+}
+
+export async function disablePaystackSubscription(
+  subscriptionCode: string,
+  emailToken: string,
+): Promise<void> {
+  await paystackRequest('/subscription/disable', {
+    method: 'POST',
+    body: JSON.stringify({ code: subscriptionCode, token: emailToken }),
+  });
+}
+
 export function verifyPaystackSignature(rawBody: string, signature?: string | null) {
   if (!signature) return false;
   const expected = crypto.createHmac("sha512", getSecretKey()).update(rawBody).digest("hex");

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getDocumentDownloadState } from "@/lib/documents/access";
 import { buildDocxResponse, buildPdfResponse } from "@/lib/exports/document-download";
+import { requireSubscription, requireFeatureAccess, requireAndConsumeUsage, SubscriptionGateError } from "@/lib/subscription/gates";
 
 export const runtime = "nodejs";
 
@@ -22,35 +22,23 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ ok: false, error: "Unsupported format" }, { status: 400 });
   }
 
+  // Subscription gate
+  try {
+    await requireSubscription(user.id);
+    if (format === "docx") await requireFeatureAccess(user.id, "docx");
+    await requireAndConsumeUsage(user.id, "download");
+  } catch (err) {
+    if (err instanceof SubscriptionGateError) return err.toResponse();
+    throw err;
+  }
+
   const document = await prisma.document.findFirst({
     where: { id: params.id, userId: user.id },
-    select: {
-      id: true,
-      title: true,
-      kind: true,
-      markdown: true,
-      market: true,
-      downloadPriceMinor: true,
-      downloadCurrency: true,
-      unlockedAt: true,
-    },
+    select: { id: true, title: true, markdown: true },
   });
 
   if (!document) {
     return NextResponse.json({ ok: false, error: "Document not found" }, { status: 404 });
-  }
-
-  const downloadState = getDocumentDownloadState(document);
-  if (!downloadState.canDownload) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Payment required before download",
-        code: "PAYMENT_REQUIRED",
-        downloadState,
-      },
-      { status: 402 }
-    );
   }
 
   if (format === "pdf") {

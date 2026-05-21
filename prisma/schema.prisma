@@ -35,6 +35,25 @@ enum PurchaseType {
   SYSTEM_BONUS
 }
 
+enum SubscriptionTier {
+  STARTER
+  PRO
+  PLUS
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
 model User {
   id                 String    @id @default(cuid())
   name               String?
@@ -44,7 +63,11 @@ model User {
   image              String?
   credits            Int       @default(0)
   onboardingComplete Boolean   @default(false)
-  // Added new changes
+
+  // Consent tracking (POPIA / data protection compliance)
+  consentGiven    Boolean   @default(false)
+  consentGivenAt  DateTime?
+  consentVersion  String?   // e.g. "ZA-2026-v1" or "ZW-2026-v1"
 
   // Admin flag
   isAdmin           Boolean   @default(false)
@@ -56,7 +79,9 @@ model User {
   verifications EmailVerification[]
   resets        PasswordReset[]
   oauthAccounts OAuthAccount[]
-  profile       Profile? // 👈 1–1 profile
+  profile       Profile?
+  subscription  Subscription?
+  usageRecords  SubscriptionUsage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -211,7 +236,52 @@ model OAuthAccount {
   @@index([userId])
 }
 
-// prisma/schema.prisma
+model Subscription {
+  id                       String             @id @default(cuid())
+  userId                   String             @unique
+  tier                     SubscriptionTier
+  status                   SubscriptionStatus
+  billingCycle             BillingCycle
+  market                   MarketCode
+
+  trialEndsAt              DateTime?
+  currentPeriodStart       DateTime
+  currentPeriodEnd         DateTime
+  cancelAtPeriodEnd        Boolean            @default(false)
+  canceledAt               DateTime?
+
+  // Paystack (ZA auto-renewal)
+  paystackCustomerCode     String?
+  paystackSubscriptionCode String?
+  paystackAuthCode         String?
+  paystackPlanCode         String?
+  paystackEmailToken       String?
+
+  // Pesepay (ZW manual renewal)
+  lastPesepayRef           String?
+
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+model SubscriptionUsage {
+  id               String   @id @default(cuid())
+  userId           String
+  periodStart      DateTime
+  tailorCount      Int      @default(0)
+  downloadCount    Int      @default(0)
+  coverLetterCount Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, periodStart])
+  @@index([userId, periodStart])
+}
+
 model Ledger {
   id        String   @id @default(cuid())
   userId    String

@@ -9,7 +9,12 @@ export type MarketConfig = {
   pricePerDownloadMinor: number | null;
   pricePerDownloadDisplay: string | null;
   tailoringRequiresCreditsUpfront: boolean;
+  /** True when downloading a tailored resume requires a real-money payment (Paystack / Pesepay). */
   downloadRequiresPayment: boolean;
+  /** True when downloading a tailored resume requires 1 credit (no money payment). */
+  downloadRequiresCredits: boolean;
+  /** Human-readable price shown on locked-download CTAs. */
+  downloadPriceLabel: string | null;
   defaultDisplayCurrency: string;
   locale: string;
 };
@@ -22,8 +27,11 @@ const MARKET_CONFIGS: Record<MarketCode, MarketConfig> = {
     paymentProvider: "PESEPAY",
     pricePerDownloadMinor: null,
     pricePerDownloadDisplay: null,
-    tailoringRequiresCreditsUpfront: true,
+    // Tailoring is free; downloading costs 1 credit
+    tailoringRequiresCreditsUpfront: false,
     downloadRequiresPayment: false,
+    downloadRequiresCredits: true,
+    downloadPriceLabel: "1 credit",
     defaultDisplayCurrency: "USD",
     locale: "en-ZW",
   },
@@ -34,8 +42,11 @@ const MARKET_CONFIGS: Record<MarketCode, MarketConfig> = {
     paymentProvider: "PAYSTACK",
     pricePerDownloadMinor: 2500,
     pricePerDownloadDisplay: "R25",
+    // Tailoring is free; downloading costs R25 via Paystack
     tailoringRequiresCreditsUpfront: false,
     downloadRequiresPayment: true,
+    downloadRequiresCredits: false,
+    downloadPriceLabel: "R25",
     defaultDisplayCurrency: "ZAR",
     locale: "en-ZA",
   },

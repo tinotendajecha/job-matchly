@@ -332,7 +332,6 @@ export default function ResumeBuilderPage() {
           open={showTemplateBrowser}
           onOpenChange={setShowTemplateBrowser}
           onSelectTemplate={handleTemplateSelect}
-          resumeData={resumeData}
         />
       </div>
     </div>

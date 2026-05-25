@@ -1,24 +1,19 @@
 'use client';
 
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
   ArrowRight, CheckCircle, Star, FileText, Target, Zap,
-  BarChart3, TrendingUp, Smartphone, Coins, Sparkles,
+  BarChart3, TrendingUp, Smartphone, Sparkles, Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { cn } from '@/lib/utils';
 import { useMarket } from '@/hooks/use-market';
-import {
-  pricePerCreditUSD, computeSubtotalUSD,
-  pricePerCreditZAR, computeSubtotalZAR,
-} from '@/lib/pricing';
+import { PLAN_PRICES } from '@/lib/pricing/plans';
 
 /* ─── Animation helpers ─── */
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -107,64 +102,6 @@ const problems = [
   { stat: '40+', title: 'minutes wasted per application', desc: 'Manually tailoring each CV is slow, repetitive, and error-prone.' },
   { stat: '60%', title: 'of candidates undersell themselves', desc: 'Vague bullets and missing keywords lose you interviews you deserved.' },
 ];
-
-/* ─── Pricing Calculator ─── */
-function PricingCalculator() {
-  const [credits, setCredits] = useState(10);
-  const { isSouthAfrica } = useMarket();
-
-  const pricePerCredit = isSouthAfrica ? pricePerCreditZAR(credits) : pricePerCreditUSD(credits);
-  const totalPrice = isSouthAfrica ? computeSubtotalZAR(credits) : computeSubtotalUSD(credits);
-  const priceDisplay = isSouthAfrica
-    ? `R${pricePerCredit.toFixed(0)} per credit`
-    : `$${pricePerCredit.toFixed(2)} per credit`;
-  const totalDisplay = isSouthAfrica ? `R${totalPrice.toFixed(0)}` : `$${totalPrice.toFixed(2)}`;
-
-  return (
-    <div className="rounded-2xl border border-border bg-card p-7">
-      <h3 className="text-lg font-semibold mb-1">Credit Calculator</h3>
-      <p className="text-sm text-muted-foreground mb-6">
-        {isSouthAfrica ? 'Optional credits for cover letters & extras' : 'Buy credits as you need them'}
-      </p>
-
-      <div className="space-y-5">
-        <div>
-          <label className="text-sm font-medium mb-2 block">Number of Credits</label>
-          <div className="flex items-center gap-3">
-            <Input
-              type="number"
-              min="3"
-              value={credits}
-              onChange={(e) => setCredits(Math.max(3, parseInt(e.target.value) || 3))}
-              className="text-center font-mono text-base"
-            />
-            <span className="text-sm text-muted-foreground whitespace-nowrap shrink-0">{priceDisplay}</span>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-primary/25 bg-primary/8 p-4">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium">Total</span>
-            <span className="text-2xl font-bold text-primary font-display">{totalDisplay}</span>
-          </div>
-          {credits >= 10 && (
-            <p className="text-xs text-primary mt-1.5 flex items-center gap-1">
-              <CheckCircle className="h-3 w-3" />
-              Bulk discount applied
-            </p>
-          )}
-        </div>
-
-        <Button asChild className="w-full" size="lg">
-          <Link href="/app/billing">
-            <Coins className="h-4 w-4 mr-2" />
-            Buy Credits
-          </Link>
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 /* ─── Hero Demo Card ─── */
 function HeroDemoCard() {
@@ -256,7 +193,7 @@ function HeroDemoCard() {
 
 /* ─── Page ─── */
 export default function LandingPage() {
-  const { isSouthAfrica } = useMarket();
+  const { isSouthAfrica, market } = useMarket();
   const testimonials = isSouthAfrica ? testimonialsZA : testimonialsZW;
 
   return (
@@ -575,91 +512,97 @@ export default function LandingPage() {
 
       {/* ══ PRICING ══ */}
       <section className="py-24">
-        <div className="container px-4 mx-auto max-w-7xl">
+        <div className="container px-4 mx-auto max-w-6xl">
           <motion.div {...fadeUp} className="text-center mb-16">
             <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-4">Pricing</p>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Simple, honest pricing</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Plans for every job seeker</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              No subscription lock-in. Pay only for what you actually use.
+              Start with a 14-day free trial. No commitment — cancel anytime.
             </p>
           </motion.div>
 
-          <div className="grid lg:grid-cols-2 gap-10 max-w-5xl mx-auto">
-            <motion.div {...stagger(0)}>
-              <PricingCalculator />
-            </motion.div>
-
-            <motion.div {...stagger(0.15)} className="space-y-4">
-              {[
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-12">
+            {(
+              [
                 {
-                  name: 'Free',
-                  price: isSouthAfrica ? 'Free' : 'Free',
-                  desc: isSouthAfrica ? 'Unlimited tailoring, pay to download' : '3 starter credits',
-                  features: isSouthAfrica
-                    ? ['Unlimited resume tailoring', 'ATS basic check', 'PDF download (R25 each)']
-                    : ['1 resume build', 'PDF download', 'ATS basic check'],
-                  cta: 'Get Started',
-                  href: '/auth/signup',
+                  tier: 'STARTER' as const,
+                  name: 'Starter',
+                  desc: 'For occasional job seekers',
+                  limits: ['5 tailors / month', '5 downloads / month', '2 cover letters / month'],
+                  popular: false,
                 },
                 {
-                  name: 'Pay-as-you-go',
-                  price: isSouthAfrica ? 'From R7' : 'From $0.34',
-                  desc: 'Per credit · no commitment',
-                  features: ['Cover letter generation', 'Advanced ATS insights', 'Priority support', 'Bulk discounts'],
-                  cta: 'Buy Credits',
-                  href: '/app/billing',
+                  tier: 'PRO' as const,
+                  name: 'Pro',
+                  desc: 'For active job hunters',
+                  limits: ['20 tailors / month', '20 downloads / month', '10 cover letters / month', 'DOCX downloads', 'All templates'],
                   popular: true,
                 },
                 {
-                  name: 'Enterprise',
-                  price: 'Custom',
-                  desc: 'For teams & organizations',
-                  features: ['Custom integrations', 'Dedicated support', 'Team management'],
-                  cta: 'Contact Sales',
-                  href: '/contact',
+                  tier: 'PLUS' as const,
+                  name: 'Plus',
+                  desc: 'For power users',
+                  limits: ['Unlimited tailors', 'Unlimited downloads', 'Unlimited cover letters', 'DOCX downloads', 'All templates'],
+                  popular: false,
                 },
-              ].map((plan) => (
-                <div
-                  key={plan.name}
-                  className={cn(
-                    'relative rounded-xl border p-5 transition-all duration-200',
-                    plan.popular
-                      ? 'border-primary/40 bg-primary/5'
-                      : 'border-border hover:border-border/70',
-                  )}
-                >
-                  {plan.popular && (
-                    <Badge className="absolute -top-2.5 right-4 bg-primary text-primary-foreground text-xs">
-                      Most Popular
-                    </Badge>
-                  )}
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-semibold">{plan.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">{plan.desc}</p>
-                    </div>
-                    <span className="text-xl font-bold font-display">{plan.price}</span>
-                  </div>
-                  <ul className="space-y-1.5 mb-4">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    asChild
-                    size="sm"
-                    variant={plan.popular ? 'default' : 'outline'}
-                    className="w-full"
+              ] as const
+            ).map(({ tier, name, desc, limits, popular }, i) => {
+              const prices = PLAN_PRICES[tier][market];
+              return (
+                <motion.div key={tier} {...stagger(i * 0.1)}>
+                  <div
+                    className={cn(
+                      'relative flex flex-col rounded-2xl border p-6 h-full',
+                      popular
+                        ? 'border-primary/50 bg-primary/5 shadow-lg shadow-primary/10'
+                        : 'border-border bg-card',
+                    )}
                   >
-                    <Link href={plan.href}>{plan.cta}</Link>
-                  </Button>
-                </div>
-              ))}
-            </motion.div>
+                    {popular && (
+                      <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs px-3">
+                        Most Popular
+                      </Badge>
+                    )}
+                    <div className="mb-5">
+                      <h3 className="text-lg font-bold mb-0.5">{name}</h3>
+                      <p className="text-xs text-muted-foreground">{desc}</p>
+                    </div>
+                    <div className="mb-5">
+                      <span className="text-3xl font-bold font-display">{prices.monthlyDisplay}</span>
+                      <span className="text-sm text-muted-foreground ml-1">/ month</span>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {prices.yearlyMonthlyDisplay}/mo billed yearly · 14-day free trial
+                      </p>
+                    </div>
+                    <ul className="space-y-2 mb-6 flex-1">
+                      {limits.map((f) => (
+                        <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      asChild
+                      size="sm"
+                      variant={popular ? 'default' : 'outline'}
+                      className="w-full"
+                    >
+                      <Link href={`/subscribe?tier=${tier}`}>Start free trial</Link>
+                    </Button>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
+
+          <motion.div {...fadeUp} className="text-center">
+            <Button asChild variant="ghost" className="text-muted-foreground hover:text-foreground">
+              <Link href="/pricing">
+                Compare all features <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </motion.div>
         </div>
       </section>
 
@@ -675,7 +618,7 @@ export default function LandingPage() {
             </h2>
             <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
               Join thousands of job seekers who&apos;ve transformed their applications.
-              Start free — no credit card required.
+              14-day free trial — cancel anytime.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg" className="text-base px-10 py-6 font-semibold shadow-lg shadow-primary/20">

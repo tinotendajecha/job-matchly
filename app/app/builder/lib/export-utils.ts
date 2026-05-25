@@ -90,19 +90,20 @@ a{color:#2563eb;text-decoration:none}
 .sub{font-size:10pt;color:#374151;margin:1pt 0 2pt}
 .detail{font-size:9.5pt;color:#6b7280;margin-top:1pt}
 
-.item{margin-bottom:6pt;break-inside:avoid;page-break-inside:avoid}
+.item{margin-bottom:6pt}
 .item:last-child{margin-bottom:0}
 
-.tags{display:flex;flex-wrap:wrap;margin-top:3pt}
+.tags{display:flex;flex-wrap:wrap;margin-top:2pt}
 .tag{display:inline-block;background:#f3f4f6;border:0.5pt solid #e5e7eb;color:#374151;font-size:8.5pt;padding:1pt 5pt;border-radius:2pt;margin:0 2pt 2pt 0}
 
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:6pt}
-.skill-label{font-size:10pt;font-weight:600;color:#374151;margin-bottom:3pt}
+.skill-group{margin-bottom:4pt}
+.skill-group:last-child{margin-bottom:0}
+.skill-label{font-size:9.5pt;font-weight:600;color:#374151;margin-bottom:2pt}
 
 @page{size:A4;margin:18mm}
 h2,h3{break-after:avoid;page-break-after:avoid}
 .section{break-inside:auto;page-break-inside:auto}
-.item{break-inside:avoid;page-break-inside:avoid}
+li{break-inside:avoid;page-break-inside:avoid}
 `.trim();
 }
 
@@ -137,22 +138,20 @@ export function resumeDataToHtml(data: ResumeData, template: 'classic' | 'modern
   if (hasTech || hasSoft) {
     html += '<div class="section">';
     html += '<h2>Skills</h2>';
-    html += '<div class="two-col">';
     if (hasTech) {
-      html += '<div>';
+      html += '<div class="skill-group">';
       html += '<div class="skill-label">Technical</div>';
       html += '<div class="tags">';
       data.skills.technical.forEach(s => { html += `<span class="tag">${e(s)}</span>`; });
       html += '</div></div>';
     }
     if (hasSoft) {
-      html += '<div>';
+      html += '<div class="skill-group">';
       html += '<div class="skill-label">Soft Skills</div>';
       html += '<div class="tags">';
       data.skills.soft.forEach(s => { html += `<span class="tag">${e(s)}</span>`; });
       html += '</div></div>';
     }
-    html += '</div>';
     html += '</div>';
   }
 
@@ -286,8 +285,8 @@ html,body{background:#e8eaed;padding:0;margin:0;width:auto;min-height:100%}
      Sections without direct .item children are kept atomic.                  */
   const paginationScript = `
 (function(){
-  var PH=(297-36)*3.7795;   /* ~987px: A4 content height (297 - 18top - 18bottom) mm→px */
-  var IG=8,H2G=13,SG=13;    /* item-gap, h2-gap, section-gap (approximate margin-bottoms) */
+  var PH=(297-36)*3.7795;  /* ~987px: A4 content height mm→px */
+  var IG=8,H2G=13,SG=13;   /* item-gap, h2-gap, section-gap */
 
   function run(){
     var src=document.getElementById('src');
@@ -304,7 +303,7 @@ html,body{background:#e8eaed;padding:0;margin:0;width:auto;min-height:100%}
       var items=Array.from(node.querySelectorAll(':scope>.item'));
 
       if(!items.length){
-        /* Atomic block (header, summary, skills, references two-col, etc.) */
+        /* Atomic block (header, summary, skills, etc.) */
         var h=rect(node)+SG;
         if(pgH+h>PH&&pg.children.length) flip();
         pg.appendChild(node.cloneNode(true));
@@ -312,32 +311,111 @@ html,body{background:#e8eaed;padding:0;margin:0;width:auto;min-height:100%}
         return;
       }
 
-      /* Section with splittable items (experience, education, projects, certifications) */
+      /* Section with splittable items (experience, education, projects…) */
       var h2=node.querySelector(':scope>h2');
       var h2H=h2?rect(h2)+H2G:0;
       var wrap=null;
 
-      items.forEach(function(item){
-        var iH=rect(item)+IG;
+      /* Ensure a section wrapper exists on the current page */
+      function getWrap(){
         if(!wrap){
-          if(pgH+h2H+iH>PH&&pg.children.length) flip();
           wrap=div('section');
           if(h2) wrap.appendChild(h2.cloneNode(true));
-          wrap.appendChild(item.cloneNode(true));
           pg.appendChild(wrap);
-          pgH+=h2H+iH;
-        } else {
-          if(pgH+iH>PH){
-            flip();
-            wrap=div('section');
-            if(h2) wrap.appendChild(h2.cloneNode(true));
-            wrap.appendChild(item.cloneNode(true));
-            pg.appendChild(wrap);
-            pgH+=h2H+iH;
+          pgH+=h2H;
+        }
+        return wrap;
+      }
+
+      /* Start a fresh page continuing the same section — no heading repeated */
+      function flipWrap(){
+        flip();
+        wrap=div('section');
+        pg.appendChild(wrap);
+      }
+
+      items.forEach(function(item){
+        var iH=rect(item)+IG;
+        var needH=(wrap?0:h2H)+iH;
+
+        /* Item fits in remaining space → just add it */
+        if(pgH+needH<=PH){
+          getWrap().appendChild(item.cloneNode(true));
+          pgH+=iH;
+          return;
+        }
+
+        /* Nothing on page yet → force-add even if it overflows */
+        if(!pg.children.length){
+          getWrap().appendChild(item.cloneNode(true));
+          pgH+=iH;
+          return;
+        }
+
+        /* Item doesn't fit — try to split at the <li> level */
+        var ul=item.querySelector(':scope>ul');
+        var lis=ul?Array.from(ul.children):[];
+
+        if(lis.length<=1){
+          /* Can't split meaningfully → move whole item to next page */
+          flipWrap();
+          getWrap().appendChild(item.cloneNode(true));
+          pgH+=iH;
+          return;
+        }
+
+        /* Estimate header height (item minus its bullet list) */
+        var ulH=rect(ul);
+        var hdrH=Math.max(0,iH-IG-ulH);
+        var avail=PH-pgH-(wrap?0:h2H);
+
+        /* If header + first bullet don't fit → flip before splitting */
+        if(hdrH+rect(lis[0])+3>avail){
+          flipWrap();
+          avail=PH-(wrap?0:h2H);
+        }
+
+        /* Distribute bullets: as many as fit on the current page, rest on next */
+        var ul1=document.createElement('ul');
+        var ul2=document.createElement('ul');
+        var used=hdrH;
+        var overflow=false;
+
+        lis.forEach(function(li){
+          var lh=rect(li)+3;
+          if(!overflow&&used+lh<=avail-4){
+            ul1.appendChild(li.cloneNode(true));
+            used+=lh;
           } else {
-            wrap.appendChild(item.cloneNode(true));
-            pgH+=iH;
+            overflow=true;
+            ul2.appendChild(li.cloneNode(true));
           }
+        });
+
+        if(!ul1.children.length){
+          /* Nothing fit even after flip — add whole item to next page */
+          flipWrap();
+          getWrap().appendChild(item.cloneNode(true));
+          pgH+=iH;
+          return;
+        }
+
+        /* Part 1: item header + bullets that fit on the current page */
+        var part1=item.cloneNode(false);
+        Array.from(item.children).forEach(function(c){
+          if(c.tagName.toLowerCase()!=='ul') part1.appendChild(c.cloneNode(true));
+        });
+        part1.appendChild(ul1);
+        getWrap().appendChild(part1);
+        pgH+=used+IG;
+
+        /* Part 2: remaining bullets continued on the next page */
+        if(ul2.children.length){
+          flipWrap();
+          var part2=item.cloneNode(false);
+          part2.appendChild(ul2);
+          getWrap().appendChild(part2);
+          pgH+=rect(part2)+IG;
         }
       });
     });
@@ -351,7 +429,6 @@ html,body{background:#e8eaed;padding:0;margin:0;width:auto;min-height:100%}
   function div(cls){ var d=document.createElement('div'); d.className=cls; return d; }
   function send(n){ try{ window.parent.postMessage({type:'resumePages',count:n},'*'); }catch(e){} }
 
-  /* Double rAF ensures styles are applied before measurement */
   requestAnimationFrame(function(){ requestAnimationFrame(run); });
 })();
 `;

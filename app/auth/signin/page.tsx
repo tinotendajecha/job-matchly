@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ function isValidEmail(v: string) {
   return /^\S+@\S+\.\S+$/.test(v);
 }
 
-export default function SignInPage() {
+function SignInPageContent() {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -181,5 +181,13 @@ export default function SignInPage() {
         </p>
       </motion.div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense>
+      <SignInPageContent />
+    </Suspense>
   );
 }

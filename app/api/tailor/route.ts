@@ -2,12 +2,12 @@
 import { NextResponse } from "next/server";
 import { ChatOpenAI } from "@langchain/openai";
 import { getCurrentUser } from "@/lib/auth";
-import { spendCredits } from "@/lib/credits";
 import { getDocumentDownloadState } from "@/lib/documents/access";
 import { getMarketConfig } from "@/lib/market/config";
 import { getMarketFromRequest } from "@/lib/market/request";
 import { prisma } from "@/lib/prisma";
 import { safeFileName } from "@/lib/files";
+import { requireAndConsumeUsage, SubscriptionGateError } from "@/lib/subscription/gates";
 
 
 export const runtime = "nodejs";
@@ -24,15 +24,12 @@ export async function POST(req: Request) {
     if (!resumeText || !jdText)
       return NextResponse.json({ ok: false, error: "Missing inputs" }, { status: 400 });
 
-    if (marketConfig.tailoringRequiresCreditsUpfront) {
-      try {
-        await spendCredits(user.id, 1);
-      } catch (e: any) {
-        if (e?.message === "INSUFFICIENT_CREDITS") {
-          return NextResponse.json({ ok: false, error: "Insufficient credits" }, { status: 402 });
-        }
-        throw e;
-      }
+    // Subscription gate: must have active subscription + tailor quota remaining
+    try {
+      await requireAndConsumeUsage(user.id, "tailor");
+    } catch (err) {
+      if (err instanceof SubscriptionGateError) return err.toResponse();
+      throw err;
     }
 
     const llm = new ChatOpenAI({ model: "gpt-5" });
@@ -72,13 +69,13 @@ export async function POST(req: Request) {
           Example: "Results-driven Senior Software Engineer with 5+ years architecting scalable cloud solutions. Led migration to microservices that reduced system downtime by 40% and saved $200K annually. Passionate about joining [Company] to leverage my expertise in distributed systems and AI-driven automation to solve complex infrastructure challenges."
 
           ## Skills Section
-          - Strategic Placement: List skills in order of relevance to JD (JD-required skills first)
-          - Three Categories: 
-            1. Technical/Hard Skills (programming languages, tools, frameworks from JD)
-            2. Domain Expertise (industry knowledge, methodologies mentioned in JD)
-            3. Soft Skills (leadership, communication - only if emphasized in JD)
+          - STRICT LIMIT: Maximum 5 Technical/Hard Skills and maximum 4 Soft Skills. Quality over quantity — a clean resume beats a cluttered one.
+          - Strategic Placement: List the most JD-relevant skills first
+          - Two Categories only:
+            1. Technical/Hard Skills (pick the 4–5 most critical: languages, tools, frameworks from JD)
+            2. Soft Skills (pick 3–4 only if clearly emphasized in JD — omit the section entirely if not relevant)
           - Format: Comma-separated, clean, scannable
-          - No Fluff: Only include skills at proficiency level (not "beginner in X")
+          - No Fluff: Only include skills at actual proficiency level
 
           ## Experience Section (CRITICAL FORMATTING)
           For EACH role:
@@ -205,6 +202,7 @@ Job Description:
     const fileStem = safeFileName(generatedTitle);
 
     // --- Save Document ---
+    // Subscription users: documents are always unlocked (gated at API level by subscription).
     const doc = await prisma.document.create({
       data: {
         userId: user.id,
@@ -214,9 +212,9 @@ Job Description:
         sections: {},
         sourceMeta: { fileStem },
         market,
-        downloadPriceMinor: marketConfig.pricePerDownloadMinor,
-        downloadCurrency: marketConfig.pricePerDownloadMinor ? marketConfig.currency : null,
-        unlockedAt: marketConfig.downloadRequiresPayment ? null : new Date(),
+        downloadPriceMinor: null,
+        downloadCurrency: null,
+        unlockedAt: new Date(),
       },
       select: {
         id: true,
@@ -229,21 +227,23 @@ Job Description:
       },
     });
 
+    const finalDoc = doc;
+
     await prisma.ledger.create({
       data: {
         userId: user.id,
         type: "RESUME_GENERATED",
-        credits: marketConfig.tailoringRequiresCreditsUpfront ? -1 : 0,
+        credits: 0,
         meta: { documentId: doc.id, title: generatedTitle, market },
       },
     });
 
-    const downloadState = getDocumentDownloadState(doc);
+    const downloadState = getDocumentDownloadState(finalDoc);
 
     return NextResponse.json({
       ok: true,
       tailoredMarkdown,
-      documentId: doc.id,
+      documentId: finalDoc.id,
       title: generatedTitle,
       market,
       downloadState,

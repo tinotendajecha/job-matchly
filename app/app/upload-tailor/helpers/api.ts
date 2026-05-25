@@ -133,8 +133,11 @@ export async function startDocumentUnlock(documentId: string) {
   return data as {
     ok: true;
     alreadyUnlocked: boolean;
+    /** True when the document needs credits (ZW market). URL will be /pricing. */
+    needsCredits?: boolean;
     purchaseId: string | null;
     url: string | null;
+    priceDisplay?: string | null;
     provider?: string;
     market?: string;
   };
@@ -191,13 +194,30 @@ export async function apiAnalyze(resumeText: string, jdText: string) {
   return res.json() as Promise<Analysis>;
 }
 
+export class TailorError extends Error {
+  code: string;
+  documentId?: string;
+  constructor(message: string, code: string, documentId?: string) {
+    super(message);
+    this.code = code;
+    this.documentId = documentId;
+  }
+}
+
 export async function apiTailor(payload: { resumeJson: any; resumeText: string; jdText: string; company?: string; role?: string }) {
   const res = await fetch('/api/tailor', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error((await res.json()).error || 'Tailor failed');
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new TailorError(
+      data.message || data.error || 'Tailor failed',
+      data.error || 'UNKNOWN',
+      data.documentId,
+    );
+  }
   return res.json() as Promise<{
     ok: boolean;
     tailoredMarkdown: string;

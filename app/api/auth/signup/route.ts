@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { sendVerificationEmail } from "@/lib/mail";
+import { getMarketFromRequest } from "@/lib/market/request";
 
 export const runtime = "nodejs";
 
@@ -12,14 +13,28 @@ function sixDigit() {
 
 export async function POST(req: Request) {
   try {
-    const { email, password, name } = await req.json();
+    const { email, password, name, consentGiven, consentVersion } = await req.json();
     if (!email || !password) return NextResponse.json({ ok: false, error: "Email & password required" }, { status: 400 });
+    if (!consentGiven) return NextResponse.json({ ok: false, error: "You must agree to the Data Protection & Consent Agreement" }, { status: 400 });
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return NextResponse.json({ ok: false, error: "Email already in use" }, { status: 400 });
 
+    const market = getMarketFromRequest(req);
+    const resolvedConsentVersion = consentVersion || `${market}-2026-v1`;
+
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({ data: { email, name: name || "", passwordHash, credits: 0 } });
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: name || "",
+        passwordHash,
+        credits: 0,
+        consentGiven: true,
+        consentGivenAt: new Date(),
+        consentVersion: resolvedConsentVersion,
+      },
+    });
 
     // create verification code
     const code = sixDigit();

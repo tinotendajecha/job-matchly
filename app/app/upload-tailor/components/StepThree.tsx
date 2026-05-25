@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,8 @@ import type { Analysis, StepStatus } from '../types';
 import { useEffect } from 'react';
 import type { DocumentDownloadState } from '@/lib/documents/access';
 
-import { useTailorStore } from '@/lib/zustand/store';
+import { useTailorStore, useCreateResumeStore } from '@/lib/zustand/store';
+import { parseTailoredMarkdownToBuilderState } from '@/lib/resume-builder/parse-markdown';
 
 import {
   Dialog,
@@ -86,14 +88,46 @@ export const StepThree = ({
   coverTitle,
   coverMarkdown
 }: StepThreeProps) => {
+  const router = useRouter();
   const [downloading, setDownloading] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [userCredits, setUserCredits] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => { if (d?.ok) setUserCredits(d.user.credits ?? 0); })
+      .catch(() => {});
+  }, []);
 
   const { body: previewMarkdown, changes: changesMarkdown } = splitChanges(tailoredMarkdown);
 
   // import template id from store
   const selectedTemplateId = useTailorStore((state) => state.selectedTemplateId);
   const setSelectedTemplateId = useTailorStore((state) => state.setSelectedTemplateId);
+  const setStepStatus = useTailorStore((state) => state.setStepStatus);
+  const setTailoredDownloadState = useTailorStore((state) => state.setTailoredDownloadState);
+
+  const handleOpenInEditor = () => {
+    if (!previewMarkdown) {
+      toast.error('No tailored resume found. Please generate your resume first.');
+      return;
+    }
+    const state = parseTailoredMarkdownToBuilderState(previewMarkdown);
+    useCreateResumeStore.setState({
+      header: state.header,
+      professionalSummary: state.professionalSummary,
+      skills: state.skills,
+      experience: state.experience,
+      education: state.education,
+      projects: state.projects,
+      certifications: state.certifications,
+      references: state.references,
+      changesSummary: state.changesSummary,
+      activeTemplate: 'classic',
+    });
+    router.push('/app/builder/classic');
+  };
 
   const isDocxDisabledForTemplate = selectedTemplateId === 'twoColumn'
 
@@ -128,9 +162,24 @@ export const StepThree = ({
 
         if (downloadState?.isLocked) {
           const unlock = await startDocumentUnlock(documentId);
+
           if (!unlock.alreadyUnlocked && unlock.url) {
-            toast.info(`Complete checkout to unlock this resume for ${downloadState.priceDisplay || 'download'}.`);
+            if (unlock.needsCredits) {
+              toast.info('You need credits to download this resume. Redirecting to pricing…');
+            } else {
+              toast.info(`Complete payment to unlock this resume (${downloadState.priceDisplay || ''}).`);
+            }
             window.location.href = unlock.url;
+            return;
+          }
+
+          if (unlock.alreadyUnlocked) {
+            // 1 credit was spent — reflect in local state
+            setTailoredDownloadState(downloadState ? { ...downloadState, isLocked: false, canDownload: true } : null);
+            setUserCredits((c) => (c !== null && c > 0 ? c - 1 : 0));
+          } else {
+            // Unlock neither redirected nor succeeded — bail out
+            toast.error('Could not unlock resume. Please try again.');
             return;
           }
         }
@@ -142,6 +191,7 @@ export const StepThree = ({
           selectedTemplateId,
           setDownloadingState,
         );
+        setStepStatus('export', 'done');
         toast.success(`${downloadFmt.toUpperCase()} downloaded successfully.`);
         return;
       }
@@ -153,10 +203,11 @@ export const StepThree = ({
         selectedTemplateId,
         downloadFmt === 'pdf' ? setDownloadingPdf : setDownloading,
       );
+      setStepStatus('export', 'done');
       toast.success(`${downloadFmt.toUpperCase()} downloaded 📥`);
     } catch (err: any) {
       console.error(err);
-      toast.error('Download failed.');
+      toast.error(err?.message || 'Download failed.');
     }
   };
 
@@ -179,25 +230,21 @@ export const StepThree = ({
     }
   };
 
-  const copyMarkdown = async () => {
-    if (!previewMarkdown) return;
-    await navigator.clipboard.writeText(previewMarkdown);
-    toast.success('Markdown copied 📋');
-  };
-
   const isDownloading = downloading || downloadingPdf;
   const resumeIsLocked = Boolean(downloadState?.isLocked);
-  const resumeDownloadLabel = resumeIsLocked
-    ? `Pay ${downloadState?.priceDisplay || ''} to download`.trim()
-    : 'Download';
+  const hasCredits = userCredits !== null && userCredits > 0;
+  const needsCredits = downloadState?.requiresCredits ?? false;
 
-  // keyword rows
-  const keywordRows = (() => {
-    if (!analysis) return [];
-    const matched = analysis.matchedKeywords.map(w => ({ word: w, matched: true, frequency: 1 }));
-    const missing = analysis.missingKeywords.map(w => ({ word: w, matched: false, frequency: 0 }));
-    return [...matched, ...missing].slice(0, 12);
-  })();
+  let resumeDownloadLabel: string;
+  if (!resumeIsLocked) {
+    resumeDownloadLabel = 'Download';
+  } else if (hasCredits) {
+    resumeDownloadLabel = needsCredits ? 'Use 1 credit to download' : 'Download Resume';
+  } else if (needsCredits) {
+    resumeDownloadLabel = 'Buy credits to download';
+  } else {
+    resumeDownloadLabel = `Pay ${downloadState?.priceDisplay ?? ''} to download`.trim();
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
@@ -225,7 +272,16 @@ export const StepThree = ({
               <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">Tailored Resume Preview</span>
-                  {downloadState?.isLocked && <Badge variant="outline">Locked until payment</Badge>}
+                  {downloadState?.isLocked && !hasCredits && (
+                    <Badge variant="outline">
+                      {needsCredits ? `Buy credits · ${downloadState.priceDisplay ?? '1 credit'}` : `Pay ${downloadState.priceDisplay ?? ''} to unlock`}
+                    </Badge>
+                  )}
+                  {downloadState?.isLocked && hasCredits && (
+                    <Badge variant="secondary">
+                      {needsCredits ? '1 credit to download' : 'Use 1 credit to unlock'}
+                    </Badge>
+                  )}
                   {downloadState?.canDownload && <Badge variant="secondary">Ready to download</Badge>}
                   {steps.tailor === "loading" && (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -311,10 +367,10 @@ export const StepThree = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => toast.info("Editor coming soon")}
+                    onClick={handleOpenInEditor}
                     className="shrink-0"
-                    aria-label="Open in Editor (coming soon)"
-                    title="Open in Editor (coming soon)"
+                    aria-label="Open in Editor"
+                    title="Open in Editor"
                   >
                     <FileEdit className="h-4 w-4 sm:mr-1.5" />
                     <span className="hidden sm:inline">Open in Editor</span>
@@ -336,9 +392,13 @@ export const StepThree = ({
                         <Download className="h-4 w-4 sm:mr-2" />
                       )}
                       <span className="hidden sm:inline">{resumeDownloadLabel}</span>
-                      <span className="sm:hidden">{resumeIsLocked ? 'Pay' : 'Download'}</span>
+                      <span className="sm:hidden">
+                        {resumeIsLocked && !hasCredits ? (needsCredits ? 'Credits' : 'Pay') : 'Download'}
+                      </span>
                       <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-foreground">
-                        {resumeIsLocked ? (downloadState?.priceDisplay || 'PAY') : downloadFmt.toUpperCase()}
+                        {resumeIsLocked && !hasCredits
+                          ? (downloadState?.priceDisplay || (needsCredits ? '1 CREDIT' : 'PAY'))
+                          : downloadFmt.toUpperCase()}
                       </span>
                     </Button>
 
@@ -461,10 +521,10 @@ export const StepThree = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => toast.info("Editor coming soon")}
+                    onClick={handleOpenInEditor}
                     className="shrink-0"
-                    aria-label="Open in Editor (coming soon)"
-                    title="Open in Editor (coming soon)"
+                    aria-label="Open in Editor"
+                    title="Open in Editor"
                   >
                     <FileEdit className="h-4 w-4 sm:mr-1.5" />
                     <span className="hidden sm:inline">Open in Editor</span>

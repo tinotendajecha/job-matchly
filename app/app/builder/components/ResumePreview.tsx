@@ -4,6 +4,15 @@ import { useMemo, useRef, useEffect, useState } from 'react';
 import { useCreateResumeStore } from '@/lib/zustand/store';
 import { resumeDataToPreviewHtml } from '../lib/export-utils';
 
+function useDebounced<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState<T>(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
+
 interface ResumePreviewProps {
   zoom: number;
   activeTemplate: 'classic' | 'modern';
@@ -35,9 +44,12 @@ export function ResumePreview({ zoom, activeTemplate }: ResumePreviewProps) {
     education, projects, certifications, references, changesSummary,
   }), [header, professionalSummary, skills, experience, education, projects, certifications, references, changesSummary]);
 
+  // Debounce preview updates so the iframe doesn't reload on every keystroke
+  const debouncedResumeData = useDebounced(resumeData, 600);
+
   const htmlContent = useMemo(
-    () => resumeDataToPreviewHtml(resumeData, activeTemplate),
-    [resumeData, activeTemplate]
+    () => resumeDataToPreviewHtml(debouncedResumeData, activeTemplate),
+    [debouncedResumeData, activeTemplate]
   );
 
   // Receive page count from iframe pagination script

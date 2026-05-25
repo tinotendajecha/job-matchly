@@ -47,6 +47,7 @@ interface DocumentListItem {
   downloadState?: {
     isLocked: boolean;
     canDownload: boolean;
+    requiresCredits: boolean;
     priceDisplay: string | null;
   };
   createdAt: string;
@@ -69,6 +70,14 @@ export default function DocumentsPage() {
   const [filterType, setFilterType] = useState<'all' | 'tailored' | 'cover' | 'created'>('all');
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [userCredits, setUserCredits] = useState<number>(0);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((data) => { if (data?.user?.credits != null) setUserCredits(data.user.credits); })
+      .catch(() => {});
+  }, []);
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -243,7 +252,11 @@ export default function DocumentsPage() {
                               <div className="font-medium text-sm truncate">{doc.title || 'Untitled'}</div>
                               {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.isLocked && (
                                 <div className="text-xs text-amber-500 mt-0.5">
-                                  Pay {doc.downloadState.priceDisplay || ''} to download
+                                  {userCredits > 0
+                                    ? (doc.downloadState.requiresCredits ? 'Use 1 credit to download' : 'Use 1 credit to unlock')
+                                    : (doc.downloadState.requiresCredits
+                                        ? `${doc.downloadState.priceDisplay ?? '1 credit'} required — buy credits`
+                                        : `Pay ${doc.downloadState.priceDisplay ?? ''} to download`)}
                                 </div>
                               )}
                               {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.canDownload && (
@@ -326,6 +339,15 @@ export default function DocumentsPage() {
                             <p className="text-xs text-muted-foreground">
                               {formatDistanceToNow(new Date(doc.createdAt), { addSuffix: true })}
                             </p>
+                            {doc.kind === 'TAILORED_RESUME' && doc.downloadState?.isLocked && (
+                              <p className="text-xs text-amber-500 mt-0.5">
+                                {userCredits > 0
+                                  ? (doc.downloadState.requiresCredits ? 'Use 1 credit to download' : 'Use 1 credit to unlock')
+                                  : (doc.downloadState.requiresCredits
+                                      ? `${doc.downloadState.priceDisplay ?? '1 credit'} required`
+                                      : `Pay ${doc.downloadState.priceDisplay ?? ''} to download`)}
+                              </p>
+                            )}
                           </div>
                           <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                         </Link>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ import {
   Sparkles 
 } from 'lucide-react';
 import Tesseract from 'tesseract.js';
-import { apiNormalizeJDFromText, apiAnalyze, apiTailor } from '../helpers/api';
+import { apiNormalizeJDFromText, apiAnalyze, apiTailor, TailorError } from '../helpers/api';
 import type { StepStatus } from '../types';
 import type { DocumentDownloadState } from '@/lib/documents/access';
 
@@ -87,6 +88,7 @@ export const StepTwo = ({
   onResetOCR,
   onSetStepStatus
 }: StepTwoProps) => {
+  const router = useRouter();
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
   const [ocrLang] = useState<'eng'>('eng');
@@ -165,7 +167,25 @@ export const StepTwo = ({
           }
         } catch (e: any) {
           console.error('Auto-tailoring failed:', e);
-          toast.error('Auto-tailoring failed. Please try the manual process.');
+          if (e instanceof TailorError && e.code === 'OUTSTANDING_PAYMENT_REQUIRED') {
+            toast.error(
+              <span>
+                You have an unpaid resume.{' '}
+                {e.documentId && (
+                  <button
+                    className="underline font-medium"
+                    onClick={() => router.push(`/app/documents/${e.documentId}`)}
+                  >
+                    View document
+                  </button>
+                )}{' '}
+                Pay for it or add credits to continue.
+              </span>,
+              { autoClose: 8000 }
+            );
+          } else {
+            toast.error('Auto-tailoring failed. Please try the manual process.');
+          }
         }
       }, 1000);
       
@@ -228,7 +248,25 @@ export const StepTwo = ({
     } catch (err: any) {
       console.error(err);
       onSetStepStatus('tailor', 'error');
-      toast.error(err.message || 'Tailoring failed. Try again.');
+      if (err instanceof TailorError && err.code === 'OUTSTANDING_PAYMENT_REQUIRED') {
+        toast.error(
+          <span>
+            You have an unpaid resume.{' '}
+            {err.documentId && (
+              <button
+                className="underline font-medium"
+                onClick={() => router.push(`/app/documents/${err.documentId}`)}
+              >
+                View document
+              </button>
+            )}{' '}
+            Pay for it or add credits to continue.
+          </span>,
+          { autoClose: 8000 }
+        );
+      } else {
+        toast.error(err.message || 'Tailoring failed. Try again.');
+      }
     }
   };
 

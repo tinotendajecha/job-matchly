@@ -17,19 +17,26 @@ export type DocumentDownloadState = {
   priceMinor: number | null;
   currency: string | null;
   priceDisplay: string | null;
+  needsTrial: boolean;
 };
 
-export function getDocumentDownloadState(document: AccessDocument): DocumentDownloadState {
+export function getDocumentDownloadState(
+  document: AccessDocument,
+  opts?: { hasActiveSub?: boolean },
+): DocumentDownloadState {
   const market = (document.market === "ZA" ? "ZA" : "ZW") as MarketCode;
   const marketConfig = getMarketConfig(market);
 
   const isTailored = document.kind === "TAILORED_RESUME";
 
   // A document requires payment if it has a price set (ZA per-unlock flow)
-  const requiresPayment =
-    isTailored && (document.downloadPriceMinor ?? 0) > 0;
+  const requiresPayment = isTailored && (document.downloadPriceMinor ?? 0) > 0;
+  const isPaymentUnlocked = !requiresPayment || Boolean(document.unlockedAt);
 
-  const isUnlocked = !requiresPayment || Boolean(document.unlockedAt);
+  // User needs to start their free trial to download
+  const needsTrial = isTailored && opts?.hasActiveSub === false;
+
+  const isLocked = !isPaymentUnlocked || needsTrial;
 
   const priceMinor = document.downloadPriceMinor ?? null;
   const currency = document.downloadCurrency ?? (requiresPayment ? marketConfig.currency : null);
@@ -42,11 +49,12 @@ export function getDocumentDownloadState(document: AccessDocument): DocumentDown
   return {
     market,
     requiresPayment,
-    isUnlocked,
-    isLocked: requiresPayment && !isUnlocked,
-    canDownload: isUnlocked,
+    isUnlocked: !isLocked,
+    isLocked,
+    canDownload: !isLocked,
     priceMinor,
     currency,
     priceDisplay,
+    needsTrial,
   };
 }

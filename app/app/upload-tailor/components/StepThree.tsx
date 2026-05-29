@@ -24,7 +24,8 @@ import {
   Target,
   Loader2,
   FileText,
-  FileType2
+  FileType2,
+  Sparkles,
 } from 'lucide-react';
 import { MarkdownPreview, splitChanges } from '../helpers/utils';
 import { downloadDocument, downloadSavedDocument, startDocumentUnlock } from '../helpers/api';
@@ -91,6 +92,7 @@ export const StepThree = ({
   const router = useRouter();
   const [downloading, setDownloading] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [startingTrial, setStartingTrial] = useState(false);
 
   const { body: previewMarkdown, changes: changesMarkdown } = splitChanges(tailoredMarkdown);
 
@@ -216,8 +218,38 @@ export const StepThree = ({
     }
   };
 
+  const handleStartTrial = async () => {
+    setStartingTrial(true);
+    try {
+      const market = downloadState?.market ?? 'ZW';
+      const res = await fetch('/api/subscription/start-trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier: 'STARTER', billingCycle: 'MONTHLY' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to start trial');
+
+      if (data.market === 'ZA' && data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+
+      // ZW: trial started immediately — optimistically unlock download
+      setTailoredDownloadState(
+        downloadState ? { ...downloadState, needsTrial: false, isLocked: false, canDownload: true } : null,
+      );
+      toast.success('Free trial started! You can now download your resume.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not start trial. Please try again.');
+    } finally {
+      setStartingTrial(false);
+    }
+  };
+
   const isDownloading = downloading || downloadingPdf;
-  const resumeIsLocked = Boolean(downloadState?.isLocked);
+  const resumeNeedsTrial = Boolean(downloadState?.needsTrial);
+  const resumeIsLocked = Boolean(downloadState?.isLocked) && !resumeNeedsTrial;
   const resumeDownloadLabel = resumeIsLocked ? 'Subscribe to download' : 'Download';
 
   return (
@@ -246,7 +278,10 @@ export const StepThree = ({
               <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">Tailored Resume Preview</span>
-                  {downloadState?.isLocked && (
+                  {resumeNeedsTrial && (
+                    <Badge variant="outline">Start free trial to download</Badge>
+                  )}
+                  {resumeIsLocked && (
                     <Badge variant="outline">Subscribe to download</Badge>
                   )}
                   {downloadState?.canDownload && <Badge variant="secondary">Ready to download</Badge>}
@@ -343,64 +378,80 @@ export const StepThree = ({
                     <span className="hidden sm:inline">Open in Editor</span>
                   </Button>
 
-                  {/* Split Download */}
-                  <div className="inline-flex items-stretch shrink-0">
+                  {/* Free Trial CTA or Split Download */}
+                  {resumeNeedsTrial ? (
                     <Button
                       size="sm"
-                      onClick={handleResumeDownload}
-                      disabled={!tailoredMarkdown || isDownloading}
-                      className="rounded-r-none relative pr-10"
-                      aria-label={`Download ${downloadFmt.toUpperCase()}`}
-                      title={`Download ${downloadFmt.toUpperCase()}`}
+                      onClick={handleStartTrial}
+                      disabled={startingTrial || !tailoredMarkdown}
+                      className="shrink-0"
                     >
-                      {isDownloading ? (
-                        <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+                      {startingTrial ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
                       ) : (
-                        <Download className="h-4 w-4 sm:mr-2" />
+                        <Sparkles className="h-4 w-4 mr-1.5" />
                       )}
-                      <span className="hidden sm:inline">{resumeDownloadLabel}</span>
-                      <span className="sm:hidden">
-                        {resumeIsLocked ? 'Pay' : 'Download'}
-                      </span>
-                      <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-foreground">
-                        {resumeIsLocked
-                          ? (downloadState?.priceDisplay || 'PAY')
-                          : downloadFmt.toUpperCase()}
-                      </span>
+                      Start Free Trial
                     </Button>
+                  ) : (
+                    <div className="inline-flex items-stretch shrink-0">
+                      <Button
+                        size="sm"
+                        onClick={handleResumeDownload}
+                        disabled={!tailoredMarkdown || isDownloading}
+                        className="rounded-r-none relative pr-10"
+                        aria-label={`Download ${downloadFmt.toUpperCase()}`}
+                        title={`Download ${downloadFmt.toUpperCase()}`}
+                      >
+                        {isDownloading ? (
+                          <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+                        ) : (
+                          <Download className="h-4 w-4 sm:mr-2" />
+                        )}
+                        <span className="hidden sm:inline">{resumeDownloadLabel}</span>
+                        <span className="sm:hidden">
+                          {resumeIsLocked ? 'Pay' : 'Download'}
+                        </span>
+                        <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-foreground">
+                          {resumeIsLocked
+                            ? (downloadState?.priceDisplay || 'PAY')
+                            : downloadFmt.toUpperCase()}
+                        </span>
+                      </Button>
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="-ml-px rounded-l-none px-2"
-                          aria-label="Change download format"
-                          title="Change format"
-                          disabled={!tailoredMarkdown || isDownloading}
-                        >
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem onClick={() => {
-                          if (isDocxDisabledForTemplate) {
-                            toast.info('DOCX is not supported for this template.');
-                            return;
-                          }
-                          onDownloadFmtChange('docx');
-                        }}
-                        disabled={isDocxDisabledForTemplate}className="flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
-                          <span>DOCX</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onDownloadFmtChange('pdf')} className="flex items-center gap-2">
-                          <FileType2 className="h-4 w-4" />
-                          <span>PDF</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="-ml-px rounded-l-none px-2"
+                            aria-label="Change download format"
+                            title="Change format"
+                            disabled={!tailoredMarkdown || isDownloading}
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem onClick={() => {
+                            if (isDocxDisabledForTemplate) {
+                              toast.info('DOCX is not supported for this template.');
+                              return;
+                            }
+                            onDownloadFmtChange('docx');
+                          }}
+                          disabled={isDocxDisabledForTemplate} className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            <span>DOCX</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onDownloadFmtChange('pdf')} className="flex items-center gap-2">
+                            <FileType2 className="h-4 w-4" />
+                            <span>PDF</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

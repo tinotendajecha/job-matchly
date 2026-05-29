@@ -7,7 +7,7 @@ import { getMarketConfig } from "@/lib/market/config";
 import { getMarketFromRequest } from "@/lib/market/request";
 import { prisma } from "@/lib/prisma";
 import { safeFileName } from "@/lib/files";
-import { requireAndConsumeUsage, SubscriptionGateError } from "@/lib/subscription/gates";
+import { getActiveSubscription } from "@/lib/subscription/service";
 
 
 export const runtime = "nodejs";
@@ -24,13 +24,8 @@ export async function POST(req: Request) {
     if (!resumeText || !jdText)
       return NextResponse.json({ ok: false, error: "Missing inputs" }, { status: 400 });
 
-    // Subscription gate: must have active subscription + tailor quota remaining
-    try {
-      await requireAndConsumeUsage(user.id, "tailor");
-    } catch (err) {
-      if (err instanceof SubscriptionGateError) return err.toResponse();
-      throw err;
-    }
+    const activeSub = await getActiveSubscription(user.id);
+    const hasActiveSub = !!activeSub;
 
     const llm = new ChatOpenAI({ model: "gpt-5" });
 
@@ -202,7 +197,7 @@ Job Description:
     const fileStem = safeFileName(generatedTitle);
 
     // --- Save Document ---
-    // Subscription users: documents are always unlocked (gated at API level by subscription).
+    // Unlocked immediately for active subscribers; trial-locked otherwise.
     const doc = await prisma.document.create({
       data: {
         userId: user.id,
@@ -214,7 +209,7 @@ Job Description:
         market,
         downloadPriceMinor: null,
         downloadCurrency: null,
-        unlockedAt: new Date(),
+        unlockedAt: hasActiveSub ? new Date() : null,
       },
       select: {
         id: true,
@@ -229,8 +224,7 @@ Job Description:
 
     const finalDoc = doc;
 
-
-    const downloadState = getDocumentDownloadState(finalDoc);
+    const downloadState = getDocumentDownloadState(finalDoc, { hasActiveSub });
 
     return NextResponse.json({
       ok: true,

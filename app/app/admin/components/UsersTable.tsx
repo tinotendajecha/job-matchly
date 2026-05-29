@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { UserListItem, PaginationInfo } from '../types';
 import { formatDate, formatRelativeTime } from '../lib/utils';
-import { Eye, ChevronLeft, ChevronRight, Mail, Calendar, FileText, CreditCard } from 'lucide-react';
+import { Eye, ChevronLeft, ChevronRight, Mail, Calendar, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
@@ -33,7 +33,6 @@ export function UsersTable({ users, onViewDetails, pagination, currentPage, onPa
             <TableRow className="hover:bg-transparent">
               <TableHead className="text-muted-foreground">User</TableHead>
               <TableHead className="text-muted-foreground">Signup Date</TableHead>
-              <TableHead className="text-muted-foreground">Credits</TableHead>
               <TableHead className="text-muted-foreground">Documents</TableHead>
               <TableHead className="text-muted-foreground">Last Active</TableHead>
               <TableHead className="text-muted-foreground">Status</TableHead>
@@ -65,11 +64,6 @@ export function UsersTable({ users, onViewDetails, pagination, currentPage, onPa
                     </div>
                   </TableCell>
                   <TableCell className="text-foreground whitespace-nowrap">{formatDate(typeof user.createdAt === 'string' ? new Date(user.createdAt) : user.createdAt)}</TableCell>
-                  <TableCell>
-                    <Badge className="bg-primary/10 text-primary border-primary/20 whitespace-nowrap">
-                      {user.credits} credits
-                    </Badge>
-                  </TableCell>
                   <TableCell className="text-foreground">{user.documentsCreated}</TableCell>
                   <TableCell className="text-muted-foreground whitespace-nowrap">
                     {formatRelativeTime(typeof user.lastActive === 'string' ? new Date(user.lastActive) : user.lastActive)}
@@ -166,13 +160,6 @@ export function UsersTable({ users, onViewDetails, pagination, currentPage, onPa
 
                     {/* User Stats */}
                     <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-xs text-muted-foreground">Credits</p>
-                          <p className="text-sm font-medium text-foreground">{user.credits}</p>
-                        </div>
-                      </div>
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <div className="min-w-0">

@@ -1,6 +1,6 @@
 import type { MarketCode } from "@/lib/market/config";
 
-export type PurchaseType = "CREDIT_TOPUP" | "RESUME_DOWNLOAD_UNLOCK" | "SYSTEM_BONUS";
+export type PurchaseType = "RESUME_DOWNLOAD_UNLOCK" | "SYSTEM_BONUS";
 export type PaymentProviderName = "PESEPAY" | "PAYSTACK" | "SYSTEM";
 export type NormalizedPaymentStatus = "PENDING" | "PAID" | "FAILED" | "CANCELED";
 
@@ -12,7 +12,6 @@ export type PurchaseRecord = {
   market: MarketCode | string;
   amount: number;
   currency: string;
-  credits: number;
   status: NormalizedPaymentStatus | "BONUS" | string;
   providerRef: string | null;
   documentId: string | null;

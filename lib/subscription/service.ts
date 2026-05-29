@@ -97,9 +97,6 @@ export async function startTrialZW(
   const now = new Date();
   const trialEndsAt = addDays(now, TRIAL_DAYS);
 
-  // Zero out legacy credits on first subscription
-  await prisma.user.update({ where: { id: userId }, data: { credits: 0 } });
-
   return prisma.subscription.upsert({
     where: { userId },
     create: {
@@ -137,9 +134,6 @@ export async function activateSubscriptionFromPaystack(input: {
 }): Promise<Subscription> {
   const now = new Date();
   const trialEndsAt = addDays(now, TRIAL_DAYS);
-
-  // Zero out legacy credits on first subscription
-  await prisma.user.update({ where: { id: input.userId }, data: { credits: 0 } });
 
   return prisma.subscription.upsert({
     where: { userId: input.userId },

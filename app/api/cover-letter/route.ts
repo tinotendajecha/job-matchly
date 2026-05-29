@@ -117,15 +117,6 @@ Company: ${company || ""}
       select: { id: true, title: true },
     });
 
-    // Ledger entry
-    await prisma.ledger.create({
-      data: {
-        userId: user.id,
-        type: "COVER_LETTER_GENERATED",
-        credits: 0,
-        meta: { documentId: doc.id, company, role, title },
-      },
-    });
 
     return NextResponse.json({ ok: true, id: doc.id, markdown, title, fileStem });
   } catch (e: any) {

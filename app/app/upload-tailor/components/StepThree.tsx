@@ -91,14 +91,6 @@ export const StepThree = ({
   const router = useRouter();
   const [downloading, setDownloading] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
-  const [userCredits, setUserCredits] = useState<number | null>(null);
-
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then((r) => r.json())
-      .then((d) => { if (d?.ok) setUserCredits(d.user.credits ?? 0); })
-      .catch(() => {});
-  }, []);
 
   const { body: previewMarkdown, changes: changesMarkdown } = splitChanges(tailoredMarkdown);
 
@@ -164,19 +156,13 @@ export const StepThree = ({
           const unlock = await startDocumentUnlock(documentId);
 
           if (!unlock.alreadyUnlocked && unlock.url) {
-            if (unlock.needsCredits) {
-              toast.info('You need credits to download this resume. Redirecting to pricing…');
-            } else {
-              toast.info(`Complete payment to unlock this resume (${downloadState.priceDisplay || ''}).`);
-            }
+            toast.info(`Complete payment to unlock this resume (${downloadState.priceDisplay || ''}).`);
             window.location.href = unlock.url;
             return;
           }
 
           if (unlock.alreadyUnlocked) {
-            // 1 credit was spent — reflect in local state
             setTailoredDownloadState(downloadState ? { ...downloadState, isLocked: false, canDownload: true } : null);
-            setUserCredits((c) => (c !== null && c > 0 ? c - 1 : 0));
           } else {
             // Unlock neither redirected nor succeeded — bail out
             toast.error('Could not unlock resume. Please try again.');
@@ -232,19 +218,7 @@ export const StepThree = ({
 
   const isDownloading = downloading || downloadingPdf;
   const resumeIsLocked = Boolean(downloadState?.isLocked);
-  const hasCredits = userCredits !== null && userCredits > 0;
-  const needsCredits = downloadState?.requiresCredits ?? false;
-
-  let resumeDownloadLabel: string;
-  if (!resumeIsLocked) {
-    resumeDownloadLabel = 'Download';
-  } else if (hasCredits) {
-    resumeDownloadLabel = needsCredits ? 'Use 1 credit to download' : 'Download Resume';
-  } else if (needsCredits) {
-    resumeDownloadLabel = 'Buy credits to download';
-  } else {
-    resumeDownloadLabel = `Pay ${downloadState?.priceDisplay ?? ''} to download`.trim();
-  }
+  const resumeDownloadLabel = resumeIsLocked ? 'Subscribe to download' : 'Download';
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
@@ -272,15 +246,8 @@ export const StepThree = ({
               <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-2.5">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">Tailored Resume Preview</span>
-                  {downloadState?.isLocked && !hasCredits && (
-                    <Badge variant="outline">
-                      {needsCredits ? `Buy credits · ${downloadState.priceDisplay ?? '1 credit'}` : `Pay ${downloadState.priceDisplay ?? ''} to unlock`}
-                    </Badge>
-                  )}
-                  {downloadState?.isLocked && hasCredits && (
-                    <Badge variant="secondary">
-                      {needsCredits ? '1 credit to download' : 'Use 1 credit to unlock'}
-                    </Badge>
+                  {downloadState?.isLocked && (
+                    <Badge variant="outline">Subscribe to download</Badge>
                   )}
                   {downloadState?.canDownload && <Badge variant="secondary">Ready to download</Badge>}
                   {steps.tailor === "loading" && (
@@ -393,11 +360,11 @@ export const StepThree = ({
                       )}
                       <span className="hidden sm:inline">{resumeDownloadLabel}</span>
                       <span className="sm:hidden">
-                        {resumeIsLocked && !hasCredits ? (needsCredits ? 'Credits' : 'Pay') : 'Download'}
+                        {resumeIsLocked ? 'Pay' : 'Download'}
                       </span>
                       <span className="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-foreground">
-                        {resumeIsLocked && !hasCredits
-                          ? (downloadState?.priceDisplay || (needsCredits ? '1 CREDIT' : 'PAY'))
+                        {resumeIsLocked
+                          ? (downloadState?.priceDisplay || 'PAY')
                           : downloadFmt.toUpperCase()}
                       </span>
                     </Button>
@@ -584,7 +551,7 @@ export const StepThree = ({
               {
                 !generatedCoverLetter ? (
                   <p className="text-sm text-muted-foreground text-center mt-4">
-                    Create a cover letter matched to this job. <span className="font-semibold">Costs 1 credit.</span>
+                    Create a cover letter matched to this job.
                   </p>
                 ) : null
               }

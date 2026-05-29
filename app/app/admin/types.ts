@@ -6,14 +6,11 @@ export interface AdminMetrics {
   documentsToday: number;
   mrr: number;
   totalRevenue: number;
-  totalCreditsPurchased: number;
-  creditsUsedThisMonth: number;
   activationRate: number;
   churnRate: number;
   freeUsers: number;
   paidUsers: number;
   avgDocsPerUser: number;
-  avgCreditsPerUser: number;
 }
 
 export interface ChartData {
@@ -40,13 +37,10 @@ export interface AdminOverviewData {
   recentActivity: Activity[];
 }
 
-// ... existing types ...
-
 export interface UserListItem {
   id: string;
   name: string;
   email: string;
-  credits: number;
   documentsCreated: number;
   purchaseCount: number;
   lastActive: Date | string;
@@ -82,7 +76,6 @@ export interface UserDetail {
   id: string;
   name: string | null;
   email: string | null;
-  credits: number;
   onboardingComplete: boolean;
   emailVerified: Date | string | null;
   createdAt: Date | string;
@@ -102,7 +95,6 @@ export interface UserDocument {
 export interface UserPurchase {
   id: string;
   amount: number;
-  credits: number;
   type: string;
   market: string;
   currency: string;
@@ -112,18 +104,10 @@ export interface UserPurchase {
   createdAt: Date | string;
 }
 
-export interface CreditHistoryItem {
-  id: string;
-  type: string;
-  credits: number;
-  createdAt: Date | string;
-}
-
 export interface UserDetailResponse {
   user: UserDetail;
   documents: UserDocument[];
   purchases: UserPurchase[];
-  creditHistory: CreditHistoryItem[];
 }
 
 export interface DocumentListItem {

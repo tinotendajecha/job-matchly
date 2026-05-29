@@ -179,7 +179,7 @@ export const StepTwo = ({
                     View document
                   </button>
                 )}{' '}
-                Pay for it or add credits to continue.
+                Please try again or start a new session.
               </span>,
               { autoClose: 8000 }
             );

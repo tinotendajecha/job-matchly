@@ -29,7 +29,6 @@ export async function POST(req: Request) {
         email,
         name: name || "",
         passwordHash,
-        credits: 0,
         consentGiven: true,
         consentGivenAt: new Date(),
         consentVersion: resolvedConsentVersion,

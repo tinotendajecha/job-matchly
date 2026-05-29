@@ -61,13 +61,6 @@ export default function AnalyticsPage() {
     { plan: 'Premium ($50)', value: mockPurchases.filter(p => p.amount === 50 && p.status === 'PAID').length * 50 },
   ];
 
-  const totalCredits = mockPurchases.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.credits, 0);
-  const creditsUsed = Math.floor(totalCredits * 0.65);
-
-  const creditsComparison = [
-    { name: 'Purchased', credits: totalCredits },
-    { name: 'Used', credits: creditsUsed },
-  ];
 
   const avgGenTime = [
     { type: 'Resume', time: 3.2 },
@@ -346,28 +339,6 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle>Credits Purchased vs Used</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={creditsComparison}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Bar dataKey="credits" fill="hsl(var(--chart-1))" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
           </div>
         </TabsContent>
 

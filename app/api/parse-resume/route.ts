@@ -5,8 +5,6 @@ import { StructuredOutputParser } from "langchain/output_parsers";
 import { ChatOpenAI } from "@langchain/openai";
 import { ResumeSchema } from "@/lib/types";
 import { getCurrentUser } from "@/lib/auth";
-import { getMarketConfig } from "@/lib/market/config";
-import { getMarketFromRequest } from "@/lib/market/request";
 import { pdfToText } from "pdf-ts"; // PDF extraction
 // import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -31,9 +29,6 @@ function normalizeResumeText(raw: string) {
 
 export async function POST(req: Request) {
   try {
-    const market = getMarketFromRequest(req);
-    const marketConfig = getMarketConfig(market);
-
     // --- Gate BEFORE any parsing work ---
     const user = await getCurrentUser();
     if (!user) {
@@ -41,12 +36,6 @@ export async function POST(req: Request) {
     }
     if (!user.emailVerified) {
       return NextResponse.json({ ok: false, error: "Email not verified" }, { status: 403 });
-    }
-    if (marketConfig.tailoringRequiresCreditsUpfront && (user.credits ?? 0) < 1) {
-      return NextResponse.json(
-        { ok: false, error: "You need at least 1 credit to start tailoring." },
-        { status: 402 }
-      );
     }
 
     // --- Read file ---

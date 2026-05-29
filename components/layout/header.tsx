@@ -2,11 +2,10 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -16,7 +15,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { CreditCard, LogOut, Coins, Sun, Moon, Crown } from 'lucide-react';
+import { CreditCard, LogOut, Sun, Moon, Crown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-toastify';
@@ -30,7 +29,6 @@ type Me = {
   id: string;
   email: string | null;
   name: string | null;
-  credits: number;
   isAdmin: boolean;
   market?: 'ZW' | 'ZA';
 };
@@ -80,10 +78,7 @@ export function Header({ isPublic = false }: HeaderProps) {
     };
   }, [isPublic]);
 
-  const credits = useMemo(() => me?.credits ?? 0, [me]);
   const isAuthed = !!me;
-  const showCreditsBadge = Boolean(!isPublic && isAuthed && me?.market !== 'ZA');
-  const creditsLabel = `${credits} credits`;
 
   const handleLogout = async () => {
     try {
@@ -145,13 +140,6 @@ export function Header({ isPublic = false }: HeaderProps) {
 
         {/* Right cluster */}
         <div className="flex items-center gap-2">
-          {showCreditsBadge && (
-            <Badge variant="outline" className="gap-1.5 hidden sm:flex border-primary/30 bg-primary/5 text-primary">
-              <Coins className="h-3 w-3" />
-              <span className="text-xs font-medium">{creditsLabel}</span>
-            </Badge>
-          )}
-
           <Button
             variant="ghost"
             size="icon"
@@ -186,14 +174,10 @@ export function Header({ isPublic = false }: HeaderProps) {
                 </Button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent className="w-64" align="end" forceMount>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="space-y-1">
                   <div className="font-semibold truncate">{me?.name || 'Your Account'}</div>
                   <div className="text-xs text-muted-foreground truncate">{me?.email}</div>
-                  <div className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                    <Coins className="h-3 w-3" />
-                    {creditsLabel}
-                  </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
 

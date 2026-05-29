@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Plus, Upload, FileText, Target, Coins, Star } from 'lucide-react';
+import { LayoutDashboard, Plus, Upload, FileText, Target, CreditCard, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
@@ -11,15 +11,11 @@ const navLinks = [
   { label: 'Upload & Tailor', href: '/app/upload-tailor', icon: Upload },
   { label: 'My Documents', href: '/app/documents', icon: FileText },
   { label: 'ATS Check', href: '', icon: Target, disabled: true, badge: 'Soon' },
-  { label: 'Billing', href: '/app/billing', icon: Coins },
+  { label: 'Billing', href: '/app/billing', icon: CreditCard },
   { label: 'Roadmap', href: '/app/coming-soon', icon: Star },
 ];
 
-interface AppSidebarProps {
-  credits?: number;
-}
-
-export function AppSidebar({ credits }: AppSidebarProps) {
+export function AppSidebar() {
   const pathname = usePathname();
 
   return (
@@ -71,26 +67,6 @@ export function AppSidebar({ credits }: AppSidebarProps) {
           );
         })}
       </nav>
-
-      {typeof credits !== 'undefined' && (
-        <div className="px-3 py-4 border-t border-border/60">
-          <div className="rounded-lg bg-muted/40 px-3 py-2.5 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Coins className="h-3 w-3" />
-                Credits
-              </span>
-              <span className="text-xs font-bold text-primary">{credits}</span>
-            </div>
-            <Link
-              href="/app/billing"
-              className="block text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Add more credits →
-            </Link>
-          </div>
-        </div>
-      )}
     </aside>
   );
 }

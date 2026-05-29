@@ -10,7 +10,7 @@ import { toast } from 'react-toastify';
 
 type PurchaseInfo = {
   id: string;
-  type: 'CREDIT_TOPUP' | 'RESUME_DOWNLOAD_UNLOCK' | 'SYSTEM_BONUS';
+  type: 'RESUME_DOWNLOAD_UNLOCK' | 'SYSTEM_BONUS';
   provider: string;
   market: 'ZW' | 'ZA';
   description: string;
@@ -63,11 +63,7 @@ export default function CheckoutResultPage() {
         notifiedStatus.current = nextStatus;
 
         if (nextStatus === 'PAID') {
-          if (data.purchase?.type === 'RESUME_DOWNLOAD_UNLOCK') {
-            toast.success('Payment successful. Your resume is now unlocked.');
-          } else {
-            toast.success('Payment successful. Credits have been added to your account.');
-          }
+          toast.success('Payment successful. Your resume is now unlocked.');
         } else if (nextStatus === 'FAILED') {
           toast.error('Payment failed');
         } else if (nextStatus === 'CANCELED') {
@@ -86,17 +82,13 @@ export default function CheckoutResultPage() {
     };
   }, [purchaseId]);
 
-  const isResumeUnlock = purchase?.type === 'RESUME_DOWNLOAD_UNLOCK';
   const primaryAction = () => {
-    if (isResumeUnlock && purchase?.documentId) {
+    if (purchase?.documentId) {
       router.push(`/app/documents/${purchase.documentId}`);
       return;
     }
-    router.push('/app/billing');
+    router.push('/app/documents');
   };
-
-  const primaryLabel = isResumeUnlock ? 'Open Resume' : 'Go to Billing';
-  const secondaryLabel = isResumeUnlock ? 'Back to Documents' : 'Back to Billing';
 
   return (
     <div className="container mx-auto p-6">
@@ -125,13 +117,9 @@ export default function CheckoutResultPage() {
           {status === 'PAID' ? (
             <div className="flex flex-col items-center gap-3">
               <CheckCircle2 className="h-10 w-10 text-green-600" />
-              <p>
-                {isResumeUnlock
-                  ? 'Your tailored resume has been unlocked and is ready to download.'
-                  : 'Your credits have been added to your account.'}
-              </p>
+              <p>Your tailored resume has been unlocked and is ready to download.</p>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Button onClick={primaryAction}>{primaryLabel}</Button>
+                <Button onClick={primaryAction}>Open Resume</Button>
                 <Button variant="outline" onClick={() => router.push('/app/documents')}>
                   View Documents
                 </Button>
@@ -144,10 +132,10 @@ export default function CheckoutResultPage() {
               <XCircle className="h-10 w-10 text-red-600" />
               <p>{STATUS_COPY[status]}</p>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Button variant="outline" onClick={primaryAction}>
-                  {secondaryLabel}
+                <Button variant="outline" onClick={() => router.push('/app/documents')}>
+                  Back to Documents
                 </Button>
-                {isResumeUnlock && purchase?.documentId ? (
+                {purchase?.documentId ? (
                   <Button onClick={() => router.push(`/app/documents/${purchase.documentId}`)}>
                     Retry from Resume
                   </Button>

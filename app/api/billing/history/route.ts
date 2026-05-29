@@ -1,7 +1,6 @@
 // app/api/billing/history/route.ts
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { describePurchase } from "@/lib/payments/service";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -23,13 +22,8 @@ export async function GET() {
       status: true,
       amount: true,
       currency: true,
-      credits: true,
       documentId: true,
-      document: {
-        select: {
-          title: true,
-        },
-      },
+      document: { select: { title: true } },
       providerRef: true,
     },
   });
@@ -40,7 +34,7 @@ export async function GET() {
     type: p.type,
     market: p.market,
     provider: p.provider,
-    description: describePurchase(p),
+    description: p.document?.title ? `Resume unlock: ${p.document.title}` : "Resume download unlock",
     amountMinor: p.amount,
     currency: p.currency,
     status: p.status,

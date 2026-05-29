@@ -145,7 +145,6 @@ export async function GET(request: NextRequest) {
       id: user.id,
       name: user.name || 'Anonymous',
       email: user.email || '',
-      credits: user.credits,
       documentsCreated: user._count.documents,
       purchaseCount: user._count.purchases,
       lastActive: user.sessions[0]?.createdAt || user.createdAt,

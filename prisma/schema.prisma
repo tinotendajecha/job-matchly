@@ -30,7 +30,6 @@ enum MarketCode {
 }
 
 enum PurchaseType {
-  CREDIT_TOPUP
   RESUME_DOWNLOAD_UNLOCK
   SYSTEM_BONUS
 }
@@ -61,7 +60,6 @@ model User {
   passwordHash       String?
   emailVerified      DateTime?
   image              String?
-  credits            Int       @default(0)
   onboardingComplete Boolean   @default(false)
 
   // Consent tracking (POPIA / data protection compliance)
@@ -85,7 +83,6 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  Ledger    Ledger[]
 }
 
 model Profile {
@@ -162,11 +159,10 @@ model Purchase {
   id          String        @id @default(cuid())
   userId      String
   provider    String        @default("PESEPAY") // keep simple, future providers optional
-  type        PurchaseType  @default(CREDIT_TOPUP)
+  type        PurchaseType  @default(RESUME_DOWNLOAD_UNLOCK)
   market      MarketCode    @default(ZW)
   amount      Int // minor units (e.g., cents)
   currency    String        @default("USD")
-  credits     Int // how many credits this purchase grants
   status      PaymentStatus @default(PENDING)
   providerRef String?       @unique // e.g., pesepay reference/transaction id
   documentId  String?
@@ -282,14 +278,3 @@ model SubscriptionUsage {
   @@index([userId, periodStart])
 }
 
-model Ledger {
-  id        String   @id @default(cuid())
-  userId    String
-  type      String // e.g., "COVER_LETTER_GENERATED"
-  credits   Int // negative for spend, positive for refund/grant
-  meta      Json?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@index([userId, createdAt])
-}

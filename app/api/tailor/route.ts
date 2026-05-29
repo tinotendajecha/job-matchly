@@ -229,14 +229,6 @@ Job Description:
 
     const finalDoc = doc;
 
-    await prisma.ledger.create({
-      data: {
-        userId: user.id,
-        type: "RESUME_GENERATED",
-        credits: 0,
-        meta: { documentId: doc.id, title: generatedTitle, market },
-      },
-    });
 
     const downloadState = getDocumentDownloadState(finalDoc);
 

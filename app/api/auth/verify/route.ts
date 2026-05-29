@@ -15,9 +15,9 @@ export async function POST(req: Request) {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return NextResponse.json({ ok: false, error: "User not found" }, { status: 404 });
 
-    // Already verified? no-op (don’t double-grant)
+    // Already verified? no-op
     if (user.emailVerified) {
-      return NextResponse.json({ ok: true, alreadyVerified: true, credits: user.credits });
+      return NextResponse.json({ ok: true, alreadyVerified: true });
     }
 
     // Find any unconsumed, unexpired code
@@ -33,43 +33,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Invalid code" }, { status: 400 });
     }
 
-    // Atomic: mark verified + grant credits (+3) + consume code + audit purchase
-    const BONUS = 1;
     await prisma.$transaction(async (tx) => {
       // guard against race: recheck inside the transaction
       const fresh = await tx.user.findUnique({ where: { id: user.id }, select: { emailVerified: true } });
-      if (fresh?.emailVerified) return; // someone else finished the verify step
+      if (fresh?.emailVerified) return;
 
       await tx.user.update({
         where: { id: user.id },
-        data: {
-          emailVerified: new Date(),
-          credits: { increment: BONUS },
-        },
+        data: { emailVerified: new Date() },
       });
 
       await tx.emailVerification.update({
         where: { id: rec.id },
         data: { consumedAt: new Date() },
       });
-
-      await tx.purchase.create({
-        data: {
-          userId: user.id,
-          provider: "SYSTEM",
-          amount: 0,
-          currency: "USD",
-          credits: BONUS,
-          status: "BONUS",
-          meta: { reason: "Welcome bonus on email verification" },
-        },
-      });
     });
 
-    // return updated credits for UI
-    const updated = await prisma.user.findUnique({ where: { id: user.id }, select: { credits: true } });
-
-    return NextResponse.json({ ok: true, verified: true, creditsAdded: BONUS, credits: updated?.credits ?? null });
+    return NextResponse.json({ ok: true, verified: true });
   } catch (e: any) {
     console.error("verify confirm fatal:", e?.message || e);
     return NextResponse.json({ ok: false, error: "Could not verify email" }, { status: 500 });

@@ -5,7 +5,7 @@ import { PurchasesTable } from '../components/PurchasesTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { mockPurchases } from '../lib/mockData';
 import { formatNumber, formatCurrency, formatPercentage } from '../lib/utils';
-import { DollarSign, TrendingUp, CreditCard, CheckCircle, Coins, Zap } from 'lucide-react';
+import { DollarSign, TrendingUp, CheckCircle, CreditCard } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function RevenuePage() {
@@ -83,19 +83,12 @@ export default function RevenuePage() {
     'hsl(var(--chart-4))',
   ];
 
-  const totalCreditsSold = mockPurchases
-    .filter(p => p.status === 'PAID')
-    .reduce((sum, p) => sum + p.credits, 0);
-
-  const creditsUsed = Math.floor(totalCreditsSold * 0.65);
-  const creditsBalance = totalCreditsSold - creditsUsed;
-  const usageRate = (creditsUsed / totalCreditsSold) * 100;
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Revenue & Purchases</h1>
-        <p className="text-muted-foreground mt-1">Monitor revenue, transactions, and credit usage</p>
+        <p className="text-muted-foreground mt-1">Monitor revenue and transactions</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -218,45 +211,25 @@ export default function RevenuePage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Credits Sold</CardTitle>
-            <Coins className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Paid Transactions</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatNumber(totalCreditsSold)}</div>
+            <div className="text-2xl font-bold text-foreground">{formatNumber(mockPurchases.filter(p => p.status === 'PAID').length)}</div>
           </CardContent>
         </Card>
 
         <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Credits Used</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatNumber(creditsUsed)}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Credits Balance</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatNumber(creditsBalance)}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Usage Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{usageRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold text-foreground">{((mockPurchases.filter(p => p.status === 'PAID').length / mockPurchases.length) * 100).toFixed(1)}%</div>
             <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
               <div
                 className="h-full bg-primary transition-all"
-                style={{ width: `${usageRate}%` }}
+                style={{ width: `${(mockPurchases.filter(p => p.status === 'PAID').length / mockPurchases.length) * 100}%` }}
               />
             </div>
           </CardContent>

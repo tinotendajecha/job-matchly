@@ -1,7 +1,6 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import {
   FileText,
@@ -17,8 +16,8 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
-  Coins,
   ArrowRight,
+  CreditCard,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
@@ -89,9 +88,10 @@ const quickActions = [
 ];
 
 export default function DashboardPage() {
-  interface user {
+  interface UserData {
     name: string;
-    credits: number;
+    subscriptionTier?: string | null;
+    subscriptionStatus?: string | null;
   }
 
   interface Activity {
@@ -101,13 +101,8 @@ export default function DashboardPage() {
     type: 'create' | 'tailor' | 'cover' | 'check';
   }
 
-  const [userData, setUserData] = useState<user>({ name: '', credits: 0 });
+  const [userData, setUserData] = useState<UserData>({ name: '' });
   const [recentActivity, setRecentActivity] = useState<Activity[]>(FALLBACK_RECENT);
-  const [creditUsage, setCreditUsage] = useState({
-    used: 23,
-    total: 150,
-    breakdown: { resume: 8, tailor: 12, cover: 3 }
-  });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isError, setIsError] = useState<boolean>(false);
 
@@ -138,7 +133,11 @@ export default function DashboardPage() {
         const uRes = await fetch('/api/auth/me', { cache: 'no-store' });
         const uJson = await uRes.json();
         if (uJson?.ok && uJson.user) {
-          setUserData({ name: uJson.user.name || '', credits: uJson.user.credits ?? 0 });
+          setUserData({
+            name: uJson.user.name || '',
+            subscriptionTier: uJson.subscription?.tier ?? null,
+            subscriptionStatus: uJson.subscription?.status ?? null,
+          });
         } else {
           setIsError(true);
           toast.warn('Could not fetch user info — showing cached data.');
@@ -176,29 +175,6 @@ export default function DashboardPage() {
           setRecentActivity(FALLBACK_RECENT);
         }
 
-        // 3) Get ledger summary
-        try {
-          const ledgerRes = await fetch('/api/ledger/summary', { cache: 'no-store' });
-          const ledgerJson = await ledgerRes.json();
-          if (ledgerJson?.ok && ledgerJson.summary) {
-            const s = ledgerJson.summary;
-            const totals = s.totals || { resumes: 0, tailorings: 0, coverLetters: 0 };
-            const used = s.creditsThisMonth ?? ((totals.resumes || 0) + (totals.tailorings || 0) + (totals.coverLetters || 0));
-            setCreditUsage({
-              used: totals.used ?? 0,
-              total: s.monthLimit ?? 150,
-              breakdown: {
-                resume: totals.resumes ?? 0,
-                tailor: (totals.tailorings ?? totals.tailor) || 0,
-                cover: (totals.coverLetters ?? totals.cover) || 0
-              }
-            });
-          } else {
-            console.warn('ledger summary not ok, using fallback');
-          }
-        } catch (err) {
-          console.warn('Failed to fetch ledger/summary', err);
-        }
       } catch (err) {
         console.error('Dashboard fetch error', err);
         toast.error('Error loading dashboard data');
@@ -223,7 +199,7 @@ export default function DashboardPage() {
       <Header />
 
       <div className="flex">
-        <AppSidebar credits={userData.credits} />
+        <AppSidebar />
 
         <main className="flex-1 min-w-0 overflow-x-hidden">
           <div className="px-4 sm:px-6 lg:px-8 py-6 md:py-8 max-w-6xl mx-auto">
@@ -246,10 +222,11 @@ export default function DashboardPage() {
                         <h1 className="text-xl font-bold font-display">
                           Welcome back{userData.name ? `, ${userData.name}` : ''}
                         </h1>
-                        <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-medium gap-1">
-                          <Coins className="h-2.5 w-2.5" />
-                          {userData.credits} credits
-                        </Badge>
+                        {userData.subscriptionTier && (
+                          <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-medium">
+                            {userData.subscriptionTier} plan
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground">
                         Ready to tailor your next application?
@@ -403,7 +380,7 @@ export default function DashboardPage() {
 
               {/* Right panel */}
               <div className="space-y-4">
-                {/* Credit Usage */}
+                {/* Subscription plan */}
                 <motion.div
                   initial={{ opacity: 0, x: 12 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -411,45 +388,34 @@ export default function DashboardPage() {
                   className="rounded-xl border border-border/60 bg-card p-4"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold">Credit Usage</h3>
+                    <h3 className="text-sm font-semibold">Your Plan</h3>
                     <Link href="/app/billing">
                       <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-primary hover:text-primary hover:bg-primary/10">
-                        Add
+                        Manage
                       </Button>
                     </Link>
                   </div>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between text-xs mb-1.5">
-                        <span className="text-muted-foreground">This month</span>
-                        <span className="font-medium tabular-nums">
-                          {creditUsage.used > 0
-                            ? `${creditUsage.used}/${creditUsage.total}`
-                            : `${creditUsage.breakdown.resume + creditUsage.breakdown.cover} used`}
-                        </span>
+                  {userData.subscriptionTier ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium">{userData.subscriptionTier} plan</span>
+                        {userData.subscriptionStatus === 'TRIALING' && (
+                          <Badge variant="outline" className="text-[10px] border-amber-400/40 text-amber-500">Trial</Badge>
+                        )}
                       </div>
-                      <Progress
-                        value={creditUsage.total > 0
-                          ? ((creditUsage.breakdown.tailor + creditUsage.breakdown.cover) / creditUsage.total) * 100
-                          : 0}
-                        className="h-1.5"
-                      />
+                      <p className="text-xs text-muted-foreground">
+                        Usage resets on the 1st of each month.
+                      </p>
                     </div>
-                    <div className="space-y-1.5 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">JD Tailoring</span>
-                        <span className="font-medium tabular-nums">{creditUsage.breakdown.resume}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Cover Letters</span>
-                        <span className="font-medium tabular-nums">{creditUsage.breakdown.cover}</span>
-                      </div>
-                      <div className="flex justify-between opacity-50">
-                        <span className="text-muted-foreground">Resume Builds</span>
-                        <span>–</span>
-                      </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">No active plan.</p>
+                      <Link href="/pricing">
+                        <Button size="sm" className="w-full h-7 text-xs">Start free trial</Button>
+                      </Link>
                     </div>
-                  </div>
+                  )}
                 </motion.div>
 
                 {/* Coming Soon */}

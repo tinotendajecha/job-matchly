@@ -14,7 +14,6 @@ import {
   FilePlus,
   DollarSign,
   CreditCard,
-  Zap,
   Target,
   TrendingDown,
   AlertCircle,
@@ -147,15 +146,10 @@ export default function AdminDashboard() {
           trend={calculateTrend(metrics.mrr, metrics.mrr * 0.85)}
         />
         <MetricCard
-          title="Total Credits Purchased"
-          value={formatNumber(metrics.totalCreditsPurchased)}
+          title="Paid Users"
+          value={formatNumber(metrics.paidUsers)}
           icon={CreditCard}
-        />
-        <MetricCard
-          title="Credits Used This Month"
-          value={formatNumber(metrics.creditsUsedThisMonth)}
-          icon={Zap}
-          description={`${formatPercentage(metrics.creditsUsedThisMonth, metrics.totalCreditsPurchased)} of total`}
+          description="Users with at least 1 paid purchase"
         />
       </div>
 
@@ -174,7 +168,6 @@ export default function AdminDashboard() {
           description="Inactive users"
         />
         <MetricCard title="Avg Docs per User" value={metrics.avgDocsPerUser.toFixed(1)} icon={FileText} />
-        <MetricCard title="Avg Credits per User" value={metrics.avgCreditsPerUser.toFixed(0)} icon={CreditCard} />
       </div>
 
       {/* Charts Row 1 */}

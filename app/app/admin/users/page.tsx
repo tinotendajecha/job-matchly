@@ -105,7 +105,7 @@ export default function UsersPage() {
 
       // Convert to CSV
       const users = json.data.users;
-      const headers = ['ID', 'Name', 'Email', 'Credits', 'Documents', 'Status', 'Account Type', 'Signup Date'];
+      const headers = ['ID', 'Name', 'Email', 'Documents', 'Status', 'Account Type', 'Signup Date'];
       const csvRows = [
         headers.join(','),
         ...users.map((u: UserListItem) =>
@@ -113,7 +113,6 @@ export default function UsersPage() {
             u.id,
             `"${u.name}"`,
             u.email,
-            u.credits,
             u.documentsCreated,
             u.status,
             u.isPaid ? 'Paid' : 'Free',
@@ -285,7 +284,6 @@ function UserDetailView({ user, detail }: { user: UserListItem; detail: UserDeta
           <InfoField label="Email" value={detail.user.email || 'N/A'} />
           <InfoField label="User ID" value={detail.user.id} mono />
           <InfoField label="Status" value={user.status} />
-          <InfoField label="Credits" value={detail.user.credits.toString()} />
           <InfoField label="Documents Created" value={detail.user.totalDocuments.toString()} />
           <InfoField label="Signup Date" value={formatDate(typeof detail.user.createdAt === 'string' ? new Date(detail.user.createdAt) : detail.user.createdAt)} />
           <InfoField label="Last Active" value={formatDate(typeof detail.user.lastActive === 'string' ? new Date(detail.user.lastActive) : detail.user.lastActive)} />
@@ -329,9 +327,6 @@ function UserDetailView({ user, detail }: { user: UserListItem; detail: UserDeta
                   <p className="text-xs text-muted-foreground">
                     {formatCurrency(purchase.amount, purchase.currency)} · {purchase.provider} · {purchase.market} · {purchase.status}
                   </p>
-                  <p className="hidden text-xs text-muted-foreground">
-                    {purchase.credits} credits • {purchase.status}
-                  </p>
                 </div>
                 <span className="text-xs text-muted-foreground">{formatDate(typeof purchase.createdAt === 'string' ? new Date(purchase.createdAt) : purchase.createdAt)}</span>
               </div>
@@ -342,32 +337,6 @@ function UserDetailView({ user, detail }: { user: UserListItem; detail: UserDeta
         )}
       </div>
 
-      {/* Credit History */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4">Credit History ({detail.creditHistory.length})</h3>
-        {detail.creditHistory.length > 0 ? (
-          <div className="space-y-2">
-            {detail.creditHistory.map((item) => (
-              <div key={item.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{item.type.replace(/_/g, ' ')}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`text-sm font-semibold ${item.credits > 0 ? 'text-green-500' : 'text-red-500'}`}
-                  >
-                    {item.credits > 0 ? '+' : ''}
-                    {item.credits}
-                  </span>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(typeof item.createdAt === 'string' ? new Date(item.createdAt) : item.createdAt)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">No credit history</p>
-        )}
-      </div>
     </div>
   );
 }

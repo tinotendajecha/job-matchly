@@ -1,13 +1,11 @@
 export type UserStatus = 'ACTIVE' | 'INACTIVE';
 export type DocumentKind = 'TAILORED_RESUME' | 'CREATED_RESUME' | 'COVER_LETTER';
 export type PurchaseStatus = 'PENDING' | 'PAID' | 'FAILED';
-export type LedgerType = 'PURCHASE' | 'SPEND';
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  credits: number;
   onboardingComplete: boolean;
   createdAt: Date;
   lastActive: Date;
@@ -33,17 +31,8 @@ export interface Purchase {
   userName: string;
   userEmail: string;
   amount: number;
-  credits: number;
   status: PurchaseStatus;
   provider: string;
-  createdAt: Date;
-}
-
-export interface LedgerEntry {
-  id: string;
-  userId: string;
-  type: LedgerType;
-  credits: number;
   createdAt: Date;
 }
 
@@ -70,7 +59,6 @@ const generateMockUsers = (count: number): User[] => {
       id: `user-${i + 1}`,
       name: `User ${i + 1}`,
       email: `user${i + 1}@example.com`,
-      credits: isPaid ? Math.floor(Math.random() * 50) + 10 : Math.floor(Math.random() * 5),
       onboardingComplete: Math.random() > 0.2,
       createdAt: new Date(now.getTime() - createdDaysAgo * 24 * 60 * 60 * 1000),
       lastActive: new Date(now.getTime() - lastActiveDaysAgo * 24 * 60 * 60 * 1000),
@@ -117,7 +105,6 @@ const generateMockPurchases = (users: User[]): Purchase[] => {
     for (let i = 0; i < purchaseCount; i++) {
       const daysAgo = Math.floor(Math.random() * 60);
       const amount = [5, 10, 20, 50][Math.floor(Math.random() * 4)];
-      const credits = amount * 10;
 
       purchases.push({
         id: `purchase-${index}-${i + 1}`,
@@ -125,7 +112,6 @@ const generateMockPurchases = (users: User[]): Purchase[] => {
         userName: user.name,
         userEmail: user.email,
         amount,
-        credits,
         status: Math.random() > 0.1 ? 'PAID' : Math.random() > 0.5 ? 'PENDING' : 'FAILED',
         provider: 'Pesepay',
         createdAt: new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000),
@@ -171,7 +157,7 @@ const generateActivityLogs = (users: User[], documents: Document[], purchases: P
       userId: purchase.userId,
       userName: purchase.userName,
       userEmail: purchase.userEmail,
-      details: `Purchased ${purchase.credits} credits for $${purchase.amount}`,
+      details: `Payment of $${purchase.amount}`,
     });
   });
 
@@ -186,29 +172,24 @@ export const mockActivityLogs = generateActivityLogs(mockUsers, mockDocuments, m
 export const getChartData = () => {
   const now = new Date();
   const last30Days = Array.from({ length: 30 }, (_, i) => {
-    const date = new Date(now.getTime() - (29 - i) * 24 * 60 * 60 * 1000);
-    return date;
+    return new Date(now.getTime() - (29 - i) * 24 * 60 * 60 * 1000);
   });
 
   return {
     dailySignups: last30Days.map((date) => {
       const count = mockUsers.filter((u) => {
-        const userDate = new Date(u.createdAt);
-        return userDate.toDateString() === date.toDateString();
+        return new Date(u.createdAt).toDateString() === date.toDateString();
       }).length;
-
       return {
         date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         signups: count + Math.floor(Math.random() * 3),
       };
     }),
 
-    activeUsers: last30Days.map((date) => {
-      return {
-        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        active: Math.floor(Math.random() * 50) + 30,
-      };
-    }),
+    activeUsers: last30Days.map((date) => ({
+      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      active: Math.floor(Math.random() * 50) + 30,
+    })),
 
     documentsByType: [
       { type: 'Tailored Resume', count: mockDocuments.filter(d => d.kind === 'TAILORED_RESUME').length },
@@ -226,7 +207,6 @@ export const getChartData = () => {
                  p.status === 'PAID';
         })
         .reduce((sum, p) => sum + p.amount, 0);
-
       return {
         month: month.toLocaleDateString('en-US', { month: 'short' }),
         revenue: revenue + Math.floor(Math.random() * 500) + 1000,

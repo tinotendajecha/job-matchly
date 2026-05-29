@@ -41,7 +41,6 @@ export function PurchasesTable({ purchases }: PurchasesTableProps) {
               <TableHead className="text-muted-foreground">Transaction ID</TableHead>
               <TableHead className="text-muted-foreground">User</TableHead>
               <TableHead className="text-muted-foreground">Amount</TableHead>
-              <TableHead className="text-muted-foreground">Credits</TableHead>
               <TableHead className="text-muted-foreground">Status</TableHead>
               <TableHead className="text-muted-foreground">Provider</TableHead>
               <TableHead className="text-muted-foreground">Date</TableHead>
@@ -62,11 +61,6 @@ export function PurchasesTable({ purchases }: PurchasesTableProps) {
                 </TableCell>
                 <TableCell className="font-bold text-foreground">
                   {formatCurrency(purchase.amount)}
-                </TableCell>
-                <TableCell>
-                  <Badge className="bg-primary/10 text-primary border-primary/20">
-                    {purchase.credits} credits
-                  </Badge>
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline" className={getStatusClass(purchase.status)}>

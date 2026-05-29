@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { describePurchase } from '@/lib/payments/service';
 import { requireAdmin } from '../../middleware';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -32,27 +31,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
           select: {
             id: true,
             amount: true,
-            credits: true,
             type: true,
             market: true,
             currency: true,
             status: true,
             provider: true,
-            document: {
-              select: {
-                title: true,
-              },
-            },
-            createdAt: true,
-          },
-        },
-        Ledger: {
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-          select: {
-            id: true,
-            type: true,
-            credits: true,
+            document: { select: { title: true } },
             createdAt: true,
           },
         },
@@ -71,13 +55,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     });
 
     if (!user) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: 'User not found',
-        },
-        { status: 404 }
-      );
+      return NextResponse.json({ ok: false, error: 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -87,7 +65,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
           id: user.id,
           name: user.name,
           email: user.email,
-          credits: user.credits,
           onboardingComplete: user.onboardingComplete,
           emailVerified: user.emailVerified,
           createdAt: user.createdAt,
@@ -100,26 +77,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         purchases: user.purchases.map((p) => ({
           id: p.id,
           amount: p.amount / 100,
-          credits: p.credits,
           type: p.type,
           market: p.market,
           currency: p.currency,
           status: p.status,
           provider: p.provider,
-          description: describePurchase(p),
+          description: p.document?.title ? `Resume unlock: ${p.document.title}` : 'Resume download unlock',
           createdAt: p.createdAt,
         })),
-        creditHistory: user.Ledger,
       },
     });
   } catch (error) {
     console.error('Admin user detail API error:', error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: 'Failed to fetch user details',
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: 'Failed to fetch user details' }, { status: 500 });
   }
 }

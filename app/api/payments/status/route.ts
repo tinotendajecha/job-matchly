@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { describePurchase, getPurchaseForUser, syncPurchaseStatus } from "@/lib/payments/service";
+import { getPurchaseForUser, syncPurchaseStatus } from "@/lib/payments/service";
 
 export const runtime = "nodejs";
 
@@ -28,7 +28,7 @@ export async function GET(req: Request) {
         type: purchase.type,
         provider: purchase.provider,
         market: purchase.market,
-        description: describePurchase(purchase),
+        description: purchase.documentId ? `Resume unlock` : 'Payment',
         documentId: purchase.documentId,
       },
     });

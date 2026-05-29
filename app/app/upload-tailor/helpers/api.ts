@@ -133,8 +133,6 @@ export async function startDocumentUnlock(documentId: string) {
   return data as {
     ok: true;
     alreadyUnlocked: boolean;
-    /** True when the document needs credits (ZW market). URL will be /pricing. */
-    needsCredits?: boolean;
     purchaseId: string | null;
     url: string | null;
     priceDisplay?: string | null;
@@ -151,7 +149,7 @@ export async function apiParseResume(file: File, router: ReturnType<typeof useRo
 
   if (res.status === 402) {
     router.push('/pricing');
-    throw new Error('You are out of credits.');
+    throw new Error('Subscription required.');
   }
 
   const ct = res.headers.get('content-type') || '';

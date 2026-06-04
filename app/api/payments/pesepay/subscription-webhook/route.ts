@@ -2,15 +2,19 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { extendSubscriptionPeriod, getNextPeriodEnd } from '@/lib/subscription/service';
 import { parsePesePayWebhook } from '@/lib/payments/service';
+import type { BillingCycle, SubscriptionTier } from '@prisma/client';
 
 export const runtime = 'nodejs';
 
-// Receives Pesepay result callbacks for ZW subscription renewals
+// Receives Pesepay result callbacks for ZW subscription renewals and upgrades
 export async function POST(req: Request) {
   try {
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
     const ref = url.searchParams.get('ref');
+    const mode = url.searchParams.get('mode'); // 'upgrade' for upgrade payments
+    const upgradeTier = url.searchParams.get('tier') as SubscriptionTier | null;
+    const upgradeCycle = url.searchParams.get('cycle') as BillingCycle | null;
 
     if (!userId || !ref) {
       return NextResponse.json({ ok: false, error: 'Missing params' }, { status: 400 });
@@ -29,12 +33,31 @@ export async function POST(req: Request) {
     }
 
     const now = new Date();
-    const newPeriodEnd = getNextPeriodEnd(
-      sub.currentPeriodEnd > now ? sub.currentPeriodEnd : now,
-      sub.billingCycle,
-    );
 
-    await extendSubscriptionPeriod(userId, newPeriodEnd, 'ACTIVE');
+    if (mode === 'upgrade' && upgradeTier && upgradeCycle) {
+      // Upgrade: change tier + activate immediately
+      const newPeriodEnd = getNextPeriodEnd(now, upgradeCycle);
+      await prisma.subscription.update({
+        where: { userId },
+        data: {
+          tier: upgradeTier,
+          billingCycle: upgradeCycle,
+          status: 'ACTIVE',
+          currentPeriodStart: now,
+          currentPeriodEnd: newPeriodEnd,
+          trialEndsAt: null,
+          cancelAtPeriodEnd: false,
+          canceledAt: null,
+        },
+      });
+    } else {
+      // Renewal: extend the current period
+      const newPeriodEnd = getNextPeriodEnd(
+        sub.currentPeriodEnd > now ? sub.currentPeriodEnd : now,
+        sub.billingCycle,
+      );
+      await extendSubscriptionPeriod(userId, newPeriodEnd, 'ACTIVE');
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

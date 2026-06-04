@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import {
   FileText,
   Upload,
-  Target,
   Plus,
   Clock,
   CheckCircle,
@@ -54,7 +53,7 @@ const typeConfig = {
 const quickActions = [
   {
     label: 'Build from Scratch',
-    description: 'Start with a clean template',
+    description: 'Start with a clean template and craft your resume with AI assistance.',
     href: '/app/builder/modern',
     icon: FileText,
     iconBg: 'bg-blue-500/15',
@@ -65,7 +64,7 @@ const quickActions = [
   },
   {
     label: 'Upload & Tailor',
-    description: 'Match to a job description',
+    description: 'Upload your existing resume and tailor it to any job description instantly.',
     href: '/app/upload-tailor',
     icon: Upload,
     iconBg: 'bg-emerald-500/15',
@@ -73,17 +72,6 @@ const quickActions = [
     badge: 'Live',
     badgeColor: 'bg-emerald-600 text-white',
     disabled: false,
-  },
-  {
-    label: 'ATS Check',
-    description: 'Test compatibility',
-    href: '',
-    icon: Target,
-    iconBg: 'bg-amber-500/15',
-    iconColor: 'text-amber-400',
-    badge: 'Soon',
-    badgeColor: 'bg-amber-500 text-white',
-    disabled: true,
   },
 ];
 
@@ -202,8 +190,8 @@ export default function DashboardPage() {
         <AppSidebar />
 
         <main className="flex-1 min-w-0 overflow-x-hidden">
-          <div className="px-4 sm:px-6 lg:px-8 py-6 md:py-8 max-w-6xl mx-auto">
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_260px] gap-6">
+          <div className="px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-14 py-6 md:py-8 max-w-[1440px] mx-auto">
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] 2xl:grid-cols-[1fr_340px] gap-6 2xl:gap-8">
 
               {/* Main column */}
               <div className="space-y-5 min-w-0">
@@ -246,27 +234,35 @@ export default function DashboardPage() {
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.06 }}
-                  className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-4"
                 >
                   {quickActions.map((action) => {
                     const Icon = action.icon;
                     const inner = (
                       <div className={cn(
-                        'flex items-center gap-3 rounded-xl border border-border/60 bg-card p-4 transition-all h-full',
+                        'group flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-5 transition-all h-full',
                         action.disabled
                           ? 'opacity-55 cursor-not-allowed'
-                          : 'hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm'
+                          : 'hover:border-primary/30 hover:bg-primary/5 hover:shadow-md hover:-translate-y-0.5'
                       )}>
-                        <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0', action.iconBg)}>
-                          <Icon className={cn('h-4 w-4', action.iconColor)} />
+                        <div className="flex items-start justify-between">
+                          <div className={cn('h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0', action.iconBg)}>
+                            <Icon className={cn('h-5 w-5', action.iconColor)} />
+                          </div>
+                          <Badge className={cn('text-[10px] border-0 px-2 py-0.5', action.badgeColor)}>
+                            {action.badge}
+                          </Badge>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold">{action.label}</p>
-                          <p className="text-xs text-muted-foreground truncate">{action.description}</p>
+                        <div className="flex-1">
+                          <p className="text-base font-semibold mb-1">{action.label}</p>
+                          <p className="text-sm text-muted-foreground leading-relaxed">{action.description}</p>
                         </div>
-                        <Badge className={cn('text-[10px] border-0 flex-shrink-0 px-1.5', action.badgeColor)}>
-                          {action.badge}
-                        </Badge>
+                        {!action.disabled && (
+                          <div className="flex items-center gap-1 text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                            Get started
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </div>
+                        )}
                       </div>
                     );
 

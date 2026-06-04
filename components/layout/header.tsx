@@ -106,7 +106,7 @@ export function Header({ isPublic = false }: HeaderProps) {
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className="container flex h-16 items-center justify-between px-4 mx-auto max-w-7xl">
+      <div className="container flex h-16 2xl:h-[68px] items-center justify-between px-4 sm:px-6 xl:px-10 2xl:px-14 mx-auto max-w-[1440px]">
         {/* Brand */}
         <Link
           href={isAuthed ? '/app/dashboard' : '/'}
@@ -123,7 +123,7 @@ export function Header({ isPublic = false }: HeaderProps) {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden md:flex items-center gap-1 xl:gap-2">
           {[
             { href: '/templates', label: 'Templates' },
             { href: '/pricing', label: 'Pricing' },
@@ -131,7 +131,7 @@ export function Header({ isPublic = false }: HeaderProps) {
             <Link
               key={link.href}
               href={link.href}
-              className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg transition-colors hover:text-foreground hover:bg-accent"
+              className="px-4 py-2 xl:px-5 text-sm font-medium text-muted-foreground rounded-lg transition-colors hover:text-foreground hover:bg-accent"
             >
               {link.label}
             </Link>

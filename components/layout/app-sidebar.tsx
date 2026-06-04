@@ -19,15 +19,15 @@ export function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:flex flex-col w-52 shrink-0 sticky top-16 h-[calc(100vh-64px)] border-r border-border/60">
-      <nav className="flex-1 px-2 pt-5 pb-4 space-y-0.5 overflow-y-auto">
+    <aside className="hidden lg:flex flex-col w-52 xl:w-56 2xl:w-64 shrink-0 sticky top-16 h-[calc(100vh-64px)] border-r border-border/60">
+      <nav className="flex-1 px-2 xl:px-3 pt-5 pb-4 space-y-0.5 overflow-y-auto">
         {navLinks.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
           const isDisabled = item.disabled;
 
           const cls = cn(
-            'flex items-center justify-between gap-2.5 w-full rounded-lg px-3 py-2 text-sm transition-all',
+            'flex items-center justify-between gap-2.5 w-full rounded-lg px-3 py-2 xl:py-2.5 text-sm transition-all',
             isActive
               ? 'bg-primary/10 text-primary font-semibold'
               : isDisabled

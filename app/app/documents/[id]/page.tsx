@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { TAILOR_TEMPLATES } from '@/app/app/upload-tailor/helpers/templates';
 import { useTailorStore } from '@/lib/zustand/store';
-import { downloadSavedDocument, startDocumentUnlock } from '@/app/app/upload-tailor/helpers/api';
+import { downloadSavedDocument, startDocumentUnlock, SubscriptionLimitError } from '@/app/app/upload-tailor/helpers/api';
 
 interface DocumentDetail {
   id: string;
@@ -134,7 +134,17 @@ export default function DocumentDetailPage() {
       toast.success(`${downloadFmt.toUpperCase()} downloaded 📥`);
     } catch (err: any) {
       console.error(err);
-      toast.error('Download failed');
+      if (err instanceof SubscriptionLimitError) {
+        toast.error(
+          <div className="text-sm">
+            <p>{err.message}</p>
+            <a href="/pricing" className="underline font-semibold block mt-1">Upgrade your plan →</a>
+          </div>,
+          { autoClose: 8000 },
+        );
+      } else {
+        toast.error('Download failed');
+      }
     }
   };
 

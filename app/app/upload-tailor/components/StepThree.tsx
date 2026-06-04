@@ -28,7 +28,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { MarkdownPreview, splitChanges } from '../helpers/utils';
-import { downloadDocument, downloadSavedDocument, startDocumentUnlock } from '../helpers/api';
+import { downloadDocument, downloadSavedDocument, startDocumentUnlock, SubscriptionLimitError } from '../helpers/api';
 import type { Analysis, StepStatus } from '../types';
 import { useEffect } from 'react';
 import type { DocumentDownloadState } from '@/lib/documents/access';
@@ -195,7 +195,17 @@ export const StepThree = ({
       toast.success(`${downloadFmt.toUpperCase()} downloaded 📥`);
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.message || 'Download failed.');
+      if (err instanceof SubscriptionLimitError) {
+        toast.error(
+          <div className="text-sm">
+            <p>{err.message}</p>
+            <a href="/pricing" className="underline font-semibold block mt-1">Upgrade your plan →</a>
+          </div>,
+          { autoClose: 8000 },
+        );
+      } else {
+        toast.error(err?.message || 'Download failed.');
+      }
     }
   };
 
@@ -214,7 +224,17 @@ export const StepThree = ({
       toast.success(`${downloadFmt.toUpperCase()} downloaded 📥`);
     } catch (err: any) {
       console.error(err);
-      toast.error('Download failed.');
+      if (err instanceof SubscriptionLimitError) {
+        toast.error(
+          <div className="text-sm">
+            <p>{err.message}</p>
+            <a href="/pricing" className="underline font-semibold block mt-1">Upgrade your plan →</a>
+          </div>,
+          { autoClose: 8000 },
+        );
+      } else {
+        toast.error('Download failed.');
+      }
     }
   };
 

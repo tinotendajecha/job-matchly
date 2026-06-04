@@ -224,25 +224,30 @@ function BillingPageContent() {
                   {/* Trial countdown */}
                   {sub.status === 'TRIALING' && trialDaysLeft !== null && (
                     <div className={cn(
-                      'rounded-lg px-4 py-3 flex items-center gap-3',
+                      'rounded-lg px-4 py-3 flex items-start justify-between gap-3',
                       trialDaysLeft <= 3
                         ? 'bg-amber-500/10 border border-amber-500/20'
                         : 'bg-blue-500/10 border border-blue-500/20',
                     )}>
-                      {trialDaysLeft <= 3
-                        ? <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0" />
-                        : <Calendar className="h-4 w-4 text-blue-400 flex-shrink-0" />
-                      }
-                      <div>
-                        <p className={cn('text-sm font-medium', trialDaysLeft <= 3 ? 'text-amber-400' : 'text-blue-400')}>
-                          {trialDaysLeft === 0
-                            ? 'Trial ends today'
-                            : `${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} left in trial`}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Trial ends {format(new Date(sub.trialEndsAt!), 'dd MMM yyyy')}
-                        </p>
+                      <div className="flex items-start gap-3 flex-1">
+                        {trialDaysLeft <= 3
+                          ? <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                          : <Calendar className="h-4 w-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                        }
+                        <div>
+                          <p className={cn('text-sm font-medium', trialDaysLeft <= 3 ? 'text-amber-400' : 'text-blue-400')}>
+                            {trialDaysLeft === 0
+                              ? 'Trial ends today'
+                              : `${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} left in your free trial`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Trial ends {format(new Date(sub.trialEndsAt!), 'dd MMM yyyy')} · Subscribe to keep access.
+                          </p>
+                        </div>
                       </div>
+                      <Button asChild size="sm" variant="default" className="flex-shrink-0 text-xs h-8">
+                        <Link href="/pricing">Upgrade plan</Link>
+                      </Button>
                     </div>
                   )}
 
@@ -300,7 +305,17 @@ function BillingPageContent() {
                 {/* Usage */}
                 {usage && limits && (
                   <div className="rounded-2xl border border-border/60 bg-card p-6 space-y-4">
-                    <h3 className="text-sm font-semibold">This month's usage</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">This month's usage</h3>
+                      {sub.tier !== 'PLUS' && (
+                        <Button asChild variant="outline" size="sm" className="text-xs h-7 px-3">
+                          <Link href="/pricing">
+                            <Zap className="h-3 w-3 mr-1" />
+                            Upgrade
+                          </Link>
+                        </Button>
+                      )}
+                    </div>
                     <UsageBar
                       label="Resume tailors"
                       count={usage.tailor.count}

@@ -79,6 +79,7 @@ export async function downloadDocument(
     return true;
   } catch (err: any) {
     console.error(err);
+    if (err instanceof SubscriptionLimitError) throw err;
     throw new Error(err.message || 'Download failed');
   } finally {
     if (setDownloading) setDownloading(false);
@@ -103,7 +104,14 @@ export async function downloadSavedDocument(
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      throw new Error(data?.error || 'Download failed');
+      if (res.status === 402 && data?.code) {
+        throw new SubscriptionLimitError(
+          data.message || 'Subscription required.',
+          data.code,
+          data.redirectTo || '/pricing',
+        );
+      }
+      throw new Error(data?.message || data?.error || 'Download failed');
     }
 
     const blob = await res.blob();
@@ -199,6 +207,16 @@ export class TailorError extends Error {
     super(message);
     this.code = code;
     this.documentId = documentId;
+  }
+}
+
+export class SubscriptionLimitError extends Error {
+  code: string;
+  redirectTo: string;
+  constructor(message: string, code: string, redirectTo: string = '/pricing') {
+    super(message);
+    this.code = code;
+    this.redirectTo = redirectTo;
   }
 }
 

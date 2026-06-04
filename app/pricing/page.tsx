@@ -107,7 +107,7 @@ export default function PricingPage() {
         {/* Hero */}
         <section className="px-4 pt-16 pb-10 text-center max-w-3xl mx-auto">
           <Badge variant="outline" className="mb-4 text-xs font-medium border-primary/30 text-primary">
-            14-day free trial on all plans
+            14-day free trial on the Starter plan
           </Badge>
           <h1 className="text-4xl sm:text-5xl font-bold font-display tracking-tight mb-4">
             Simple, transparent pricing
@@ -222,10 +222,12 @@ export default function PricingPage() {
                         <span>DOCX download</span>
                       </li>
                     )}
-                    <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-                      <span>14-day free trial</span>
-                    </li>
+                    {plan.key === 'STARTER' && (
+                      <li className="flex items-center gap-2">
+                        <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                        <span>14-day free trial</span>
+                      </li>
+                    )}
                   </ul>
                 </div>
 
@@ -237,11 +239,13 @@ export default function PricingPage() {
                     size="lg"
                   >
                     <Link href={`/subscribe?tier=${plan.key}&cycle=${cycle}`}>
-                      Start free trial
+                      {plan.key === 'STARTER' ? 'Start free trial' : 'Subscribe now'}
                     </Link>
                   </Button>
                   <p className="text-xs text-muted-foreground text-center mt-2">
-                    {market === 'ZA' ? 'Card required · Cancel anytime' : 'No card required · Cancel anytime'}
+                    {plan.key === 'STARTER'
+                      ? (market === 'ZA' ? 'Card required · Cancel anytime' : 'No card required · Cancel anytime')
+                      : 'Cancel anytime'}
                   </p>
                 </div>
               </div>

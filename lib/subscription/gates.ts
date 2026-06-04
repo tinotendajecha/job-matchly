@@ -61,11 +61,12 @@ export async function requireAndConsumeUsage(
     };
     throw new SubscriptionGateError('LIMIT_REACHED', 402, {
       code: 'LIMIT_REACHED',
-      message: `You've used all ${limit} ${actionLabel[action]} this month. Upgrade for more.`,
+      message: `You've used all ${limit} ${actionLabel[action]} this month.`,
       action,
       count,
       limit,
       resetDate: resetDate.toISOString(),
+      currentTier: tier,
       requiredTier: tier === 'STARTER' ? 'PRO' : 'PLUS',
       redirectTo: '/pricing',
     });

@@ -137,10 +137,23 @@ export default function DocumentDetailPage() {
       if (err instanceof SubscriptionLimitError) {
         toast.error(
           <div className="text-sm">
-            <p>{err.message}</p>
-            <a href="/pricing" className="underline font-semibold block mt-1">Upgrade your plan →</a>
+            <p className="font-medium mb-2">{err.message}</p>
+            <div className="flex flex-col gap-1.5">
+              {err.currentTier && (
+                <a href={`/subscribe?tier=${err.currentTier}&cycle=monthly`}
+                   className="text-xs bg-primary/15 text-primary px-2 py-1 rounded font-semibold text-center hover:bg-primary/25">
+                  Subscribe to continue →
+                </a>
+              )}
+              {err.requiredTier && err.requiredTier !== err.currentTier && (
+                <a href={`/subscribe?tier=${err.requiredTier}&cycle=monthly`}
+                   className="text-xs text-muted-foreground underline text-center">
+                  Upgrade to {err.requiredTier.charAt(0) + err.requiredTier.slice(1).toLowerCase()} for more
+                </a>
+              )}
+            </div>
           </div>,
-          { autoClose: 8000 },
+          { autoClose: 12000 },
         );
       } else {
         toast.error('Download failed');

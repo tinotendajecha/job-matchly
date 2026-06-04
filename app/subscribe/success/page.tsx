@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 const TIER_LABELS: Record<string, string> = { STARTER: 'Starter', PRO: 'Pro', PLUS: 'Plus' };
 
@@ -27,10 +28,26 @@ function SubscribeSuccessPageContent() {
     if (ran.current) return;
     ran.current = true;
 
-    // ZW upgrade: webhook already handled the DB update; just show success
+    // ZW upgrade: webhook fires before Pesepay redirects here, so verify by
+    // checking whether the subscription actually changed to the expected tier.
     if (mode === 'upgrade-zw') {
-      setStatus('success');
-      setTimeout(() => router.push('/app/billing'), 2500);
+      (async () => {
+        try {
+          const subRes = await fetch('/api/subscription/status');
+          const subData = await subRes.json();
+          const sub = subData?.subscription;
+          if (sub?.tier === tier && sub?.status === 'ACTIVE') {
+            setStatus('success');
+            setTimeout(() => router.push('/app/billing'), 2500);
+          } else {
+            setErrorMsg('Payment was cancelled or not completed. Your subscription has not changed.');
+            setStatus('error');
+          }
+        } catch {
+          setErrorMsg('Could not verify payment status. Please check your billing page.');
+          setStatus('error');
+        }
+      })();
       return;
     }
 
@@ -92,16 +109,27 @@ function SubscribeSuccessPageContent() {
     );
   }
 
+  const isCancelled = errorMsg.toLowerCase().includes('cancel') || errorMsg.toLowerCase().includes('not completed');
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background flex-col gap-4 text-center px-4">
-      <XCircle className="h-12 w-12 text-destructive" />
+      <XCircle className={cn('h-12 w-12', isCancelled ? 'text-muted-foreground' : 'text-destructive')} />
       <h1 className="text-2xl font-bold font-display">
-        {isUpgrade ? 'Upgrade failed' : 'Activation failed'}
+        {isCancelled ? 'Payment cancelled' : isUpgrade ? 'Upgrade failed' : 'Activation failed'}
       </h1>
-      <p className="text-muted-foreground text-sm max-w-sm">{errorMsg}</p>
-      <Button asChild variant="outline">
-        <Link href="/pricing">Back to pricing</Link>
-      </Button>
+      <p className="text-muted-foreground text-sm max-w-sm">
+        {isCancelled
+          ? 'No charge was made. Your subscription has not changed.'
+          : errorMsg}
+      </p>
+      <div className="flex gap-3">
+        <Button asChild variant="outline">
+          <Link href="/pricing">View plans</Link>
+        </Button>
+        <Button asChild>
+          <Link href="/app/billing">Go to billing</Link>
+        </Button>
+      </div>
     </div>
   );
 }

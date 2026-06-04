@@ -62,8 +62,10 @@ function SubscribePageContent() {
 
   // Determine mode
   const isAlreadyOnTier = existingSub?.isActive && existingSub.tier === tier;
-  const isUpgradeMode = existingSub?.isActive && !isAlreadyOnTier;
-  const isDowngrade = isUpgradeMode && existingSub && TIER_RANK[tier] < TIER_RANK[existingSub.tier];
+  const isSameTierTrial = isAlreadyOnTier && existingSub?.status === 'TRIALING';
+  // Upgrade mode = has active sub AND (different tier OR same tier on trial wanting to convert)
+  const isUpgradeMode = existingSub?.isActive && (!isAlreadyOnTier || isSameTierTrial);
+  const isDowngrade = isUpgradeMode && existingSub && !isSameTierTrial && TIER_RANK[tier] < TIER_RANK[existingSub.tier];
 
   async function handleStart() {
     setLoading(true);
@@ -138,32 +140,35 @@ function SubscribePageContent() {
     );
   }
 
-  // Already on this exact tier
+  // Same tier — if TRIALING let them convert to paid; if ACTIVE redirect to billing
   if (isAlreadyOnTier) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <main className="flex-1 flex items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md text-center space-y-4">
-            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-              <Zap className="h-6 w-6 text-primary" />
+    if (existingSub?.status === 'ACTIVE') {
+      return (
+        <div className="min-h-screen bg-background flex flex-col">
+          <Header />
+          <main className="flex-1 flex items-center justify-center px-4 py-12">
+            <div className="w-full max-w-md text-center space-y-4">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                <Zap className="h-6 w-6 text-primary" />
+              </div>
+              <h1 className="text-xl font-bold font-display">
+                You're already on the {TIER_LABELS[tier]} plan
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Manage your subscription, usage, and billing from your billing page.
+              </p>
+              <Button asChild className="w-full">
+                <Link href="/app/billing">Go to billing</Link>
+              </Button>
+              <Link href="/pricing" className="block text-xs text-muted-foreground hover:underline">
+                ← Compare plans
+              </Link>
             </div>
-            <h1 className="text-xl font-bold font-display">
-              You're already on the {TIER_LABELS[tier]} plan
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Manage your subscription, usage, and billing from your billing page.
-            </p>
-            <Button asChild className="w-full">
-              <Link href="/app/billing">Go to billing</Link>
-            </Button>
-            <Link href="/pricing" className="block text-xs text-muted-foreground hover:underline">
-              ← Compare plans
-            </Link>
-          </div>
-        </main>
-      </div>
-    );
+          </main>
+        </div>
+      );
+    }
+    // TRIALING on same tier → fall through to upgrade UI so they can convert to paid
   }
 
   return (
@@ -176,12 +181,20 @@ function SubscribePageContent() {
           {/* Upgrade context badge */}
           {isUpgradeMode && existingSub && (
             <div className="flex items-center justify-center gap-2 mb-5 text-sm text-muted-foreground">
-              <Badge variant="outline" className="text-xs">{TIER_LABELS[existingSub.tier]}</Badge>
-              <ArrowRight className="h-3.5 w-3.5" />
-              <Badge variant="outline" className={cn('text-xs', isDowngrade ? 'border-amber-500/40 text-amber-500' : 'border-primary/40 text-primary')}>
-                {TIER_LABELS[tier]}
-              </Badge>
-              <span className="text-xs">{isDowngrade ? 'Downgrade' : 'Upgrade'}</span>
+              {isSameTierTrial ? (
+                <Badge variant="outline" className="text-xs border-emerald-500/40 text-emerald-500">
+                  Converting free trial to paid
+                </Badge>
+              ) : (
+                <>
+                  <Badge variant="outline" className="text-xs">{TIER_LABELS[existingSub.tier]}</Badge>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                  <Badge variant="outline" className={cn('text-xs', isDowngrade ? 'border-amber-500/40 text-amber-500' : 'border-primary/40 text-primary')}>
+                    {TIER_LABELS[tier]}
+                  </Badge>
+                  <span className="text-xs">{isDowngrade ? 'Downgrade' : 'Upgrade'}</span>
+                </>
+              )}
             </div>
           )}
 
@@ -219,12 +232,18 @@ function SubscribePageContent() {
               <CreditCard className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-primary">
-                  {isDowngrade ? 'Switching plan' : 'Upgrade now — pay today'}
+                  {isSameTierTrial
+                    ? `Subscribe to ${TIER_LABELS[tier]} — starts today`
+                    : isDowngrade ? 'Switching plan' : 'Upgrade now — pay today'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {market === 'ZA'
-                    ? `You'll be charged ${displayPrice} today. Your ${TIER_LABELS[tier]} plan activates immediately and replaces your current subscription.`
-                    : `You'll complete a payment of ${displayPrice}. Your ${TIER_LABELS[tier]} plan activates as soon as payment is confirmed.`}
+                  {isSameTierTrial
+                    ? (market === 'ZA'
+                        ? `You'll be charged ${displayPrice} today. Your free trial ends and a paid ${TIER_LABELS[tier]} subscription starts immediately.`
+                        : `You'll complete a payment of ${displayPrice}. Your paid ${TIER_LABELS[tier]} subscription starts as soon as payment is confirmed.`)
+                    : (market === 'ZA'
+                        ? `You'll be charged ${displayPrice} today. Your ${TIER_LABELS[tier]} plan activates immediately and replaces your current subscription.`
+                        : `You'll complete a payment of ${displayPrice}. Your ${TIER_LABELS[tier]} plan activates as soon as payment is confirmed.`)}
                 </p>
               </div>
             </div>
@@ -244,12 +263,17 @@ function SubscribePageContent() {
 
           {/* Feature list */}
           <ul className="space-y-2 mb-6 text-sm">
-            {isUpgradeMode ? [
+            {isUpgradeMode ? (isSameTierTrial ? [
+              `Fresh monthly limits — downloads, tailors, and cover letters reset`,
+              'Your documents and work are preserved',
+              'Billing starts from today',
+              'Cancel anytime',
+            ] : [
               `All ${TIER_LABELS[tier]} features activated immediately`,
               'Your documents and settings are preserved',
               'Billing resets from today',
               'Cancel anytime',
-            ].map((item) => (
+            ]).map((item) => (
               <li key={item} className="flex items-center gap-2 text-muted-foreground">
                 <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
                 {item}
@@ -280,7 +304,9 @@ function SubscribePageContent() {
               <CreditCard className="h-4 w-4 mr-2" />
             )}
             {isUpgradeMode
-              ? (market === 'ZA' ? `Pay ${displayPrice} · Upgrade now` : `Pay & Upgrade to ${TIER_LABELS[tier]}`)
+              ? (isSameTierTrial
+                  ? (market === 'ZA' ? `Pay ${displayPrice} · Subscribe to ${TIER_LABELS[tier]}` : `Pay & Subscribe to ${TIER_LABELS[tier]}`)
+                  : (market === 'ZA' ? `Pay ${displayPrice} · Upgrade now` : `Pay & Upgrade to ${TIER_LABELS[tier]}`))
               : (market === 'ZA' ? 'Continue to card verification' : 'Start my free trial')}
           </Button>
 

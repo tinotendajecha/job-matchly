@@ -109,6 +109,8 @@ export async function downloadSavedDocument(
           data.message || 'Subscription required.',
           data.code,
           data.redirectTo || '/pricing',
+          data.currentTier,
+          data.requiredTier,
         );
       }
       throw new Error(data?.message || data?.error || 'Download failed');
@@ -213,10 +215,14 @@ export class TailorError extends Error {
 export class SubscriptionLimitError extends Error {
   code: string;
   redirectTo: string;
-  constructor(message: string, code: string, redirectTo: string = '/pricing') {
+  currentTier?: string;
+  requiredTier?: string;
+  constructor(message: string, code: string, redirectTo: string = '/pricing', currentTier?: string, requiredTier?: string) {
     super(message);
     this.code = code;
     this.redirectTo = redirectTo;
+    this.currentTier = currentTier;
+    this.requiredTier = requiredTier;
   }
 }
 

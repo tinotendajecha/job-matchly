@@ -441,7 +441,7 @@ export default function DashboardPage() {
                         Your {subData.tier} plan has ended. Choose a plan to continue.
                       </p>
                       <Link href="/pricing">
-                        <Button size="sm" className="w-full h-8 text-xs font-semibold">Choose a plan</Button>
+                        <Button size="sm" className="w-full h-8 text-xs font-semibold mt-5">Choose a plan</Button>
                       </Link>
                     </div>
                   )}

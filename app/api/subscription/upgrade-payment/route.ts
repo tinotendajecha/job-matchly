@@ -44,8 +44,7 @@ export async function POST(req: Request) {
     const amountMinor = priceData[cycleKey];
     const currency = priceData.currency;
 
-    const appBase = process.env.APP_BASE_URL;
-    if (!appBase) throw new Error('Missing APP_BASE_URL');
+    const appBase = new URL(req.url).origin;
 
     if (market === 'ZA') {
       const email = body.paystackEmail || user.email;

@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma';
 export const runtime = 'nodejs';
 
 // ZW-only: manual renewal payment via Pesepay
-export async function POST() {
+export async function POST(req: Request) {
   const user = await requireUser().catch(() => null);
   if (!user) {
     return NextResponse.json({ ok: false, error: 'Not signed in' }, { status: 401 });
@@ -30,8 +30,7 @@ export async function POST() {
     const price = PLAN_PRICES[sub.tier].ZW[cycleKey];
     const currency = PLAN_PRICES[sub.tier].ZW.currency;
 
-    const appBase = process.env.APP_BASE_URL;
-    if (!appBase) throw new Error('Missing APP_BASE_URL');
+    const appBase = new URL(req.url).origin;
 
     const providerRef = `sub_renew_${user.id}_${Date.now()}`;
 

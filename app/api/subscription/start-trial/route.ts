@@ -59,8 +59,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: 'Email required for ZA trial' }, { status: 400 });
     }
 
-    const appBase = process.env.APP_BASE_URL;
-    if (!appBase) throw new Error('Missing APP_BASE_URL');
+    const appBase = new URL(req.url).origin;
 
     const reference = `trial_tok_${user.id}_${Date.now()}`;
     const callbackUrl = `${appBase}/subscribe/success?reference=${reference}&tier=${tier}&cycle=${billingCycle}`;

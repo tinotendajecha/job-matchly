@@ -17,6 +17,8 @@ import {
   ChevronRight,
   ArrowRight,
   CreditCard,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
@@ -26,7 +28,7 @@ import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import DashboardLoader from '@/components/dashboard-loader';
-import { formatDistanceToNow } from 'date-fns';
+import { differenceInDays, format, formatDistanceToNow } from 'date-fns';
 
 // Fallback data
 const FALLBACK_RECENT: { action: string; item: string; time: string; type: 'create' | 'tailor' | 'cover' | 'check' }[] = [
@@ -89,10 +91,20 @@ export default function DashboardPage() {
     type: 'create' | 'tailor' | 'cover' | 'check';
   }
 
+  type SubData = {
+    tier: string;
+    status: string;
+    isActive: boolean;
+    trialEndsAt: string | null;
+    currentPeriodEnd: string;
+    market: string;
+  };
+
   const [userData, setUserData] = useState<UserData>({ name: '' });
   const [recentActivity, setRecentActivity] = useState<Activity[]>(FALLBACK_RECENT);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isError, setIsError] = useState<boolean>(false);
+  const [subData, setSubData] = useState<SubData | null | undefined>(undefined); // undefined = loading
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -117,9 +129,14 @@ export default function DashboardPage() {
       try {
         setIsLoading(true);
 
-        // 1) Get user data
-        const uRes = await fetch('/api/auth/me', { cache: 'no-store' });
+        // 1) Get user data + subscription status in parallel
+        const [uRes, subRes] = await Promise.all([
+          fetch('/api/auth/me', { cache: 'no-store' }),
+          fetch('/api/subscription/status', { cache: 'no-store' }),
+        ]);
         const uJson = await uRes.json();
+        const subJson = await subRes.json();
+
         if (uJson?.ok && uJson.user) {
           setUserData({
             name: uJson.user.name || '',
@@ -130,6 +147,9 @@ export default function DashboardPage() {
           setIsError(true);
           toast.warn('Could not fetch user info — showing cached data.');
         }
+
+        // subJson.subscription is null when no record exists, or an object (active or not)
+        setSubData(subJson?.ok ? (subJson.subscription ?? null) : null);
 
         // 2) Get recent documents
         try {
@@ -210,9 +230,9 @@ export default function DashboardPage() {
                         <h1 className="text-xl font-bold font-display">
                           Welcome back{userData.name ? `, ${userData.name}` : ''}
                         </h1>
-                        {userData.subscriptionTier && (
+                        {subData?.isActive && subData.tier && (
                           <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-medium">
-                            {userData.subscriptionTier} plan
+                            {subData.tier} {subData.status === 'TRIALING' ? 'Trial' : 'plan'}
                           </Badge>
                         )}
                       </div>
@@ -391,25 +411,94 @@ export default function DashboardPage() {
                       </Button>
                     </Link>
                   </div>
-                  {userData.subscriptionTier ? (
-                    <div className="space-y-2">
+
+                  {/* Loading */}
+                  {subData === undefined && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Loading…
+                    </div>
+                  )}
+
+                  {/* No subscription record — brand new user */}
+                  {subData === null && (
+                    <div className="space-y-2.5">
+                      <p className="text-xs text-muted-foreground">No active plan. Start your free 14-day trial.</p>
+                      <Link href="/pricing">
+                        <Button size="sm" className="w-full h-8 text-xs font-semibold">Start free trial</Button>
+                      </Link>
+                    </div>
+                  )}
+
+                  {/* Subscription exists but expired / canceled */}
+                  {subData && !subData.isActive && (
+                    <div className="space-y-2.5">
                       <div className="flex items-center gap-2">
-                        <CreditCard className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-medium">{userData.subscriptionTier} plan</span>
-                        {userData.subscriptionStatus === 'TRIALING' && (
-                          <Badge variant="outline" className="text-[10px] border-amber-400/40 text-amber-500">Trial</Badge>
-                        )}
+                        <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                        <span className="text-sm font-medium text-amber-400">Subscription ended</span>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Usage resets on the 1st of each month.
+                        Your {subData.tier} plan has ended. Choose a plan to continue.
                       </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground">No active plan.</p>
                       <Link href="/pricing">
-                        <Button size="sm" className="w-full h-7 text-xs">Start free trial</Button>
+                        <Button size="sm" className="w-full h-8 text-xs font-semibold">Choose a plan</Button>
                       </Link>
+                    </div>
+                  )}
+
+                  {/* Active trial */}
+                  {subData?.isActive && subData.status === 'TRIALING' && (() => {
+                    const daysLeft = subData.trialEndsAt
+                      ? Math.max(0, differenceInDays(new Date(subData.trialEndsAt), new Date()))
+                      : 0;
+                    const isUrgent = daysLeft <= 3;
+                    return (
+                      <div className="space-y-2.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <CreditCard className="h-4 w-4 text-primary flex-shrink-0" />
+                          <span className="text-sm font-medium">{subData.tier} plan</span>
+                          <Badge variant="outline" className="text-[10px] border-blue-400/40 text-blue-400">Trial</Badge>
+                        </div>
+                        <p className={cn('text-xs', isUrgent ? 'text-amber-400 font-medium' : 'text-muted-foreground')}>
+                          {daysLeft === 0
+                            ? 'Trial ends today — subscribe to keep access.'
+                            : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left in your trial.`}
+                        </p>
+                        <Link href="/pricing">
+                          <Button size="sm" variant={isUrgent ? 'default' : 'outline'} className="w-full h-8 text-xs font-semibold">
+                            Subscribe now
+                          </Button>
+                        </Link>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Past due */}
+                  {subData?.isActive && subData.status === 'PAST_DUE' && (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                        <span className="text-sm font-medium">{subData.tier} plan</span>
+                        <Badge variant="outline" className="text-[10px] border-amber-400/40 text-amber-400">Past due</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Payment issue — update billing to keep access.</p>
+                      <Link href="/app/billing">
+                        <Button size="sm" className="w-full h-8 text-xs font-semibold">Update billing</Button>
+                      </Link>
+                    </div>
+                  )}
+
+                  {/* Active paid subscription */}
+                  {subData?.isActive && subData.status === 'ACTIVE' && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                        <span className="text-sm font-medium">{subData.tier} plan</span>
+                        <Badge variant="outline" className="text-[10px] border-emerald-400/40 text-emerald-400">Active</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Renews {format(new Date(subData.currentPeriodEnd), 'dd MMM yyyy')}
+                      </p>
                     </div>
                   )}
                 </motion.div>

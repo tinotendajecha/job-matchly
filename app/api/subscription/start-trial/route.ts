@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/auth';
 import { getMarketFromRequest } from '@/lib/market/request';
-import { startTrialZW } from '@/lib/subscription/service';
+import { startTrialZW, isSubscriptionActive } from '@/lib/subscription/service';
 import { PLAN_PRICES, PAYSTACK_TOKENIZE_AMOUNT_MINOR, TRIAL_DAYS } from '@/lib/pricing/plans';
 import { prisma } from '@/lib/prisma';
 import type { BillingCycle, SubscriptionTier } from '@prisma/client';
@@ -31,10 +31,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: 'Invalid billing cycle' }, { status: 400 });
     }
 
-    // Check for existing active subscription
+    // If ANY subscription record exists, the user has already used (or is using) their free trial.
     const existing = await prisma.subscription.findUnique({ where: { userId: user.id } });
-    if (existing && (existing.status === 'TRIALING' || existing.status === 'ACTIVE')) {
-      return NextResponse.json({ ok: false, error: 'Already subscribed' }, { status: 409 });
+    if (existing) {
+      if (isSubscriptionActive(existing)) {
+        return NextResponse.json({ ok: false, error: 'Already subscribed', code: 'ALREADY_SUBSCRIBED' }, { status: 409 });
+      }
+      // Subscription exists but has expired or was canceled — free trial already used.
+      return NextResponse.json({
+        ok: false,
+        error: 'Your free trial has already been used. Please subscribe to continue.',
+        code: 'TRIAL_USED',
+        redirectTo: '/pricing',
+      }, { status: 409 });
     }
 
     const market = getMarketFromRequest(req);

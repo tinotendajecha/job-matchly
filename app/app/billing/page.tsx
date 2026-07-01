@@ -160,12 +160,12 @@ function BillingPageContent() {
                   <CreditCard className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <h2 className="text-lg font-semibold mb-2">
-                  {sub?.status === 'EXPIRED' || sub?.status === 'CANCELED'
-                    ? 'Your subscription has ended'
-                    : 'No active subscription'}
+                  {sub ? 'Your subscription has ended' : 'No active subscription'}
                 </h2>
                 <p className="text-sm text-muted-foreground mb-5 max-w-sm mx-auto">
-                  Start a free 14-day trial to tailor resumes, generate cover letters, and download your documents.
+                  {sub
+                    ? 'Choose a plan to continue tailoring resumes, generating cover letters, and downloading your documents.'
+                    : 'Start a free 14-day trial to tailor resumes, generate cover letters, and download your documents.'}
                 </p>
                 <Button asChild size="lg">
                   <Link href="/pricing">View plans</Link>

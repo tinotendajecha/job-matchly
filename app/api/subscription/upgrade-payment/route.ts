@@ -33,9 +33,10 @@ export async function POST(req: Request) {
     }
 
     const sub = await getUserSubscription(user.id);
-    if (!sub || !isSubscriptionActive(sub)) {
-      return NextResponse.json({ ok: false, error: 'No active subscription to upgrade from' }, { status: 404 });
+    if (!sub) {
+      return NextResponse.json({ ok: false, error: 'No subscription found. Please start a free trial first.' }, { status: 404 });
     }
+    // Allow both active subscriptions (upgrade flow) and expired/canceled ones (subscribe-after-trial flow).
 
     const market = getMarketFromRequest(req);
     const cycleKey = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Download,
   Clipboard,
+  CreditCard,
   FileEdit,
   ExternalLink,
   TrendingUp,
@@ -30,7 +31,6 @@ import {
 import { MarkdownPreview, splitChanges } from '../helpers/utils';
 import { downloadDocument, downloadSavedDocument, startDocumentUnlock, SubscriptionLimitError } from '../helpers/api';
 import type { Analysis, StepStatus } from '../types';
-import { useEffect } from 'react';
 import type { DocumentDownloadState } from '@/lib/documents/access';
 
 import { useTailorStore, useCreateResumeStore } from '@/lib/zustand/store';
@@ -115,6 +115,26 @@ export const StepThree = ({
   const [downloading, setDownloading] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [startingTrial, setStartingTrial] = useState(false);
+  // 'loading' | 'none' | 'trial_used' | 'active'
+  const [subState, setSubState] = useState<'loading' | 'none' | 'trial_used' | 'active'>('loading');
+
+  const resumeNeedsTrial = Boolean(downloadState?.needsTrial);
+
+  useEffect(() => {
+    // Only fetch when the resume requires a trial/subscription decision.
+    if (!resumeNeedsTrial) {
+      setSubState('active');
+      return;
+    }
+    fetch('/api/subscription/status')
+      .then(r => r.json())
+      .then(data => {
+        if (data.subscription?.isActive) setSubState('active');
+        else if (data.subscription) setSubState('trial_used');
+        else setSubState('none');
+      })
+      .catch(() => setSubState('none'));
+  }, [resumeNeedsTrial]);
 
   const { body: previewMarkdown, changes: changesMarkdown } = splitChanges(tailoredMarkdown);
 
@@ -251,14 +271,20 @@ export const StepThree = ({
   const handleStartTrial = async () => {
     setStartingTrial(true);
     try {
-      const market = downloadState?.market ?? 'ZW';
       const res = await fetch('/api/subscription/start-trial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tier: 'STARTER', billingCycle: 'MONTHLY' }),
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to start trial');
+
+      if (!res.ok || !data.ok) {
+        if (data.code === 'TRIAL_USED') {
+          setSubState('trial_used');
+          return;
+        }
+        throw new Error(data.error || 'Failed to start trial');
+      }
 
       if (data.market === 'ZA' && data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
@@ -266,6 +292,7 @@ export const StepThree = ({
       }
 
       // ZW: trial started immediately — optimistically unlock download
+      setSubState('active');
       setTailoredDownloadState(
         downloadState ? { ...downloadState, needsTrial: false, isLocked: false, canDownload: true } : null,
       );
@@ -278,7 +305,6 @@ export const StepThree = ({
   };
 
   const isDownloading = downloading || downloadingPdf;
-  const resumeNeedsTrial = Boolean(downloadState?.needsTrial);
   const resumeIsLocked = Boolean(downloadState?.isLocked) && !resumeNeedsTrial;
   const resumeDownloadLabel = resumeIsLocked ? 'Subscribe to download' : 'Download';
 
@@ -408,21 +434,32 @@ export const StepThree = ({
                     <span className="hidden sm:inline">Open in Editor</span>
                   </Button>
 
-                  {/* Free Trial CTA or Split Download */}
+                  {/* Free Trial CTA or Subscribe CTA or Split Download */}
                   {resumeNeedsTrial ? (
-                    <Button
-                      size="sm"
-                      onClick={handleStartTrial}
-                      disabled={startingTrial || !tailoredMarkdown}
-                      className="shrink-0"
-                    >
-                      {startingTrial ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-                      ) : (
-                        <Sparkles className="h-4 w-4 mr-1.5" />
-                      )}
-                      Start Free Trial
-                    </Button>
+                    subState === 'trial_used' ? (
+                      <Button
+                        size="sm"
+                        onClick={() => router.push('/pricing')}
+                        className="shrink-0"
+                      >
+                        <CreditCard className="h-4 w-4 mr-1.5" />
+                        Subscribe to download
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={handleStartTrial}
+                        disabled={startingTrial || !tailoredMarkdown || subState === 'loading'}
+                        className="shrink-0"
+                      >
+                        {startingTrial ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                        ) : (
+                          <Sparkles className="h-4 w-4 mr-1.5" />
+                        )}
+                        Start Free Trial
+                      </Button>
+                    )
                   ) : (
                     <div className="inline-flex items-stretch shrink-0">
                       <Button

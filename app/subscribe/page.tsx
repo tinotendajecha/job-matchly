@@ -39,6 +39,8 @@ function SubscribePageContent() {
   const [email, setEmail] = useState('');
   const [checkingExisting, setCheckingExisting] = useState(true);
   const [existingSub, setExistingSub] = useState<ExistingSub | null>(null);
+  // True when user has a subscription record but it has expired/been canceled (trial already used).
+  const [hasTrialUsed, setHasTrialUsed] = useState(false);
 
   useEffect(() => {
     // Load user email and check for existing subscription in parallel
@@ -47,7 +49,12 @@ function SubscribePageContent() {
       fetch('/api/subscription/status').then(r => r.json()).catch(() => null),
     ]).then(([meData, subData]) => {
       if (meData?.user?.email) setEmail(meData.user.email);
-      if (subData?.subscription?.isActive) setExistingSub(subData.subscription);
+      if (subData?.subscription?.isActive) {
+        setExistingSub(subData.subscription);
+      } else if (subData?.subscription) {
+        // Subscription record exists but is not active — trial was already used.
+        setHasTrialUsed(true);
+      }
     }).finally(() => setCheckingExisting(false));
   }, []);
 
@@ -64,7 +71,7 @@ function SubscribePageContent() {
   const isAlreadyOnTier = existingSub?.isActive && existingSub.tier === tier;
   const isSameTierTrial = isAlreadyOnTier && existingSub?.status === 'TRIALING';
   // Upgrade mode = has active sub AND (different tier OR same tier on trial wanting to convert)
-  const isUpgradeMode = existingSub?.isActive && (!isAlreadyOnTier || isSameTierTrial);
+  const isUpgradeMode = (existingSub?.isActive && (!isAlreadyOnTier || isSameTierTrial)) || hasTrialUsed;
   const isDowngrade = isUpgradeMode && existingSub && !isSameTierTrial && TIER_RANK[tier] < TIER_RANK[existingSub.tier];
 
   async function handleStart() {
@@ -80,6 +87,12 @@ function SubscribePageContent() {
 
       if (!res.ok || !data.ok) {
         if (res.status === 409) {
+          if (data.code === 'TRIAL_USED') {
+            // Trial already used — flip into subscribe mode
+            setHasTrialUsed(true);
+            toast.info('Your free trial has already been used. Please subscribe to continue.');
+            return;
+          }
           toast.info('You already have an active subscription.');
           router.push('/app/billing');
           return;
@@ -179,15 +192,19 @@ function SubscribePageContent() {
         <div className="w-full max-w-md">
 
           {/* Upgrade context badge */}
-          {isUpgradeMode && existingSub && (
+          {isUpgradeMode && (existingSub || hasTrialUsed) && (
             <div className="flex items-center justify-center gap-2 mb-5 text-sm text-muted-foreground">
-              {isSameTierTrial ? (
+              {hasTrialUsed && !existingSub ? (
+                <Badge variant="outline" className="text-xs border-primary/40 text-primary">
+                  Trial ended — subscribing now
+                </Badge>
+              ) : isSameTierTrial ? (
                 <Badge variant="outline" className="text-xs border-emerald-500/40 text-emerald-500">
                   Converting free trial to paid
                 </Badge>
               ) : (
                 <>
-                  <Badge variant="outline" className="text-xs">{TIER_LABELS[existingSub.tier]}</Badge>
+                  <Badge variant="outline" className="text-xs">{TIER_LABELS[existingSub!.tier]}</Badge>
                   <ArrowRight className="h-3.5 w-3.5" />
                   <Badge variant="outline" className={cn('text-xs', isDowngrade ? 'border-amber-500/40 text-amber-500' : 'border-primary/40 text-primary')}>
                     {TIER_LABELS[tier]}
@@ -226,18 +243,24 @@ function SubscribePageContent() {
             </div>
           </div>
 
-          {/* Info box — different for trial vs upgrade */}
+          {/* Info box — different for trial vs upgrade vs subscribe-after-trial */}
           {isUpgradeMode ? (
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 mb-6 flex gap-3">
               <CreditCard className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-primary">
-                  {isSameTierTrial
+                  {hasTrialUsed && !existingSub
+                    ? `Subscribe to ${TIER_LABELS[tier]} — starts today`
+                    : isSameTierTrial
                     ? `Subscribe to ${TIER_LABELS[tier]} — starts today`
                     : isDowngrade ? 'Switching plan' : 'Upgrade now — pay today'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {isSameTierTrial
+                  {hasTrialUsed && !existingSub
+                    ? (market === 'ZA'
+                        ? `You'll be charged ${displayPrice} today. Your ${TIER_LABELS[tier]} subscription starts immediately.`
+                        : `You'll complete a payment of ${displayPrice}. Your ${TIER_LABELS[tier]} subscription starts as soon as payment is confirmed.`)
+                    : isSameTierTrial
                     ? (market === 'ZA'
                         ? `You'll be charged ${displayPrice} today. Your free trial ends and a paid ${TIER_LABELS[tier]} subscription starts immediately.`
                         : `You'll complete a payment of ${displayPrice}. Your paid ${TIER_LABELS[tier]} subscription starts as soon as payment is confirmed.`)
@@ -263,8 +286,8 @@ function SubscribePageContent() {
 
           {/* Feature list */}
           <ul className="space-y-2 mb-6 text-sm">
-            {isUpgradeMode ? (isSameTierTrial ? [
-              `Fresh monthly limits — downloads, tailors, and cover letters reset`,
+            {isUpgradeMode ? ((hasTrialUsed && !existingSub) || isSameTierTrial ? [
+              `Full access to ${TIER_LABELS[tier]} features`,
               'Your documents and work are preserved',
               'Billing starts from today',
               'Cancel anytime',
@@ -304,9 +327,11 @@ function SubscribePageContent() {
               <CreditCard className="h-4 w-4 mr-2" />
             )}
             {isUpgradeMode
-              ? (isSameTierTrial
-                  ? (market === 'ZA' ? `Pay ${displayPrice} · Subscribe to ${TIER_LABELS[tier]}` : `Pay & Subscribe to ${TIER_LABELS[tier]}`)
-                  : (market === 'ZA' ? `Pay ${displayPrice} · Upgrade now` : `Pay & Upgrade to ${TIER_LABELS[tier]}`))
+              ? (hasTrialUsed && !existingSub)
+                ? (market === 'ZA' ? `Pay ${displayPrice} · Subscribe to ${TIER_LABELS[tier]}` : `Pay & Subscribe to ${TIER_LABELS[tier]}`)
+                : isSameTierTrial
+                ? (market === 'ZA' ? `Pay ${displayPrice} · Subscribe to ${TIER_LABELS[tier]}` : `Pay & Subscribe to ${TIER_LABELS[tier]}`)
+                : (market === 'ZA' ? `Pay ${displayPrice} · Upgrade now` : `Pay & Upgrade to ${TIER_LABELS[tier]}`)
               : (market === 'ZA' ? 'Continue to card verification' : 'Start my free trial')}
           </Button>
 

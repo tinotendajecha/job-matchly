@@ -24,10 +24,14 @@ function SignInPageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
 
-  // Prefill email if coming from verify flow
+  // Prefill email if coming from verify flow; show error if Google auth failed
   useEffect(() => {
     const q = params.get('email');
     if (q) setFormData((s) => ({ ...s, email: q }));
+    const err = params.get('error');
+    if (err === 'google_cancelled') toast.info('Google sign-in was cancelled.');
+    if (err === 'google_failed') toast.error('Google sign-in failed. Please try again.');
+    if (err === 'google_not_configured') toast.error('Google sign-in is not available right now.');
   }, [params]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -158,11 +162,11 @@ function SignInPageContent() {
               variant="outline"
               className="w-full"
               size="lg"
-              onClick={() => toast.info('Google sign-in coming soon!')}
+              onClick={() => { window.location.href = '/api/auth/google'; }}
               disabled={isSubmitting}
             >
               <Chrome className="mr-2 h-4 w-4" />
-              Google
+              Continue with Google
             </Button>
 
             <div className="text-center text-sm text-muted-foreground">

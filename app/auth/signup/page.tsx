@@ -227,9 +227,9 @@ export default function SignUpPage() {
               </div>
             </div>
 
-            <Button variant="outline" className="w-full" size="lg" onClick={() => toast.info('Google sign-up coming soon!')} disabled={isSubmitting}>
+            <Button variant="outline" className="w-full" size="lg" onClick={() => { window.location.href = '/api/auth/google'; }} disabled={isSubmitting}>
               <Chrome className="mr-2 h-4 w-4" />
-              Google
+              Continue with Google
             </Button>
 
             <div className="text-center text-sm text-muted-foreground">

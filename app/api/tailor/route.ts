@@ -113,8 +113,15 @@ export async function POST(req: Request) {
           - Extract from resume JSON if available, otherwise identify from text
           - Quality over quantity: 2-3 standout projects better than 5 mediocre ones
 
+          ## Certifications Section (if applicable)
+          - Only include if the resume has certifications
+          - One certification per line, NO bullet prefix
+          - Format: \`**Certification Name** — Issuing Body (Year)\`
+          - Example: \`**AWS Certified Solutions Architect** — Amazon Web Services (2023)\`
+
           ## References Section (Only if Present)
-          - Format: Name, Title at Company, Relationship, Email / Contact detail like phone number
+          - Format (pipe-separated, one reference per line): \`Name | Job Title | Company | email or phone\`
+          - Example: \`Jane Doe | Senior Manager | TechCorp | jane@techcorp.com\`
           - Keep to 2-3 max
 
           ## Section Order (Exact)
@@ -124,7 +131,7 @@ export async function POST(req: Request) {
           4. ## Experience
           5. ## Education
           6. ## Projects (conditional - if applicable)
-          7. ## Certifications (if applicable )
+          7. ## Certifications (if applicable)
           8. ## References (conditional)
           9. ## Changes Summary
 

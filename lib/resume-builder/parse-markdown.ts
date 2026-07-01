@@ -295,11 +295,12 @@ function parseCertifications(content: string) {
   const results: { name: string; issuer: string; date: string }[] = [];
 
   for (const block of splitEntryBlocks(content)) {
-    const headerLine = block[0].trim();
+    // Strip bullet prefix so "- **Cert** — Issuer (Date)" and "**Cert** — Issuer (Date)" both work
+    const headerLine = block[0].trim().replace(/^[-*•]\s+/, '');
 
-    // **Cert Name** — Issuer (Date)
+    // **Cert Name** — Issuer (Date)  (also accepts plain hyphen instead of em-dash)
     const match = headerLine.match(
-      /^(?:\*{1,2})?(.+?)(?:\*{1,2})?\s*[—–]\s*(.+?)\s*\(([^)]*)\)\s*$/
+      /^(?:\*{1,2})?(.+?)(?:\*{1,2})?\s*[—–-]\s*(.+?)\s*\(([^)]*)\)\s*$/
     );
     if (match) {
       results.push({
@@ -311,10 +312,15 @@ function parseCertifications(content: string) {
     }
 
     // Pipe fallback: Name | Issuer | Date
-    const parts = headerLine.split('|').map((p) => stripBold(p).trim());
-    if (parts.length >= 2) {
-      results.push({ name: parts[0], issuer: parts[1], date: parts[2] ?? '' });
+    const pipeParts = headerLine.split('|').map((p) => stripBold(p).trim());
+    if (pipeParts.length >= 2) {
+      results.push({ name: pipeParts[0], issuer: pipeParts[1], date: pipeParts[2] ?? '' });
+      continue;
     }
+
+    // Plain name only (no issuer/date separator found)
+    const plain = stripBold(headerLine).trim();
+    if (plain) results.push({ name: plain, issuer: '', date: '' });
   }
 
   return results;
@@ -333,19 +339,42 @@ function parseReferences(content: string) {
     const trimmed = stripBold(line.trim()).replace(/^[-*•]\s+/, '');
     if (!trimmed) continue;
 
-    // **Name** | Title | Company | contact
-    const parts = trimmed.split(/\s*[|,]\s*/);
-    if (parts.length < 2) continue;
+    // Prefer pipe-separated: Name | Title | Company | contact
+    const pipeParts = trimmed.split('|').map((p) => p.trim()).filter(Boolean);
+    if (pipeParts.length >= 2) {
+      const contact = pipeParts[3] ?? '';
+      results.push({
+        name: pipeParts[0],
+        title: pipeParts[1] ?? '',
+        company: pipeParts[2] ?? '',
+        email: contact.includes('@') ? contact : '',
+        phone: !contact.includes('@') ? contact : '',
+      });
+      continue;
+    }
 
-    const name = parts[0].trim();
-    const titlePart = parts[1]?.trim() ?? '';
-    const companyPart = parts[2]?.trim() ?? '';
-    const contact = parts[3]?.trim() ?? '';
+    // Comma-separated fallback: Name, Title at Company, Relationship, Email/Phone
+    // AI prompt uses this format: "Name, Title at Company, Relationship, contact"
+    const commaParts = trimmed.split(',').map((p) => p.trim()).filter(Boolean);
+    if (commaParts.length < 2) continue;
 
-    const email = contact.includes('@') ? contact : '';
-    const phone = !contact.includes('@') ? contact : '';
+    const name = commaParts[0];
+    // "Title at Company" → split on " at " to extract title and company
+    const titleAtCompany = commaParts[1] ?? '';
+    const atMatch = titleAtCompany.match(/^(.+?)\s+at\s+(.+)$/i);
+    const title = atMatch ? atMatch[1].trim() : titleAtCompany;
+    const company = atMatch ? atMatch[2].trim() : (commaParts[2] ?? '');
+    // Last part that looks like a contact
+    const contactCandidates = commaParts.slice(atMatch ? 2 : 3);
+    const contact = contactCandidates.find((p) => p.includes('@') || /^[+\d]/.test(p)) ?? '';
 
-    results.push({ name, title: titlePart, company: companyPart, email, phone });
+    results.push({
+      name,
+      title,
+      company,
+      email: contact.includes('@') ? contact : '',
+      phone: !contact.includes('@') ? contact : '',
+    });
   }
 
   return results;

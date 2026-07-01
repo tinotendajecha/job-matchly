@@ -149,6 +149,10 @@ export const StepThree = ({
       toast.error('No tailored resume found. Please generate your resume first.');
       return;
     }
+    if (subState !== 'active') {
+      router.push('/pricing');
+      return;
+    }
     const state = parseTailoredMarkdownToBuilderState(previewMarkdown);
     useCreateResumeStore.setState({
       header: state.header,
@@ -428,7 +432,8 @@ export const StepThree = ({
                     onClick={handleOpenInEditor}
                     className="shrink-0"
                     aria-label="Open in Editor"
-                    title="Open in Editor"
+                    title={subState !== 'active' ? 'Subscribe to use the editor' : 'Open in Editor'}
+                    disabled={subState === 'loading'}
                   >
                     <FileEdit className="h-4 w-4 sm:mr-1.5" />
                     <span className="hidden sm:inline">Open in Editor</span>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Plus, Upload, FileText, Target, CreditCard, Star } from 'lucide-react';
+import { LayoutDashboard, Plus, Upload, FileText, Target, CreditCard, Star, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
@@ -10,6 +10,7 @@ const navLinks = [
   { label: 'Create Resume', href: '/app/builder/modern', icon: Plus },
   { label: 'Upload & Tailor', href: '/app/upload-tailor', icon: Upload },
   { label: 'My Documents', href: '/app/documents', icon: FileText },
+  { label: 'Career Coach', href: '', icon: MessageCircle, disabled: true, badge: 'Soon' },
   { label: 'ATS Check', href: '', icon: Target, disabled: true, badge: 'Soon' },
   { label: 'Billing', href: '/app/billing', icon: CreditCard },
   { label: 'Roadmap', href: '/app/coming-soon', icon: Star },

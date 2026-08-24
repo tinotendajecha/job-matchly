@@ -264,6 +264,41 @@ model Subscription {
   @@index([currentPeriodEnd])
 }
 
+enum BriefingSource {
+  REDDIT
+  QUORA
+  LINKEDIN
+  NEWSLETTER
+  ARTICLE
+}
+
+enum BriefingStatus {
+  PUBLISHED
+  HIDDEN
+}
+
+model BriefingItem {
+  id           String         @id @default(cuid())
+  source       BriefingSource
+  sourceDetail String
+  category     String
+  title        String
+  summary      String         @db.Text
+  image        String?
+  readTime     String
+  stat         String?
+  url          String         @unique
+  featured     Boolean        @default(false)
+  status       BriefingStatus @default(PUBLISHED)
+  publishedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, featured, createdAt])
+  @@index([category])
+}
+
 model SubscriptionUsage {
   id               String   @id @default(cuid())
   userId           String

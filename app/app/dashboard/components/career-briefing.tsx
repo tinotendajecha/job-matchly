@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Clock, MessageSquare, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -32,16 +33,36 @@ function ItemMeta({ item }: { item: BriefingItem }) {
         <Clock className="h-3 w-3" />
         {item.readTime}
       </span>
-      <span className="inline-flex items-center gap-1">
-        <MessageSquare className="h-3 w-3" />
-        {item.stat}
-      </span>
+      {item.stat && (
+        <span className="inline-flex items-center gap-1">
+          <MessageSquare className="h-3 w-3" />
+          {item.stat}
+        </span>
+      )}
     </div>
   );
 }
 
 export function CareerBriefing() {
-  const featured = BRIEFING_FEATURED;
+  const [featured, setFeatured] = useState<BriefingItem>(BRIEFING_FEATURED);
+  const [items, setItems] = useState<BriefingItem[]>(BRIEFING_ITEMS);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch('/api/dashboard/briefing', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled || !json?.ok) return;
+        if (json.featured) setFeatured(json.featured);
+        if (Array.isArray(json.items) && json.items.length) setItems(json.items);
+      })
+      .catch((err) => console.warn('Failed to load career briefing', err));
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <motion.section
@@ -109,7 +130,7 @@ export function CareerBriefing() {
 
       {/* Secondary stories */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {BRIEFING_ITEMS.map((item, index) => (
+        {items.map((item, index) => (
           <motion.a
             key={item.id}
             href={item.url}

@@ -3,5 +3,11 @@
     "app/api/export/pdf/route.ts": {
       "includeFiles": "node_modules/@sparticuz/chromium/bin/**"
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/admin/briefing-ingest",
+      "schedule": "0 6 * * *"
+    }
+  ]
 }

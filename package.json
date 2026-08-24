@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "data:ingest": "tsx data/run.ts"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.2.10",
@@ -105,6 +106,8 @@
     "@types/jsdom": "^21.1.7",
     "@types/node": "^24.3.1",
     "@types/pdf-parse": "^1.1.5",
-    "prisma": "^6.16.0"
+    "dotenv": "^16.4.5",
+    "prisma": "^6.16.0",
+    "tsx": "^4.19.2"
   }
 }

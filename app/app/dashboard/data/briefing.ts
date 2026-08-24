@@ -2,7 +2,7 @@
 // Placeholder data — shaped to match the future intelligence-agent API so the
 // UI can switch to a fetch without structural changes.
 
-export type BriefingSource = 'reddit' | 'quora' | 'linkedin' | 'newsletter';
+export type BriefingSource = 'reddit' | 'quora' | 'linkedin' | 'newsletter' | 'article';
 
 export interface BriefingItem {
   id: string;
@@ -22,6 +22,7 @@ export const SOURCE_META: Record<BriefingSource, { label: string; dot: string }>
   quora: { label: 'Quora', dot: 'bg-red-600' },
   linkedin: { label: 'LinkedIn', dot: 'bg-sky-600' },
   newsletter: { label: 'Newsletter', dot: 'bg-violet-500' },
+  article: { label: 'Article', dot: 'bg-slate-500' },
 };
 
 export const BRIEFING_FEATURED: BriefingItem = {

@@ -5,9 +5,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { GripVertical, Plus, Trash2, X } from 'lucide-react';
+import { GripVertical, Loader2, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { useCreateResumeStore } from '@/lib/zustand/store';
+import { suggestProjectDescription } from '../lib/ai-suggest';
 import { useState } from 'react';
+import { toast } from 'react-toastify';
 
 export function ProjectsSection() {
   const projects = useCreateResumeStore((state) => state.projects);
@@ -18,12 +20,32 @@ export function ProjectsSection() {
   const removeProjectTechnology = useCreateResumeStore((state) => state.removeProjectTechnology);
 
   const [techInputs, setTechInputs] = useState<Record<string, string>>({});
+  const [suggestingId, setSuggestingId] = useState<string | null>(null);
 
   const handleAddTechnology = (projId: string) => {
     const input = techInputs[projId]?.trim();
     if (input) {
       addProjectTechnology(projId, input);
       setTechInputs({ ...techInputs, [projId]: '' });
+    }
+  };
+
+  const aiSuggest = async (projId: string) => {
+    const proj = projects.find((p) => p.id === projId);
+    if (!proj) return;
+    setSuggestingId(projId);
+    try {
+      const { description } = await suggestProjectDescription({
+        name: proj.name,
+        technologies: proj.technologies,
+        currentDescription: proj.description,
+      });
+      updateProject(projId, { description });
+      toast.success('Description suggested!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not generate a suggestion. Try again.');
+    } finally {
+      setSuggestingId(null);
     }
   };
 
@@ -72,7 +94,23 @@ export function ProjectsSection() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Description</Label>
+                  <div className="flex justify-between items-center">
+                    <Label>Description</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => aiSuggest(proj.id)}
+                      disabled={suggestingId === proj.id}
+                      className="gap-1"
+                    >
+                      {suggestingId === proj.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3" />
+                      )}
+                      AI Suggest
+                    </Button>
+                  </div>
                   <Textarea
                     value={proj.description}
                     onChange={(e) => updateProject(proj.id, { description: e.target.value })}

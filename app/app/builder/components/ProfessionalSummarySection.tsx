@@ -2,16 +2,41 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { GripVertical, Sparkles } from 'lucide-react';
+import { GripVertical, Loader2, Sparkles } from 'lucide-react';
 import { useCreateResumeStore } from '@/lib/zustand/store';
+import { suggestSummary } from '../lib/ai-suggest';
+import { useState } from 'react';
 import { toast } from 'react-toastify';
 
 export function ProfessionalSummarySection() {
   const professionalSummary = useCreateResumeStore((state) => state.professionalSummary);
   const setProfessionalSummary = useCreateResumeStore((state) => state.setProfessionalSummary);
+  const header = useCreateResumeStore((state) => state.header);
+  const experience = useCreateResumeStore((state) => state.experience);
+  const skills = useCreateResumeStore((state) => state.skills);
 
-  const aiSuggest = () => {
-    toast.info('AI suggestions feature coming soon!');
+  const [isSuggesting, setIsSuggesting] = useState(false);
+
+  const aiSuggest = async () => {
+    setIsSuggesting(true);
+    try {
+      const { summary } = await suggestSummary({
+        title: header.title,
+        currentSummary: professionalSummary,
+        experience: experience.map((exp) => ({
+          role: exp.role,
+          company: exp.company,
+          achievements: exp.achievements,
+        })),
+        skills,
+      });
+      setProfessionalSummary(summary);
+      toast.success('Summary suggested!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not generate a suggestion. Try again.');
+    } finally {
+      setIsSuggesting(false);
+    }
   };
 
   return (
@@ -30,9 +55,14 @@ export function ProfessionalSummarySection() {
               variant="outline"
               size="sm"
               onClick={aiSuggest}
+              disabled={isSuggesting}
               className="gap-1"
             >
-              <Sparkles className="h-3 w-3" />
+              {isSuggesting ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="h-3 w-3" />
+              )}
               AI Suggest
             </Button>
           </div>
@@ -51,4 +81,3 @@ export function ProfessionalSummarySection() {
     </AccordionItem>
   );
 }
-

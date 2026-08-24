@@ -3,8 +3,9 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { GripVertical, Plus, Trash2, X } from 'lucide-react';
+import { GripVertical, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { useCreateResumeStore } from '@/lib/zustand/store';
+import { suggestAchievements } from '../lib/ai-suggest';
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 
@@ -15,8 +16,11 @@ export function ExperienceSection() {
   const removeExperience = useCreateResumeStore((state) => state.removeExperience);
   const addExperienceAchievement = useCreateResumeStore((state) => state.addExperienceAchievement);
   const removeExperienceAchievement = useCreateResumeStore((state) => state.removeExperienceAchievement);
+  const header = useCreateResumeStore((state) => state.header);
+  const professionalSummary = useCreateResumeStore((state) => state.professionalSummary);
 
   const [achievementInputs, setAchievementInputs] = useState<Record<string, string>>({});
+  const [suggestingId, setSuggestingId] = useState<string | null>(null);
 
   const handleAddAchievement = (expId: string) => {
     const input = achievementInputs[expId]?.trim();
@@ -26,8 +30,28 @@ export function ExperienceSection() {
     }
   };
 
-  const aiSuggest = () => {
-    toast.info('AI suggestions feature coming soon!');
+  const aiSuggest = async (expId: string) => {
+    const exp = experience.find((e) => e.id === expId);
+    if (!exp) return;
+    setSuggestingId(expId);
+    try {
+      const { achievements } = await suggestAchievements({
+        role: exp.role,
+        company: exp.company,
+        startDate: exp.startDate,
+        endDate: exp.endDate,
+        isCurrent: exp.isCurrent,
+        existingAchievements: exp.achievements,
+        title: header.title,
+        summary: professionalSummary,
+      });
+      updateExperience(expId, { achievements: [...exp.achievements, ...achievements] });
+      toast.success(`Added ${achievements.length} suggested achievement${achievements.length === 1 ? '' : 's'}!`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not generate suggestions. Try again.');
+    } finally {
+      setSuggestingId(null);
+    }
   };
 
   return (
@@ -107,10 +131,15 @@ export function ExperienceSection() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={aiSuggest}
+                    onClick={() => aiSuggest(exp.id)}
+                    disabled={suggestingId === exp.id}
                     className="gap-1"
                   >
-                    <Plus className="h-3 w-3" />
+                    {suggestingId === exp.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Plus className="h-3 w-3" />
+                    )}
                     AI Suggest
                   </Button>
                 </div>

@@ -5,8 +5,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { BRIEFING_FEATURED, BRIEFING_ITEMS } from "@/app/app/dashboard/data/briefing";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });

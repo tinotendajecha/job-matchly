@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 // import { requireAdminUser } from '@/lib/admin-auth';
 import { requireAdmin } from '../middleware';
+import { buildUserFilterWhere, parseUserFilter } from '@/lib/admin/userFilter';
 import { subDays, subMonths } from 'date-fns';
 
 export async function GET(request: NextRequest) {
@@ -20,58 +21,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const skip = (page - 1) * limit;
 
-    // Search param
-    const search = searchParams.get('search') || '';
-
-    // Filter params
-    const status = searchParams.get('status') || 'all'; // all, active, inactive
-    const accountType = searchParams.get('accountType') || 'all'; // all, free, paid
-
-    // Build where clause
-    const where: any = {};
-
-    // Search filter
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    // Status filter (active = has recent session, inactive = no recent session)
-    if (status === 'active') {
-      where.sessions = {
-        some: {
-          createdAt: { gte: subDays(new Date(), 30) },
-        },
-      };
-    } else if (status === 'inactive') {
-      where.OR = [
-        { sessions: { none: {} } },
-        {
-          sessions: {
-            every: {
-              createdAt: { lt: subDays(new Date(), 30) },
-            },
-          },
-        },
-      ];
-    }
-
-    // Account type filter
-    if (accountType === 'paid') {
-      where.purchases = {
-        some: {
-          status: 'PAID',
-        },
-      };
-    } else if (accountType === 'free') {
-      where.purchases = {
-        none: {
-          status: 'PAID',
-        },
-      };
-    }
+    // Shared with the broadcast audience preview/send so the counts always agree.
+    const where = buildUserFilterWhere(parseUserFilter(searchParams));
 
     // Fetch users with pagination
     const [users, totalCount] = await Promise.all([

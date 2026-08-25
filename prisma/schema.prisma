@@ -70,6 +70,9 @@ model User {
   // Admin flag
   isAdmin           Boolean   @default(false)
 
+  // Email broadcast preferences
+  marketingOptOut Boolean @default(false)
+
   // relations
   sessions      Session[]
   documents     Document[]
@@ -322,6 +325,28 @@ model IngestRun {
   finishedAt   DateTime?
 
   @@index([startedAt])
+}
+
+enum BroadcastStatus {
+  SENDING
+  COMPLETED
+  FAILED
+}
+
+model EmailBroadcast {
+  id             String          @id @default(cuid())
+  subject        String
+  body           String          @db.Text
+  audienceFilter Json
+  recipientCount Int             @default(0)
+  sentCount      Int             @default(0)
+  failedCount    Int             @default(0)
+  status         BroadcastStatus @default(SENDING)
+  sentByEmail    String
+  createdAt      DateTime        @default(now())
+  completedAt    DateTime?
+
+  @@index([createdAt])
 }
 
 model SubscriptionUsage {

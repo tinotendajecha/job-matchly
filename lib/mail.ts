@@ -1,9 +1,3 @@
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY || "");
-
-
-
 const FROM = process.env.EMAIL_FROM || "JobMatchly <no-reply@example.com>";
 
 export function verifyEmailSubject() {
@@ -146,6 +140,195 @@ export function verifyEmailHTML(code: string) {
     </table>
   </body>
 </html>`;
+}
+
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Admin-authored broadcast. `bodyText` is PLAIN TEXT written in the admin
+ * composer — it is escaped, then blank-line-separated blocks become paragraphs.
+ */
+export function broadcastEmailHTML(opts: {
+  subject: string;
+  bodyText: string;
+  name?: string | null;
+  unsubscribeUrl?: string;
+}) {
+  const brandGreen = "#A4FF3C";
+  const brandText = "#0f172a";
+  const mutedText = "#64748b";
+  const cardBorder = "#e2e8f0";
+  const surface = "#ffffff";
+  const bg = "#f8fafc";
+
+  const greetingName = (opts.name || "there").trim() || "there";
+  const personalized = opts.bodyText.replace(/\{\{\s*name\s*\}\}/gi, greetingName);
+
+  const paragraphs = escapeHtml(personalized)
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map(
+      (block) =>
+        `<p style="margin:0 0 14px 0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;line-height:1.6;color:${brandText};">${block.replace(
+          /\n/g,
+          "<br />"
+        )}</p>`
+    )
+    .join("");
+
+  const unsubscribeBlock = opts.unsubscribeUrl
+    ? `<p style="margin:8px 0 0 0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:${mutedText};">
+         Don't want these emails? <a href="${opts.unsubscribeUrl}" style="color:${mutedText};">Unsubscribe</a>.
+       </p>`
+    : "";
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>${escapeHtml(opts.subject)}</title>
+    <meta name="color-scheme" content="light only" />
+  </head>
+  <body style="margin:0;padding:0;background:${bg};">
+    <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background:${bg};padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellPadding="0" cellSpacing="0" style="width:600px;max-width:92%;background:${surface};border:1px solid ${cardBorder};border-radius:20px;">
+            <tr><td style="padding:0;"><div style="height:6px;background:${brandGreen};border-radius:20px 20px 0 0;"></div></td></tr>
+            <tr>
+              <td style="padding:28px 28px 8px 28px;">
+                <div style="display:inline-block;padding:10px 12px;background:${brandGreen};border-radius:12px;">
+                  <span style="font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-weight:700;color:#000;font-size:14px;">JobMatchly</span>
+                </div>
+                <div style="height:16px;"></div>
+                <h1 style="margin:0 0 14px 0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:20px;line-height:1.35;color:${brandText};">
+                  ${escapeHtml(opts.subject)}
+                </h1>
+                ${paragraphs}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:12px 28px 28px 28px;">
+                <hr style="border:0;border-top:1px solid ${cardBorder};margin:0 0 12px 0;" />
+                <p style="margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:${mutedText};">
+                  © ${new Date().getFullYear()} JobMatchly
+                </p>
+                ${unsubscribeBlock}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+export function broadcastEmailText(bodyText: string, name?: string | null, unsubscribeUrl?: string) {
+  const greetingName = (name || "there").trim() || "there";
+  const personalized = bodyText.replace(/\{\{\s*name\s*\}\}/gi, greetingName);
+  return unsubscribeUrl ? `${personalized}\n\n—\nUnsubscribe: ${unsubscribeUrl}` : personalized;
+}
+
+export interface BroadcastRecipient {
+  email: string;
+  name?: string | null;
+  unsubscribeUrl?: string;
+}
+
+export interface BroadcastSendResult {
+  sent: number;
+  failed: number;
+}
+
+const RESEND_BATCH_LIMIT = 100;
+
+/**
+ * Sends one personalized email per recipient via Resend's batch endpoint.
+ * A failed chunk counts every recipient in that chunk as failed rather than
+ * aborting — a partial send is still reported accurately.
+ */
+export async function sendBroadcastBatch(
+  recipients: BroadcastRecipient[],
+  subject: string,
+  bodyText: string
+): Promise<BroadcastSendResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM || "JobMatchly <no-reply@jobmatchly.app>";
+
+  if (!apiKey) {
+    console.log(`[DEV] Would broadcast "${subject}" to ${recipients.length} recipient(s)`);
+    return { sent: 0, failed: recipients.length };
+  }
+
+  let sent = 0;
+  let failed = 0;
+
+  for (let i = 0; i < recipients.length; i += RESEND_BATCH_LIMIT) {
+    const chunk = recipients.slice(i, i + RESEND_BATCH_LIMIT);
+    const payload = chunk.map((r) => ({
+      from,
+      to: r.email,
+      subject,
+      html: broadcastEmailHTML({ subject, bodyText, name: r.name, unsubscribeUrl: r.unsubscribeUrl }),
+      text: broadcastEmailText(bodyText, r.name, r.unsubscribeUrl),
+    }));
+
+    try {
+      const res = await fetch("https://api.resend.com/emails/batch", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        console.error("Resend batch failed:", res.status, await res.text().catch(() => ""));
+        failed += chunk.length;
+      } else {
+        sent += chunk.length;
+      }
+    } catch (e) {
+      console.error("Resend batch threw:", (e as Error)?.message || e);
+      failed += chunk.length;
+    }
+  }
+
+  return { sent, failed };
+}
+
+/** Single email — used by the composer's "send test" button. */
+export async function sendSingleBroadcastEmail(to: string, subject: string, bodyText: string) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM || "JobMatchly <no-reply@jobmatchly.app>";
+
+  if (!apiKey) {
+    console.log(`[DEV] Would send test "${subject}" to ${to}`);
+    return;
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from,
+      to,
+      subject,
+      html: broadcastEmailHTML({ subject, bodyText, name: null }),
+      text: broadcastEmailText(bodyText, null),
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Resend failed (${res.status}): ${await res.text().catch(() => "")}`);
+  }
 }
 
 // keep the same signature your signup route already calls

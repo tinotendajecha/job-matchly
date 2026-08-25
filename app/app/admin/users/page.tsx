@@ -213,8 +213,8 @@ export default function UsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="free">Free</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="free">Non-paying</SelectItem>
+                  <SelectItem value="paid">Paying</SelectItem>
                 </SelectContent>
               </Select>
 

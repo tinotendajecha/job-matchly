@@ -72,10 +72,18 @@ export function buildUserFilterWhere(
     });
   }
 
+  // "Paying" means a COMPLETED download unlock or a live subscription.
+  // Deliberately NOT "any PAID purchase": SYSTEM_BONUS grants carry status
+  // PAID, which would classify ~78 users who have never paid as customers.
+  const payingConditions: Prisma.UserWhereInput[] = [
+    { purchases: { some: { status: "PAID", type: "RESUME_DOWNLOAD_UNLOCK" } } },
+    { subscription: { status: "ACTIVE" } },
+  ];
+
   if (filter.accountType === "paid") {
-    and.push({ purchases: { some: { status: "PAID" } } });
+    and.push({ OR: payingConditions });
   } else if (filter.accountType === "free") {
-    and.push({ purchases: { none: { status: "PAID" } } });
+    and.push({ NOT: { OR: payingConditions } });
   }
 
   if (options.emailableOnly) {
@@ -97,7 +105,8 @@ export function buildUserFilterWhere(
 export function describeUserFilter(filter: UserFilter): string {
   const parts: string[] = [];
   if (filter.status && filter.status !== "all") parts.push(`${filter.status} users`);
-  if (filter.accountType && filter.accountType !== "all") parts.push(`${filter.accountType} plan`);
+  if (filter.accountType === "paid") parts.push("paying customers");
+  else if (filter.accountType === "free") parts.push("non-paying");
   if (filter.search) parts.push(`matching "${filter.search}"`);
   return parts.length ? parts.join(", ") : "all users";
 }

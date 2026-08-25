@@ -323,8 +323,8 @@ export default function BroadcastPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All accounts</SelectItem>
-                  <SelectItem value="free">Free</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="free">Non-paying</SelectItem>
+                  <SelectItem value="paid">Paying</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -9,7 +9,10 @@ export interface AdminMetrics {
   activationRate: number;
   churnRate: number;
   freeUsers: number;
-  paidUsers: number;
+  /** COMPLETED download unlock or ACTIVE subscription — NOT "any PAID purchase". */
+  payingCustomers: number;
+  /** Users holding SYSTEM_BONUS grants. Reported separately; these are not customers. */
+  bonusGrantUsers: number;
   avgDocsPerUser: number;
   activeSubscribersByTier: Array<{ tier: string; count: number }>;
   trialingSubscribers: number;
@@ -19,7 +22,7 @@ export interface ChartData {
   dailySignups: Array<{ date: string; signups: number }>;
   activeUsers: Array<{ date: string; active: number }>;
   documentsByType: Array<{ type: string; count: number }>;
-  revenueTrend: Array<{ month: string; revenue: number }>;
+  documentsTrend: Array<{ month: string; documents: number }>;
   userDistribution: Array<{ name: string; value: number }>;
 }
 

@@ -27,10 +27,12 @@ export async function GET(request: NextRequest) {
       inactiveUsers,
       dailySignupsRaw,
       documentsByTypeRaw,
-      revenueByMonthRaw,
+      documentsByMonthRaw,
       sessionsForActiveTrend,
       subscribersByTierRaw,
       trialingSubscribers,
+      payingCustomers,
+      bonusGrantUsers,
       recentActivitiesRaw,
     ] = await Promise.all([
       prisma.user.count(),
@@ -68,9 +70,11 @@ export async function GET(request: NextRequest) {
 
       prisma.document.groupBy({ by: ['kind'], _count: true }),
 
-      prisma.purchase.findMany({
-        where: { status: 'PAID', createdAt: { gte: sixMonthsAgo } },
-        select: { amount: true, createdAt: true },
+      // Documents per month — replaces the old revenue series, which summed
+      // SYSTEM_BONUS grants and so plotted ~$1 of "revenue" across 6 months.
+      prisma.document.findMany({
+        where: { createdAt: { gte: sixMonthsAgo } },
+        select: { createdAt: true },
       }),
 
       prisma.session.findMany({
@@ -85,6 +89,20 @@ export async function GET(request: NextRequest) {
       }),
 
       prisma.subscription.count({ where: { status: 'TRIALING' } }),
+
+      // A real paying customer: a COMPLETED download unlock, or a live
+      // subscription. Deliberately NOT "any PAID purchase" — SYSTEM_BONUS
+      // grants carry status PAID and would count 78 users who never paid.
+      prisma.user.count({
+        where: {
+          OR: [
+            { purchases: { some: { status: 'PAID', type: 'RESUME_DOWNLOAD_UNLOCK' } } },
+            { subscription: { status: 'ACTIVE' } },
+          ],
+        },
+      }),
+
+      prisma.user.count({ where: { purchases: { some: { type: 'SYSTEM_BONUS' } } } }),
 
       Promise.all([
         prisma.user.findMany({
@@ -120,10 +138,7 @@ export async function GET(request: NextRequest) {
     const activationRate = totalUsers > 0 ? (usersWithDocuments / totalUsers) * 100 : 0;
     const churnRate = totalUsers > 0 ? (inactiveUsers / totalUsers) * 100 : 0;
 
-    const paidUsersCount = await prisma.user.count({
-      where: { purchases: { some: { status: 'PAID' } } },
-    });
-    const freeUsers = totalUsers - paidUsersCount;
+    const freeUsers = totalUsers - payingCustomers - trialingSubscribers;
     const avgDocsPerUser = totalUsers > 0 ? totalDocuments / totalUsers : 0;
 
     const dailySignupsMap = new Map<string, number>();
@@ -160,16 +175,16 @@ export async function GET(request: NextRequest) {
       count: item._count,
     }));
 
-    const revenueByMonth = new Map<string, number>();
+    const documentsByMonth = new Map<string, number>();
     for (let i = 0; i < 6; i++) {
-      revenueByMonth.set(format(subMonths(now, i), 'MMM yyyy'), 0);
+      documentsByMonth.set(format(subMonths(now, i), 'MMM yyyy'), 0);
     }
-    revenueByMonthRaw.forEach((purchase) => {
-      const month = format(new Date(purchase.createdAt), 'MMM yyyy');
-      revenueByMonth.set(month, (revenueByMonth.get(month) || 0) + purchase.amount);
+    documentsByMonthRaw.forEach((doc) => {
+      const month = format(new Date(doc.createdAt), 'MMM yyyy');
+      documentsByMonth.set(month, (documentsByMonth.get(month) || 0) + 1);
     });
-    const revenueTrend = Array.from(revenueByMonth.entries())
-      .map(([month, revenue]) => ({ month, revenue: revenue / 100 }))
+    const documentsTrend = Array.from(documentsByMonth.entries())
+      .map(([month, documents]) => ({ month, documents }))
       .reverse();
 
     const [recentSignups, recentDocuments, recentPurchases] = recentActivitiesRaw;
@@ -216,7 +231,8 @@ export async function GET(request: NextRequest) {
           activationRate,
           churnRate,
           freeUsers,
-          paidUsers: paidUsersCount,
+          payingCustomers,
+          bonusGrantUsers,
           avgDocsPerUser,
           activeSubscribersByTier,
           trialingSubscribers,
@@ -225,10 +241,11 @@ export async function GET(request: NextRequest) {
           dailySignups,
           activeUsers: activeUsersTrend,
           documentsByType,
-          revenueTrend,
+          documentsTrend,
           userDistribution: [
-            { name: 'Free Users', value: freeUsers },
-            { name: 'Paid Users', value: paidUsersCount },
+            { name: 'Free', value: freeUsers },
+            { name: 'Trialing', value: trialingSubscribers },
+            { name: 'Paying', value: payingCustomers },
           ],
         },
         recentActivity,

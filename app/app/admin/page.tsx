@@ -153,10 +153,10 @@ export default function AdminDashboard() {
           }
         />
         <MetricCard
-          title="Paid Users"
-          value={formatNumber(metrics.paidUsers)}
+          title="Paying Customers"
+          value={formatNumber(metrics.payingCustomers)}
           icon={CreditCard}
-          description="Users with at least 1 paid purchase"
+          description={`Completed unlock or active plan · ${formatNumber(metrics.bonusGrantUsers)} hold bonus credits`}
         />
       </div>
 
@@ -283,12 +283,12 @@ export default function AdminDashboard() {
 
         <Card className="bg-card border-border w-full min-w-0">
           <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg truncate">Revenue Trend (6 Months)</CardTitle>
+            <CardTitle className="text-base sm:text-lg truncate">Documents Created (6 Months)</CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-6 pt-0">
             <div className="w-full overflow-hidden">
               <ResponsiveContainer width="100%" height={250} minWidth={0}>
-                <AreaChart data={charts.revenueTrend} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                <AreaChart data={charts.documentsTrend} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="month"
@@ -309,7 +309,7 @@ export default function AdminDashboard() {
                   />
                   <Area
                     type="monotone"
-                    dataKey="revenue"
+                    dataKey="documents"
                     stroke="hsl(var(--primary))"
                     fill="hsl(var(--primary))"
                     fillOpacity={0.3}

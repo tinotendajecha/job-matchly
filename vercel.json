@@ -8,6 +8,10 @@
     {
       "path": "/api/admin/briefing-ingest",
       "schedule": "0 6 * * 1"
+    },
+    {
+      "path": "/api/admin/jobs-ingest",
+      "schedule": "0 5 * * *"
     }
   ]
 }

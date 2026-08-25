@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "data:ingest": "tsx data/run.ts"
+    "data:ingest": "tsx data/run.ts",
+    "jobs:ingest": "tsx data/jobs/run.ts",
+    "jobs:tag": "tsx data/jobs/tagRun.ts",
+    "jobs:match": "tsx data/jobs/matchRun.ts"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.2.10",

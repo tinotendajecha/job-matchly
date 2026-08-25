@@ -12,6 +12,7 @@ import DashboardLoader from '@/components/dashboard-loader';
 
 import { GreetingHero } from './components/greeting-hero';
 import { QuickActions } from './components/quick-actions';
+import { JobsStrip } from './components/jobs-strip';
 import { CareerBriefing } from './components/career-briefing';
 import { CoachCard } from './components/coach-card';
 import { PlanCard, type SubData } from './components/plan-card';
@@ -133,6 +134,7 @@ export default function DashboardPage() {
               <div className="space-y-6 min-w-0">
                 <GreetingHero name={userData.name} planLabel={planLabel} />
                 <QuickActions />
+                <JobsStrip />
                 <CareerBriefing />
                 <RecentActivity activities={recentActivity} />
               </div>

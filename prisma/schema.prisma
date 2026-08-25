@@ -83,6 +83,8 @@ model User {
   profile       Profile?
   subscription  Subscription?
   usageRecords  SubscriptionUsage[]
+  profession    UserProfession?
+  jobMatches    JobMatch[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -313,8 +315,15 @@ enum IngestStatus {
   FAILED
 }
 
+enum IngestKind {
+  BRIEFING
+  JOBS
+  TAGGING
+}
+
 model IngestRun {
   id           String        @id @default(cuid())
+  kind         IngestKind    @default(BRIEFING)
   trigger      IngestTrigger
   status       IngestStatus  @default(RUNNING)
   saved        Int           @default(0)
@@ -370,6 +379,81 @@ model EmailDelivery {
 
   @@index([broadcastId])
   @@index([createdAt]) // admin error feed orders by this across all deliveries
+}
+
+enum JobSource {
+  VACANCYMAIL
+  ADZUNA
+}
+
+enum JobStatus {
+  ACTIVE
+  EXPIRED
+  HIDDEN
+}
+
+model JobPost {
+  id             String     @id @default(cuid())
+  source         JobSource
+  sourceRef      String // stable id from the source
+  url            String     @unique
+  title          String
+  company        String?
+  companyLogo    String?
+  location       String?
+  market         MarketCode
+  employmentType String?
+  salaryText     String?
+  description    String     @db.Text
+  /// Profession bracket, taken from the source's own taxonomy — no AI involved.
+  bracket        String?
+  sourceCategory String? // raw category as the source labelled it
+  seniority      String? // INTERN | GRADUATE | JUNIOR | MID | SENIOR | LEAD
+  skills         Json? // string[]
+  postedAt       DateTime?
+  expiresAt      DateTime?
+  status         JobStatus  @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  matches JobMatch[]
+
+  @@unique([source, sourceRef])
+  @@index([market, status, postedAt])
+  @@index([bracket])
+}
+
+/// What we believe a user does, and — importantly — what that was inferred from.
+model UserProfession {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  bracket     String
+  primaryRole String?
+  seniority   String?
+  skills      Json?
+  locations   Json?
+  confidence  Float    @default(0)
+  method      String   @default("RULES") // RULES | AI — keeps AI spend auditable
+  evidence    String?  @db.Text // the text that produced this tag
+  derivedAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model JobMatch {
+  id        String   @id @default(cuid())
+  userId    String
+  jobId     String
+  score     Float
+  reasons   Json?
+  createdAt DateTime @default(now())
+
+  job  JobPost @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobId])
+  @@index([userId, score])
 }
 
 enum DeviceType {

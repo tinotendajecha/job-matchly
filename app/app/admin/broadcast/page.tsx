@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Send, Users, Loader2, AlertCircle, CheckCircle2, MailWarning } from 'lucide-react';
+import { Send, Users, Loader2, AlertCircle, CheckCircle2, MailWarning, Link as LinkIcon } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { formatRelativeTime } from '../lib/utils';
 
@@ -153,6 +153,13 @@ export default function BroadcastPage() {
       cancelled = true;
     };
   }, [debouncedSearch, status, accountType]);
+
+  // Links to the dashboard; middleware sends unauthenticated users to sign-in
+  // and then on to this page, and geo-redirects ZA visitors to the .co.za domain.
+  function insertAppLink() {
+    const link = '[Return to JobMatchly](https://www.jobmatchly.site/app/dashboard)';
+    setBody((b) => (b.trim() ? `${b.replace(/\s*$/, '')}\n\n${link}\n` : `${link}\n`));
+  }
 
   async function openDeliveries(row: BroadcastRow, refresh = true) {
     setDeliveryFor(row);
@@ -355,9 +362,19 @@ export default function BroadcastPage() {
               rows={10}
               placeholder={"Hi {{name}},\n\nIt's been a while since you last tailored a CV...\n\nLeave a blank line between paragraphs."}
             />
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button type="button" variant="outline" size="sm" onClick={insertAppLink}>
+                <LinkIcon className="h-3.5 w-3.5 mr-1.5" />
+                Insert link to app
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                or type <code className="text-foreground">[Return to JobMatchly](https://…)</code>
+              </span>
+            </div>
             <p className="text-xs text-muted-foreground">
               Use <code className="text-foreground">{'{{name}}'}</code> to insert each recipient's first name. Blank
-              lines become paragraphs. An unsubscribe link is added automatically.
+              lines become paragraphs. Links and bare URLs become clickable. An unsubscribe link is added
+              automatically.
             </p>
           </div>
 

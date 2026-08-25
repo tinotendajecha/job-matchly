@@ -150,6 +150,39 @@ function escapeHtml(s: string) {
     .replace(/"/g, "&quot;");
 }
 
+// [Label](https://…) written in the composer, plus any bare URL.
+const MD_LINK_RE = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
+const BARE_URL_RE = /(https?:\/\/[^\s<>"']+)/g;
+
+/**
+ * Turns composer text into safe HTML with working links.
+ * Runs on ALREADY-ESCAPED text, and only ever emits http/https hrefs, so an
+ * admin can't (even accidentally) produce a javascript: or data: link.
+ */
+function linkifyEscaped(escaped: string): string {
+  const anchor = (href: string, label: string) =>
+    `<a href="${href}" style="color:#1a56db;text-decoration:underline;">${label}</a>`;
+
+  const withMarkdown = escaped.replace(MD_LINK_RE, (_m, label: string, url: string) => anchor(url, label));
+
+  // Then bare URLs — but not ones already inside an anchor we just created.
+  return withMarkdown.replace(BARE_URL_RE, (match, url: string, offset: number, whole: string) => {
+    const before = whole.slice(0, offset);
+    const insideAnchor = before.lastIndexOf("<a ") > before.lastIndexOf("</a>");
+    return insideAnchor ? match : anchor(url, url);
+  });
+}
+
+/** Escapes, linkifies, then splits blank-line-separated blocks into paragraphs. */
+function renderParagraphs(text: string, style: string): string {
+  return linkifyEscaped(escapeHtml(text))
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => `<p style="${style}">${block.replace(/\n/g, "<br />")}</p>`)
+    .join("");
+}
+
 /**
  * Admin-authored broadcast. `bodyText` is PLAIN TEXT written in the admin
  * composer — it is escaped, then blank-line-separated blocks become paragraphs.
@@ -170,18 +203,10 @@ export function broadcastEmailHTML(opts: {
   const greetingName = (opts.name || "there").trim() || "there";
   const personalized = opts.bodyText.replace(/\{\{\s*name\s*\}\}/gi, greetingName);
 
-  const paragraphs = escapeHtml(personalized)
-    .split(/\n\s*\n/)
-    .map((block) => block.trim())
-    .filter(Boolean)
-    .map(
-      (block) =>
-        `<p style="margin:0 0 14px 0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;line-height:1.6;color:${brandText};">${block.replace(
-          /\n/g,
-          "<br />"
-        )}</p>`
-    )
-    .join("");
+  const paragraphs = renderParagraphs(
+    personalized,
+    `margin:0 0 14px 0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;line-height:1.6;color:${brandText};`
+  );
 
   const unsubscribeBlock = opts.unsubscribeUrl
     ? `<p style="margin:8px 0 0 0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:${mutedText};">
@@ -245,15 +270,7 @@ export function personalEmailHTML(opts: {
   const greetingName = (opts.name || "there").trim() || "there";
   const personalized = opts.bodyText.replace(/\{\{\s*name\s*\}\}/gi, greetingName);
 
-  const paragraphs = escapeHtml(personalized)
-    .split(/\n\s*\n/)
-    .map((block) => block.trim())
-    .filter(Boolean)
-    .map(
-      (block) =>
-        `<p style="margin:0 0 16px 0;">${block.replace(/\n/g, "<br />")}</p>`
-    )
-    .join("");
+  const paragraphs = renderParagraphs(personalized, "margin:0 0 16px 0;");
 
   const unsubscribeBlock = opts.unsubscribeUrl
     ? `<p style="margin:24px 0 0 0;font-size:12px;color:#888;">
@@ -275,7 +292,10 @@ export function personalEmailHTML(opts: {
 
 export function broadcastEmailText(bodyText: string, name?: string | null, unsubscribeUrl?: string) {
   const greetingName = (name || "there").trim() || "there";
-  const personalized = bodyText.replace(/\{\{\s*name\s*\}\}/gi, greetingName);
+  const personalized = bodyText
+    .replace(/\{\{\s*name\s*\}\}/gi, greetingName)
+    // [Label](url) has no meaning in a plain-text client — show both parts.
+    .replace(MD_LINK_RE, (_m, label: string, url: string) => `${label}: ${url}`);
   return unsubscribeUrl ? `${personalized}\n\n—\nUnsubscribe: ${unsubscribeUrl}` : personalized;
 }
 

@@ -77,22 +77,38 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const result = await sendBroadcastBatch(
+    const results = await sendBroadcastBatch(
       audience.map((u) => ({
         email: u.email as string,
         name: u.name,
+        userId: u.id,
         unsubscribeUrl: buildUnsubscribeUrl(u.id),
       })),
       subject,
       body
     );
 
+    await prisma.emailDelivery.createMany({
+      data: results.map((r) => ({
+        broadcastId: broadcast.id,
+        email: r.email,
+        userId: r.userId,
+        resendId: r.resendId,
+        accepted: r.accepted,
+        error: r.error,
+      })),
+    });
+
+    const sent = results.filter((r) => r.accepted).length;
+    const failed = results.length - sent;
+    const firstError = results.find((r) => r.error)?.error;
+
     await prisma.emailBroadcast.update({
       where: { id: broadcast.id },
       data: {
-        sentCount: result.sent,
-        failedCount: result.failed,
-        status: result.sent === 0 ? "FAILED" : "COMPLETED",
+        sentCount: sent,
+        failedCount: failed,
+        status: sent === 0 ? "FAILED" : "COMPLETED",
         completedAt: new Date(),
       },
     });
@@ -100,9 +116,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       test: false,
+      broadcastId: broadcast.id,
       recipientCount: audience.length,
-      sent: result.sent,
-      failed: result.failed,
+      sent,
+      failed,
+      error: sent === 0 ? firstError : undefined,
     });
   } catch (error) {
     console.error("broadcast/send error:", error);

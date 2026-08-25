@@ -241,36 +241,46 @@ export function broadcastEmailText(bodyText: string, name?: string | null, unsub
 export interface BroadcastRecipient {
   email: string;
   name?: string | null;
+  userId?: string;
   unsubscribeUrl?: string;
 }
 
-export interface BroadcastSendResult {
-  sent: number;
-  failed: number;
+export interface BroadcastRecipientResult {
+  email: string;
+  userId?: string;
+  /** Resend's message id — required to look the delivery up later. */
+  resendId?: string;
+  accepted: boolean;
+  error?: string;
 }
 
 const RESEND_BATCH_LIMIT = 100;
 
 /**
- * Sends one personalized email per recipient via Resend's batch endpoint.
- * A failed chunk counts every recipient in that chunk as failed rather than
- * aborting — a partial send is still reported accurately.
+ * Sends one personalized email per recipient via Resend's batch endpoint and
+ * reports the outcome PER RECIPIENT, capturing each message id so delivery can
+ * be verified afterwards. A failing chunk marks only its own recipients failed
+ * rather than aborting the rest of the run.
  */
 export async function sendBroadcastBatch(
   recipients: BroadcastRecipient[],
   subject: string,
   bodyText: string
-): Promise<BroadcastSendResult> {
+): Promise<BroadcastRecipientResult[]> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || "JobMatchly <no-reply@jobmatchly.app>";
 
   if (!apiKey) {
     console.log(`[DEV] Would broadcast "${subject}" to ${recipients.length} recipient(s)`);
-    return { sent: 0, failed: recipients.length };
+    return recipients.map((r) => ({
+      email: r.email,
+      userId: r.userId,
+      accepted: false,
+      error: "RESEND_API_KEY not configured",
+    }));
   }
 
-  let sent = 0;
-  let failed = 0;
+  const results: BroadcastRecipientResult[] = [];
 
   for (let i = 0; i < recipients.length; i += RESEND_BATCH_LIMIT) {
     const chunk = recipients.slice(i, i + RESEND_BATCH_LIMIT);
@@ -289,19 +299,56 @@ export async function sendBroadcastBatch(
         body: JSON.stringify(payload),
       });
 
+      const raw = await res.text().catch(() => "");
+
       if (!res.ok) {
-        console.error("Resend batch failed:", res.status, await res.text().catch(() => ""));
-        failed += chunk.length;
-      } else {
-        sent += chunk.length;
+        const message = `Resend ${res.status}: ${raw.slice(0, 300)}`;
+        console.error("Resend batch failed:", message);
+        chunk.forEach((r) => results.push({ email: r.email, userId: r.userId, accepted: false, error: message }));
+        continue;
       }
+
+      // Success body is { data: [{ id }, ...] } in the same order as the request.
+      let ids: Array<{ id?: string }> = [];
+      try {
+        ids = JSON.parse(raw)?.data ?? [];
+      } catch {
+        /* fall through — treated as missing ids below */
+      }
+
+      chunk.forEach((r, idx) => {
+        const id = ids[idx]?.id;
+        results.push({
+          email: r.email,
+          userId: r.userId,
+          resendId: id,
+          accepted: Boolean(id),
+          error: id ? undefined : "Resend accepted the request but returned no message id",
+        });
+      });
     } catch (e) {
-      console.error("Resend batch threw:", (e as Error)?.message || e);
-      failed += chunk.length;
+      const message = (e as Error)?.message || String(e);
+      console.error("Resend batch threw:", message);
+      chunk.forEach((r) => results.push({ email: r.email, userId: r.userId, accepted: false, error: message }));
     }
   }
 
-  return { sent, failed };
+  return results;
+}
+
+/** Current delivery state of one message, straight from Resend. */
+export async function fetchResendEvent(resendId: string): Promise<string | null> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const res = await fetch(`https://api.resend.com/emails/${resendId}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!res.ok) return null;
+    return (await res.json())?.last_event ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**

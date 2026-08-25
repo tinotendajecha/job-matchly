@@ -40,6 +40,39 @@ interface BroadcastRow {
   createdAt: string;
 }
 
+interface DeliveryRow {
+  id: string;
+  email: string;
+  accepted: boolean;
+  lastEvent: string | null;
+  error: string | null;
+}
+
+/** Maps Resend's event names to something an admin can act on. */
+function deliveryLabel(d: DeliveryRow): { text: string; variant: 'default' | 'destructive' | 'secondary'; hint?: string } {
+  if (!d.accepted) return { text: 'Not sent', variant: 'destructive', hint: d.error || undefined };
+  switch (d.lastEvent) {
+    case 'delivered':
+      return { text: 'Delivered', variant: 'default', hint: 'Accepted by their mail server — may be in Spam/Promotions.' };
+    case 'opened':
+      return { text: 'Opened', variant: 'default' };
+    case 'clicked':
+      return { text: 'Clicked', variant: 'default' };
+    case 'bounced':
+      return { text: 'Bounced', variant: 'destructive', hint: 'Address rejected the message.' };
+    case 'complained':
+      return { text: 'Marked spam', variant: 'destructive' };
+    case 'delivery_delayed':
+      return { text: 'Delayed', variant: 'secondary' };
+    case 'sent':
+    case null:
+    case undefined:
+      return { text: 'Sent', variant: 'secondary', hint: 'Handed to the mail provider; delivery not confirmed yet.' };
+    default:
+      return { text: d.lastEvent, variant: 'secondary' };
+  }
+}
+
 const STATUS_VARIANT: Record<BroadcastRow['status'], 'default' | 'destructive' | 'secondary'> = {
   COMPLETED: 'default',
   FAILED: 'destructive',
@@ -64,8 +97,12 @@ export default function BroadcastPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; message: string; hint?: string } | null>(null);
   const [history, setHistory] = useState<BroadcastRow[]>([]);
+
+  const [deliveryFor, setDeliveryFor] = useState<BroadcastRow | null>(null);
+  const [deliveries, setDeliveries] = useState<DeliveryRow[] | null>(null);
+  const [deliveriesLoading, setDeliveriesLoading] = useState(false);
 
   // Prefill the test field with the logged-in admin's own address.
   useEffect(() => {
@@ -116,6 +153,23 @@ export default function BroadcastPage() {
     };
   }, [debouncedSearch, status, accountType]);
 
+  async function openDeliveries(row: BroadcastRow, refresh = true) {
+    setDeliveryFor(row);
+    setDeliveriesLoading(true);
+    if (!refresh) setDeliveries(null);
+    try {
+      const res = await fetch(`/api/admin/broadcast/${row.id}/deliveries${refresh ? '?refresh=1' : ''}`, {
+        cache: 'no-store',
+      });
+      const json = await res.json();
+      setDeliveries(json.ok ? json.data.deliveries : []);
+    } catch {
+      setDeliveries([]);
+    } finally {
+      setDeliveriesLoading(false);
+    }
+  }
+
   const filter = {
     ...(debouncedSearch && { search: debouncedSearch }),
     ...(status !== 'all' && { status }),
@@ -138,7 +192,11 @@ export default function BroadcastPage() {
       const json = await res.json();
       setFeedback(
         json.ok
-          ? { kind: 'success', message: `Test email sent to ${json.sentTo}. Check the inbox before sending for real.` }
+          ? {
+              kind: 'success',
+              message: `Test email accepted by the mail provider for ${json.sentTo}.`,
+              hint: "If it isn't in the inbox within a minute, check Spam and the Promotions tab — bulk mail from a domain that usually only sends verification codes often lands there.",
+            }
           : { kind: 'error', message: json.error || 'Test email failed.' }
       );
     } catch {
@@ -158,15 +216,23 @@ export default function BroadcastPage() {
         body: JSON.stringify({ subject, body, filter }),
       });
       const json = await res.json();
-      if (json.ok) {
+      if (json.ok && json.sent > 0) {
         setFeedback({
           kind: 'success',
-          message: `Sent to ${json.sent} of ${json.recipientCount} recipients${
+          message: `Accepted for ${json.sent} of ${json.recipientCount} recipients${
             json.failed ? ` — ${json.failed} failed` : ''
           }.`,
+          hint: 'Open "Delivery status" in the table below to see, per person, whether it was actually delivered or bounced.',
         });
         setSubject('');
         setBody('');
+        loadHistory();
+      } else if (json.ok) {
+        setFeedback({
+          kind: 'error',
+          message: `Nothing was sent — all ${json.recipientCount} recipients failed.`,
+          hint: json.error,
+        });
         loadHistory();
       } else {
         setFeedback({ kind: 'error', message: json.error || 'Send failed.' });
@@ -190,7 +256,10 @@ export default function BroadcastPage() {
         <Alert variant={feedback.kind === 'error' ? 'destructive' : 'default'}>
           {feedback.kind === 'error' ? <AlertCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
           <AlertTitle>{feedback.kind === 'error' ? 'Failed' : 'Done'}</AlertTitle>
-          <AlertDescription>{feedback.message}</AlertDescription>
+          <AlertDescription>
+            {feedback.message}
+            {feedback.hint && <span className="block mt-1 opacity-80">{feedback.hint}</span>}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -349,12 +418,13 @@ export default function BroadcastPage() {
                   <TableHead>Failed</TableHead>
                   <TableHead>Sent by</TableHead>
                   <TableHead>When</TableHead>
+                  <TableHead className="text-right">Delivery</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {history.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
                       No broadcasts sent yet.
                     </TableCell>
                   </TableRow>
@@ -369,6 +439,11 @@ export default function BroadcastPage() {
                     <TableCell className="text-muted-foreground whitespace-nowrap">
                       {formatRelativeTime(new Date(b.createdAt))}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="outline" size="sm" onClick={() => openDeliveries(b)}>
+                        Delivery status
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -376,6 +451,53 @@ export default function BroadcastPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Per-recipient delivery status, straight from the mail provider */}
+      <Dialog open={!!deliveryFor} onOpenChange={(o) => !o && setDeliveryFor(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Delivery status</DialogTitle>
+            <DialogDescription>{deliveryFor?.subject}</DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-80 overflow-y-auto -mx-1 px-1">
+            {deliveriesLoading && !deliveries ? (
+              <p className="text-sm text-muted-foreground py-4">Checking with the mail provider…</p>
+            ) : deliveries && deliveries.length > 0 ? (
+              <div className="space-y-2">
+                {deliveries.map((d) => {
+                  const label = deliveryLabel(d);
+                  return (
+                    <div key={d.id} className="flex items-start justify-between gap-3 border-b border-border pb-2">
+                      <div className="min-w-0">
+                        <p className="text-sm text-foreground truncate">{d.email}</p>
+                        {label.hint && <p className="text-xs text-muted-foreground mt-0.5">{label.hint}</p>}
+                      </div>
+                      <Badge variant={label.variant} className="flex-shrink-0">{label.text}</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-4">
+                No per-recipient records for this broadcast (it predates delivery tracking).
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => deliveryFor && openDeliveries(deliveryFor)}
+              disabled={deliveriesLoading}
+            >
+              {deliveriesLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Refresh
+            </Button>
+            <Button onClick={() => setDeliveryFor(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>

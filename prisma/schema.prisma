@@ -346,7 +346,28 @@ model EmailBroadcast {
   createdAt      DateTime        @default(now())
   completedAt    DateTime?
 
+  deliveries EmailDelivery[]
+
   @@index([createdAt])
+}
+
+/// One row per recipient, so "did it actually send" is answerable per person
+/// rather than inferred from an HTTP status code.
+model EmailDelivery {
+  id          String   @id @default(cuid())
+  broadcastId String
+  email       String
+  userId      String?
+  resendId    String?
+  accepted    Boolean  @default(false)
+  lastEvent   String? // raw Resend event: delivered / bounced / complained / ...
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  broadcast EmailBroadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+
+  @@index([broadcastId])
 }
 
 model SubscriptionUsage {

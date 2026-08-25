@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, BarChart3, FileText, DollarSign, Settings, Menu, X, ChevronLeft, ChevronRight, Newspaper, Send } from 'lucide-react';
+import { LayoutDashboard, Users, BarChart3, FileText, TrendingUp, Settings, Menu, X, ChevronLeft, ChevronRight, Newspaper, Send } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -13,7 +13,7 @@ const navItems = [
   { href: '/app/admin/documents', label: 'Documents', icon: FileText },
   { href: '/app/admin/content', label: 'Content', icon: Newspaper },
   { href: '/app/admin/broadcast', label: 'Broadcast', icon: Send },
-  { href: '/app/admin/revenue', label: 'Revenue', icon: DollarSign },
+  { href: '/app/admin/conversion', label: 'Conversion', icon: TrendingUp },
   { href: '/app/admin/system', label: 'System', icon: Settings },
 ];
 

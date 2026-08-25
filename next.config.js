@@ -39,6 +39,13 @@ const nextConfig = {
     return config;
   },
 
+  // The Revenue tab became Conversion & Trials; keep old bookmarks working.
+  async redirects() {
+    return [
+      { source: '/app/admin/revenue', destination: '/app/admin/conversion', permanent: false },
+    ];
+  },
+
   eslint: { ignoreDuringBuilds: true },
   images: { unoptimized: true },
 };

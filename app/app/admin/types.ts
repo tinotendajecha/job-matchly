@@ -151,6 +151,107 @@ export interface DocumentListResponse {
   pagination: DocumentPagination;
 }
 
+/**
+ * `amountMinor` is named that ON PURPOSE. Purchase.amount is stored in minor
+ * units (cents), while the old mock data used dollars — feeding a real row into
+ * a component expecting `amount` renders 100x too large. The rename makes that
+ * mistake a TypeScript error instead of a silent overstatement.
+ */
+export interface AdminPurchaseRow {
+  id: string;
+  userName: string;
+  userEmail: string;
+  amountMinor: number;
+  currency: string;
+  status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELED' | 'BONUS';
+  type: 'RESUME_DOWNLOAD_UNLOCK' | 'SYSTEM_BONUS';
+  market: 'ZW' | 'ZA';
+  provider: string;
+  providerRef: string | null;
+  documentId: string | null;
+  createdAt: string;
+}
+
+export interface LabelCount {
+  label: string;
+  count: number;
+}
+
+export interface AdminAnalyticsData {
+  growth: {
+    dailySignups: Array<{ date: string; count: number }>;
+    cumulativeUsers: Array<{ date: string; users: number }>;
+    totalUsers: number;
+  };
+  engagement: {
+    featureUsage: Array<{ type: string; count: number }>;
+    featureUsageWindow: Array<{ type: string; count: number }>;
+    docsPerUser: Array<{ range: string; count: number }>;
+    timeToFirstDoc: Array<{ range: string; count: number }>;
+    medianHoursToFirstDoc: number | null;
+    activatedUsers: number;
+  };
+  activity: {
+    dau: number;
+    wau: number;
+    mau: number;
+    dailyActive: Array<{ date: string; count: number }>;
+  };
+  traffic: {
+    viewsByDay: Array<{ date: string; count: number }>;
+    uniqueByDay: Array<{ date: string; count: number }>;
+    uniqueVisitors: number;
+    totalViews: number;
+    topPages: LabelCount[];
+    referrers: LabelCount[];
+    devices: LabelCount[];
+    countries: LabelCount[];
+  };
+  meta: { windowDays: number; trackingSince: string | null; generatedAt: string };
+}
+
+export interface MoneyByCurrency {
+  [currency: string]: { minor: number; count: number };
+}
+
+export interface AdminConversionData {
+  funnel: Array<{ stage: string; count: number }>;
+  rates: { activationRate: number; repeatUsers: number; totalUsers: number; payingCustomers: number };
+  trials: {
+    active: number;
+    converted: number;
+    rows: Array<{
+      id: string;
+      tier: string;
+      market: string;
+      name: string | null;
+      email: string | null;
+      trialEndsAt: string | null;
+      daysRemaining: number | null;
+    }>;
+    byCell: Array<{ status: string; tier: string; market: string; count: number }>;
+  };
+  money: {
+    realRevenue: MoneyByCurrency;
+    pendingUnlocks: MoneyByCurrency;
+    bonusGrantCount: number;
+    stuckUnlocks: number;
+  };
+  marketSplit: Array<{ market: string; count: number }>;
+  cohorts: Array<{ week: string; signups: number; activated: number; rate: number }>;
+  purchases: AdminPurchaseRow[];
+}
+
+export interface AdminSystemData {
+  database: { ok: boolean; latencyMs: number };
+  counts: Record<string, number>;
+  integrations: Array<{ key: string; group: string; configured: boolean }>;
+  cron: { lastRunAt: string | null; lastStatus: string | null; daysSince: number | null };
+  retention: { retentionDays: number; oldestPageViewAt: string | null; oldestAgeDays: number | null };
+  errors: Array<{ id: string; source: string; message: string; context: string; at: string }>;
+  errorsLast7Days: number;
+}
+
 export interface DocumentDetail {
   id: string;
   title: string;

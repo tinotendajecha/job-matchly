@@ -3,6 +3,7 @@ import '@fontsource-variable/bricolage-grotesque';
 import '@fontsource-variable/dm-sans';
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/providers/theme-provider';
+import { PageViewTracker } from '@/components/analytics/PageViewTracker';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           storageKey="jm_theme"
         >
           {children}
+          <PageViewTracker />
           <ToastContainer
             position="top-right"
             autoClose={3000}

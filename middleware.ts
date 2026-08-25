@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { resolveMarket, type MarketCode } from '@/lib/market/config';
 
 const MARKET_COOKIE = 'jm_market';
+const VISITOR_COOKIE = 'jm_vid';
 const ZA_DOMAIN = 'jobmatchly.co.za';
 const ZW_DOMAIN = 'jobmatchly.site';
 
@@ -49,6 +50,23 @@ function getGeoRedirectUrl(req: NextRequest, pathname: string, hostname: string)
   return null;
 }
 
+// Anonymous visitor id for page-view counts. Minted server-side so it exists
+// before the first tracking beacon fires (otherwise two in-flight beacons each
+// mint their own id and one visitor is counted as two), and httpOnly so page
+// JS can neither read nor forge it. Not linked to any user record.
+function withVisitorCookie(res: NextResponse, req: NextRequest): NextResponse {
+  if (!req.cookies.get(VISITOR_COOKIE)?.value) {
+    res.cookies.set(VISITOR_COOKIE, crypto.randomUUID(), {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 180,
+      sameSite: 'lax',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+    });
+  }
+  return res;
+}
+
 export function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
 
@@ -59,7 +77,7 @@ export function middleware(req: NextRequest) {
 
   // Geo-redirect to correct market domain in production
   const geoRedirect = getGeoRedirectUrl(req, pathname, hostname);
-  if (geoRedirect) return NextResponse.redirect(geoRedirect);
+  if (geoRedirect) return withVisitorCookie(NextResponse.redirect(geoRedirect), req);
 
   // Market is determined entirely by hostname (or DEFAULT_MARKET on localhost)
   const market: MarketCode = resolveMarket(hostname);
@@ -79,7 +97,7 @@ export function middleware(req: NextRequest) {
       );
       const res = NextResponse.redirect(signInUrl);
       res.cookies.set(MARKET_COOKIE, market, { path: '/', sameSite: 'lax', httpOnly: false });
-      return res;
+      return withVisitorCookie(res, req);
     }
   }
 
@@ -87,12 +105,12 @@ export function middleware(req: NextRequest) {
   if (hasSession && (pathname === '/auth/signin' || pathname === '/auth/signup')) {
     const url = req.nextUrl.clone();
     url.pathname = '/app/dashboard';
-    return NextResponse.redirect(url);
+    return withVisitorCookie(NextResponse.redirect(url), req);
   }
 
   const res = NextResponse.next({ request: { headers: rewriteHeaders } });
   res.cookies.set(MARKET_COOKIE, market, { path: '/', sameSite: 'lax', httpOnly: false });
-  return res;
+  return withVisitorCookie(res, req);
 }
 
 export const config = {

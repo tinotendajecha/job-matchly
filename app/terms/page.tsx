@@ -312,6 +312,14 @@ export default async function TermsPage() {
           <p className="mt-3">
             Inactive accounts and outdated information may be archived or deleted periodically.
           </p>
+          <p className="mt-3">
+            <strong>Website usage measurement.</strong> To understand which parts of the platform are used,
+            Jobmatchly records anonymous page-view records containing the page visited, the referring website,
+            a general device type, and a country code. These records are stored under a random identifier held
+            in a first-party cookie named <code>jm_vid</code>, which is used only to count unique visitors.
+            <strong> We do not store your IP address</strong>, and these records are not linked to your account
+            or to any information that identifies you. They are automatically deleted after approximately 90 days.
+          </p>
         </Section>
 
         <Section num={10} title="Third-Party Services">

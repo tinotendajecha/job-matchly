@@ -369,6 +369,32 @@ model EmailDelivery {
   broadcast EmailBroadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
 
   @@index([broadcastId])
+  @@index([createdAt]) // admin error feed orders by this across all deliveries
+}
+
+enum DeviceType {
+  DESKTOP
+  MOBILE
+  TABLET
+  UNKNOWN
+}
+
+/// Anonymous page-view telemetry. Deliberately holds NO IP address and NO
+/// userId, so a row is not linkable to an identified person — which is what
+/// lets the write endpoint stay unauthenticated. Pruned to 90 days.
+model PageView {
+  id           String      @id @default(cuid())
+  visitorId    String      @db.VarChar(36) // random uuid from the httpOnly jm_vid cookie
+  sessionId    String?     @db.VarChar(36) // reserved: pages/session + bounce rate, no future migration
+  path         String      @db.VarChar(512) // normalized: query stripped, ids collapsed to [id]
+  referrerHost String?     @db.VarChar(128) // host only; null = direct or internal
+  device       DeviceType  @default(UNKNOWN)
+  country      String?     @db.VarChar(2) // from x-vercel-ip-country
+  market       MarketCode?
+  dayKey       String      @db.VarChar(10) // "YYYY-MM-DD" UTC — precomputed group key
+  createdAt    DateTime    @default(now())
+
+  @@index([createdAt])
 }
 
 model SubscriptionUsage {

@@ -232,6 +232,47 @@ export function broadcastEmailHTML(opts: {
 </html>`;
 }
 
+/**
+ * Deliberately plain: no logo, no colour bar, no card, no buttons, no images.
+ * Gmail's Promotions classifier keys heavily on marketing chrome, so a
+ * re-engagement note stands a much better chance of Primary looking like this.
+ */
+export function personalEmailHTML(opts: {
+  bodyText: string;
+  name?: string | null;
+  unsubscribeUrl?: string;
+}) {
+  const greetingName = (opts.name || "there").trim() || "there";
+  const personalized = opts.bodyText.replace(/\{\{\s*name\s*\}\}/gi, greetingName);
+
+  const paragraphs = escapeHtml(personalized)
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map(
+      (block) =>
+        `<p style="margin:0 0 16px 0;">${block.replace(/\n/g, "<br />")}</p>`
+    )
+    .join("");
+
+  const unsubscribeBlock = opts.unsubscribeUrl
+    ? `<p style="margin:24px 0 0 0;font-size:12px;color:#888;">
+         <a href="${opts.unsubscribeUrl}" style="color:#888;">Unsubscribe from these emails</a>
+       </p>`
+    : "";
+
+  return `<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
+  <body style="margin:0;padding:0;background:#ffffff;">
+    <div style="max-width:560px;margin:0;padding:16px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#222222;">
+      ${paragraphs}
+      ${unsubscribeBlock}
+    </div>
+  </body>
+</html>`;
+}
+
 export function broadcastEmailText(bodyText: string, name?: string | null, unsubscribeUrl?: string) {
   const greetingName = (name || "there").trim() || "there";
   const personalized = bodyText.replace(/\{\{\s*name\s*\}\}/gi, greetingName);
@@ -256,6 +297,34 @@ export interface BroadcastRecipientResult {
 
 const RESEND_BATCH_LIMIT = 100;
 
+export type BroadcastStyle = "PERSONAL" | "BRANDED";
+
+/**
+ * Broadcasts send from a human-looking address rather than the no-reply used
+ * for verification mail — a no-reply sender is a strong "bulk mail" signal.
+ */
+function broadcastFrom(): string {
+  return (
+    process.env.BROADCAST_FROM ||
+    process.env.EMAIL_FROM ||
+    "JobMatchly <no-reply@jobmatchly.app>"
+  );
+}
+
+/** Omitted entirely when unset — a Reply-To that bounces is worse than none. */
+function broadcastReplyTo(): string | undefined {
+  return process.env.BROADCAST_REPLY_TO || undefined;
+}
+
+function renderBody(
+  style: BroadcastStyle,
+  opts: { subject: string; bodyText: string; name?: string | null; unsubscribeUrl?: string }
+): string {
+  return style === "PERSONAL"
+    ? personalEmailHTML({ bodyText: opts.bodyText, name: opts.name, unsubscribeUrl: opts.unsubscribeUrl })
+    : broadcastEmailHTML(opts);
+}
+
 /**
  * Sends one personalized email per recipient via Resend's batch endpoint and
  * reports the outcome PER RECIPIENT, capturing each message id so delivery can
@@ -265,10 +334,12 @@ const RESEND_BATCH_LIMIT = 100;
 export async function sendBroadcastBatch(
   recipients: BroadcastRecipient[],
   subject: string,
-  bodyText: string
+  bodyText: string,
+  style: BroadcastStyle = "PERSONAL"
 ): Promise<BroadcastRecipientResult[]> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "JobMatchly <no-reply@jobmatchly.app>";
+  const from = broadcastFrom();
+  const replyTo = broadcastReplyTo();
 
   if (!apiKey) {
     console.log(`[DEV] Would broadcast "${subject}" to ${recipients.length} recipient(s)`);
@@ -288,7 +359,8 @@ export async function sendBroadcastBatch(
       from,
       to: r.email,
       subject,
-      html: broadcastEmailHTML({ subject, bodyText, name: r.name, unsubscribeUrl: r.unsubscribeUrl }),
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      html: renderBody(style, { subject, bodyText, name: r.name, unsubscribeUrl: r.unsubscribeUrl }),
       text: broadcastEmailText(bodyText, r.name, r.unsubscribeUrl),
     }));
 
@@ -361,10 +433,11 @@ export async function sendSingleBroadcastEmail(
   to: string,
   subject: string,
   bodyText: string,
-  opts: { name?: string | null; unsubscribeUrl?: string } = {}
+  opts: { name?: string | null; unsubscribeUrl?: string; style?: BroadcastStyle } = {}
 ) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "JobMatchly <no-reply@jobmatchly.app>";
+  const from = broadcastFrom();
+  const replyTo = broadcastReplyTo();
 
   if (!apiKey) {
     console.log(`[DEV] Would send test "${subject}" to ${to}`);
@@ -378,7 +451,13 @@ export async function sendSingleBroadcastEmail(
       from,
       to,
       subject,
-      html: broadcastEmailHTML({ subject, bodyText, name: opts.name ?? null, unsubscribeUrl: opts.unsubscribeUrl }),
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      html: renderBody(opts.style ?? "PERSONAL", {
+        subject,
+        bodyText,
+        name: opts.name ?? null,
+        unsubscribeUrl: opts.unsubscribeUrl,
+      }),
       text: broadcastEmailText(bodyText, opts.name ?? null, opts.unsubscribeUrl),
     }),
   });

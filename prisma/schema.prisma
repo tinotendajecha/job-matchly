@@ -342,6 +342,7 @@ model EmailBroadcast {
   sentCount      Int             @default(0)
   failedCount    Int             @default(0)
   status         BroadcastStatus @default(SENDING)
+  style          String          @default("PERSONAL") // PERSONAL | BRANDED
   sentByEmail    String
   createdAt      DateTime        @default(now())
   completedAt    DateTime?

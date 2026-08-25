@@ -90,6 +90,7 @@ export default function BroadcastPage() {
 
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [style, setStyle] = useState<'PERSONAL' | 'BRANDED'>('PERSONAL');
 
   const [testEmail, setTestEmail] = useState('');
   const [testing, setTesting] = useState(false);
@@ -187,7 +188,7 @@ export default function BroadcastPage() {
       const res = await fetch('/api/admin/broadcast/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject, body, testEmail }),
+        body: JSON.stringify({ subject, body, testEmail, style }),
       });
       const json = await res.json();
       setFeedback(
@@ -213,7 +214,7 @@ export default function BroadcastPage() {
       const res = await fetch('/api/admin/broadcast/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject, body, filter }),
+        body: JSON.stringify({ subject, body, filter, style }),
       });
       const json = await res.json();
       if (json.ok && json.sent > 0) {
@@ -357,6 +358,22 @@ export default function BroadcastPage() {
             <p className="text-xs text-muted-foreground">
               Use <code className="text-foreground">{'{{name}}'}</code> to insert each recipient's first name. Blank
               lines become paragraphs. An unsubscribe link is added automatically.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Appearance</Label>
+            <Select value={style} onValueChange={(v) => setStyle(v as 'PERSONAL' | 'BRANDED')}>
+              <SelectTrigger className="sm:max-w-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PERSONAL">Personal — plain text, no branding</SelectItem>
+                <SelectItem value="BRANDED">Branded — logo and green header</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {style === 'PERSONAL'
+                ? "Looks like a normal email from a person. Best chance of landing in Gmail's Primary tab rather than Promotions."
+                : 'Styled like the verification emails. Looks polished, but marketing-style layouts are more likely to be filed under Promotions.'}
             </p>
           </div>
         </CardContent>

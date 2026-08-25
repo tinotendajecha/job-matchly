@@ -23,6 +23,7 @@ const BodySchema = z.object({
     .optional()
     .default({}),
   testEmail: z.string().email().optional(),
+  style: z.enum(["PERSONAL", "BRANDED"]).optional().default("PERSONAL"),
 });
 
 export async function POST(request: NextRequest) {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ ok: false, error: "Subject and message are required." }, { status: 400 });
   }
-  const { subject, body, filter, testEmail } = parsed.data;
+  const { subject, body, filter, testEmail, style } = parsed.data;
 
   // Test send: one address, no audience query, no broadcast record.
   // Uses the admin's own unsubscribe link so the preview matches what real
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
       await sendSingleBroadcastEmail(testEmail, subject, body, {
         name: admin.name,
         unsubscribeUrl: buildUnsubscribeUrl(admin.id),
+        style,
       });
       return NextResponse.json({ ok: true, test: true, sentTo: testEmail });
     } catch (e) {
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest) {
         audienceFilter: filter,
         recipientCount: audience.length,
         status: "SENDING",
+        style,
         sentByEmail: admin.email || "unknown",
       },
     });
@@ -85,7 +88,8 @@ export async function POST(request: NextRequest) {
         unsubscribeUrl: buildUnsubscribeUrl(u.id),
       })),
       subject,
-      body
+      body,
+      style
     );
 
     await prisma.emailDelivery.createMany({

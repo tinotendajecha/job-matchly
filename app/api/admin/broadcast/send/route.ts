@@ -37,13 +37,21 @@ export async function POST(request: NextRequest) {
   const { subject, body, filter, testEmail } = parsed.data;
 
   // Test send: one address, no audience query, no broadcast record.
+  // Uses the admin's own unsubscribe link so the preview matches what real
+  // recipients see, and so a missing signing secret fails here, not mid-send.
   if (testEmail) {
     try {
-      await sendSingleBroadcastEmail(testEmail, subject, body);
+      await sendSingleBroadcastEmail(testEmail, subject, body, {
+        name: admin.name,
+        unsubscribeUrl: buildUnsubscribeUrl(admin.id),
+      });
       return NextResponse.json({ ok: true, test: true, sentTo: testEmail });
     } catch (e) {
       console.error("broadcast test send failed:", e);
-      return NextResponse.json({ ok: false, error: "Test email failed to send." }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: `Test email failed: ${(e as Error)?.message || "unknown error"}` },
+        { status: 500 }
+      );
     }
   }
 

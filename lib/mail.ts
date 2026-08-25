@@ -304,8 +304,18 @@ export async function sendBroadcastBatch(
   return { sent, failed };
 }
 
-/** Single email — used by the composer's "send test" button. */
-export async function sendSingleBroadcastEmail(to: string, subject: string, bodyText: string) {
+/**
+ * Single email — used by the composer's "send test" button.
+ * `unsubscribeUrl` is passed so the test is a faithful preview of what real
+ * recipients get, and so a broken/missing signing secret surfaces here rather
+ * than partway through a real broadcast.
+ */
+export async function sendSingleBroadcastEmail(
+  to: string,
+  subject: string,
+  bodyText: string,
+  opts: { name?: string | null; unsubscribeUrl?: string } = {}
+) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || "JobMatchly <no-reply@jobmatchly.app>";
 
@@ -321,8 +331,8 @@ export async function sendSingleBroadcastEmail(to: string, subject: string, body
       from,
       to,
       subject,
-      html: broadcastEmailHTML({ subject, bodyText, name: null }),
-      text: broadcastEmailText(bodyText, null),
+      html: broadcastEmailHTML({ subject, bodyText, name: opts.name ?? null, unsubscribeUrl: opts.unsubscribeUrl }),
+      text: broadcastEmailText(bodyText, opts.name ?? null, opts.unsubscribeUrl),
     }),
   });
 

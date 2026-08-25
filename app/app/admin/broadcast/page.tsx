@@ -316,7 +316,8 @@ export default function BroadcastPage() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Goes only to this address — no one else receives anything.
+              Goes only to this address — no one else receives anything. It's an exact preview, so its unsubscribe
+              link is live and will opt <em>your</em> account out if you click it.
             </p>
           </div>
 

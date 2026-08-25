@@ -351,6 +351,57 @@ function renderBody(
  * be verified afterwards. A failing chunk marks only its own recipients failed
  * rather than aborting the rest of the run.
  */
+/** One recipient, reported the same shape as a batch entry. */
+async function sendOne(
+  r: BroadcastRecipient,
+  subject: string,
+  bodyText: string,
+  style: BroadcastStyle,
+  from: string,
+  replyTo: string | undefined,
+  apiKey: string
+): Promise<BroadcastRecipientResult> {
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from,
+        to: r.email,
+        subject,
+        ...(replyTo ? { reply_to: replyTo } : {}),
+        html: renderBody(style, { subject, bodyText, name: r.name, unsubscribeUrl: r.unsubscribeUrl }),
+        text: broadcastEmailText(bodyText, r.name, r.unsubscribeUrl),
+      }),
+    });
+    const raw = await res.text().catch(() => "");
+    if (!res.ok) {
+      return {
+        email: r.email,
+        userId: r.userId,
+        accepted: false,
+        error: `Resend ${res.status}: ${raw.slice(0, 200)}`,
+      };
+    }
+    const id = (() => {
+      try {
+        return JSON.parse(raw)?.id as string | undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    return {
+      email: r.email,
+      userId: r.userId,
+      resendId: id,
+      accepted: Boolean(id),
+      error: id ? undefined : "Accepted but no message id returned",
+    };
+  } catch (e) {
+    return { email: r.email, userId: r.userId, accepted: false, error: (e as Error)?.message || String(e) };
+  }
+}
+
 export async function sendBroadcastBatch(
   recipients: BroadcastRecipient[],
   subject: string,
@@ -394,9 +445,14 @@ export async function sendBroadcastBatch(
       const raw = await res.text().catch(() => "");
 
       if (!res.ok) {
+        // The provider rejects an entire batch if ANY address in it is bad, so
+        // falling back to one-at-a-time keeps a single broken address from
+        // taking down the other 99 recipients travelling with it.
         const message = `Resend ${res.status}: ${raw.slice(0, 300)}`;
-        console.error("Resend batch failed:", message);
-        chunk.forEach((r) => results.push({ email: r.email, userId: r.userId, accepted: false, error: message }));
+        console.error(`Resend batch failed, retrying ${chunk.length} individually:`, message);
+        for (const r of chunk) {
+          results.push(await sendOne(r, subject, bodyText, style, from, replyTo, apiKey));
+        }
         continue;
       }
 

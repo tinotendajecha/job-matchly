@@ -104,6 +104,7 @@ export default function BroadcastPage() {
   const [deliveryFor, setDeliveryFor] = useState<BroadcastRow | null>(null);
   const [deliveries, setDeliveries] = useState<DeliveryRow[] | null>(null);
   const [deliveriesLoading, setDeliveriesLoading] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   // Prefill the test field with the logged-in admin's own address.
   useEffect(() => {
@@ -159,6 +160,33 @@ export default function BroadcastPage() {
   function insertAppLink() {
     const link = '[Return to JobMatchly](https://www.jobmatchly.site/app/dashboard)';
     setBody((b) => (b.trim() ? `${b.replace(/\s*$/, '')}\n\n${link}\n` : `${link}\n`));
+  }
+
+  async function retryFailed(row: BroadcastRow) {
+    setRetrying(true);
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/admin/broadcast/${row.id}/retry`, { method: 'POST' });
+      const json = await res.json();
+      if (json.ok) {
+        setFeedback({
+          kind: json.sent > 0 ? 'success' : 'error',
+          message:
+            json.retried === 0
+              ? json.message
+              : `Retried ${json.retried} — ${json.sent} accepted${json.stillFailed ? `, ${json.stillFailed} still failing` : ''}.`,
+          hint: json.unsendable ? `${json.unsendable} address(es) skipped as invalid.` : undefined,
+        });
+        loadHistory();
+        openDeliveries(row, false);
+      } else {
+        setFeedback({ kind: 'error', message: json.error || 'Retry failed.' });
+      }
+    } catch {
+      setFeedback({ kind: 'error', message: 'Retry failed.' });
+    } finally {
+      setRetrying(false);
+    }
   }
 
   async function openDeliveries(row: BroadcastRow, refresh = true) {
@@ -519,16 +547,26 @@ export default function BroadcastPage() {
             )}
           </div>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => deliveryFor && openDeliveries(deliveryFor)}
-              disabled={deliveriesLoading}
-            >
-              {deliveriesLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Refresh
-            </Button>
-            <Button onClick={() => setDeliveryFor(null)}>Close</Button>
+          <DialogFooter className="sm:justify-between">
+            {deliveryFor && deliveryFor.failedCount > 0 ? (
+              <Button variant="secondary" onClick={() => retryFailed(deliveryFor)} disabled={retrying}>
+                {retrying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                Retry {deliveryFor.failedCount} failed
+              </Button>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => deliveryFor && openDeliveries(deliveryFor)}
+                disabled={deliveriesLoading}
+              >
+                {deliveriesLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Refresh
+              </Button>
+              <Button onClick={() => setDeliveryFor(null)}>Close</Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -7,6 +7,26 @@
 import type { Prisma } from "@prisma/client";
 import { subDays } from "date-fns";
 
+/** RFC 2606 reserved domains plus the usual local-only suffixes. */
+export const RESERVED_EMAIL_SUFFIXES = [
+  "@example.com",
+  "@example.net",
+  "@example.org",
+  ".example",
+  ".invalid",
+  ".test",
+  ".local",
+  ".localhost",
+];
+
+/** Last-line guard before handing an address to the mail provider. */
+export function isSendableEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const value = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return false;
+  return !RESERVED_EMAIL_SUFFIXES.some((suffix) => value.endsWith(suffix));
+}
+
 export interface UserFilter {
   search?: string;
   status?: string; // 'all' | 'active' | 'inactive'
@@ -61,6 +81,14 @@ export function buildUserFilterWhere(
   if (options.emailableOnly) {
     and.push({ marketingOptOut: false });
     and.push({ email: { not: null } });
+    // Reserved/test domains (RFC 2606) are rejected by the mail provider, and a
+    // single rejected address fails the whole batch it travels in — so they must
+    // never reach a send. Excluded here so the previewed count matches reality.
+    and.push({
+      NOT: RESERVED_EMAIL_SUFFIXES.map((suffix) => ({
+        email: { endsWith: suffix, mode: "insensitive" as const },
+      })),
+    });
   }
 
   return and.length ? { AND: and } : {};

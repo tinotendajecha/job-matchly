@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "../../middleware";
-import { buildUserFilterWhere } from "@/lib/admin/userFilter";
+import { buildUserFilterWhere, isSendableEmail } from "@/lib/admin/userFilter";
 import { sendBroadcastBatch, sendSingleBroadcastEmail } from "@/lib/mail";
 import { buildUnsubscribeUrl } from "@/lib/unsubscribeToken";
 
@@ -59,10 +59,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const where = buildUserFilterWhere(filter, { emailableOnly: true });
-    const audience = await prisma.user.findMany({
-      where,
-      select: { id: true, name: true, email: true },
-    });
+    const audience = (
+      await prisma.user.findMany({ where, select: { id: true, name: true, email: true } })
+    ).filter((u) => isSendableEmail(u.email));
 
     if (audience.length === 0) {
       return NextResponse.json({ ok: false, error: "No recipients match this audience." }, { status: 400 });

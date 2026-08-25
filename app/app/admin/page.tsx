@@ -5,18 +5,18 @@ import { MetricCard } from './components/MetricCard';
 import { RecentActivity } from './components/RecentActivity';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatNumber, formatCurrency, formatPercentage, calculateTrend } from './lib/utils';
+import { formatNumber, formatPercentage, calculateTrend } from './lib/utils';
 import {
   Users,
   UserCheck,
   UserPlus,
   FileText,
   FilePlus,
-  DollarSign,
   CreditCard,
   Target,
   TrendingDown,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 import {
   LineChart,
@@ -121,7 +121,7 @@ export default function AdminDashboard() {
           title="New Signups Today"
           value={formatNumber(metrics.newSignupsToday)}
           icon={UserPlus}
-          trend={calculateTrend(metrics.newSignupsToday, 2)}
+          trend={calculateTrend(metrics.newSignupsToday, metrics.newSignupsYesterday)}
         />
         <MetricCard
           title="Total Documents"
@@ -137,13 +137,20 @@ export default function AdminDashboard() {
           title="Documents Today"
           value={formatNumber(metrics.documentsToday)}
           icon={FilePlus}
-          trend={calculateTrend(metrics.documentsToday, 8)}
+          trend={calculateTrend(metrics.documentsToday, metrics.documentsYesterday)}
         />
         <MetricCard
-          title="Monthly Recurring Revenue"
-          value={formatCurrency(metrics.mrr)}
-          icon={DollarSign}
-          trend={calculateTrend(metrics.mrr, metrics.mrr * 0.85)}
+          title="Active Subscribers"
+          value={formatNumber(metrics.activeSubscribersByTier.reduce((sum, t) => sum + t.count, 0))}
+          icon={Sparkles}
+          description={
+            metrics.activeSubscribersByTier.length
+              ? metrics.activeSubscribersByTier.map((t) => `${t.count} ${t.tier[0]}${t.tier.slice(1).toLowerCase()}`).join(' · ') +
+                (metrics.trialingSubscribers ? ` · ${metrics.trialingSubscribers} trialing` : '')
+              : metrics.trialingSubscribers
+                ? `${metrics.trialingSubscribers} trialing`
+                : 'No active subscriptions yet'
+          }
         />
         <MetricCard
           title="Paid Users"

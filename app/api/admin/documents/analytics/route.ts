@@ -23,38 +23,33 @@ export async function GET(request: NextRequest) {
       _count: true,
     });
 
-    // For chart
-    let chartData: any[] = [];
+    // For chart — one query for the whole 30-day window, bucketed in JS (avoids 90 sequential round-trips)
+    const thirtyDaysAgo = subDays(today, 30);
+    const recentDocs = await prisma.document.findMany({
+      where: { createdAt: { gte: thirtyDaysAgo } },
+      select: { kind: true, createdAt: true },
+    });
+
+    const chartMap = new Map<string, { date: string; tailored: number; cover: number; created: number }>();
     for (let i = 0; i < 30; ++i) {
       const day = subDays(today, 29 - i);
-      const nextDay = subDays(today, 28 - i);
-      const [tailored, cover, created] = await Promise.all([
-        prisma.document.count({
-          where: {
-            kind: "TAILORED_RESUME",
-            createdAt: { gte: day, lt: nextDay },
-          },
-        }),
-        prisma.document.count({
-          where: {
-            kind: "COVER_LETTER",
-            createdAt: { gte: day, lt: nextDay },
-          },
-        }),
-        prisma.document.count({
-          where: {
-            kind: "CREATED_RESUME",
-            createdAt: { gte: day, lt: nextDay },
-          },
-        }),
-      ]);
-      chartData.push({
+      const key = day.toDateString();
+      chartMap.set(key, {
         date: day.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        tailored,
-        cover,
-        created,
+        tailored: 0,
+        cover: 0,
+        created: 0,
       });
     }
+    recentDocs.forEach((doc) => {
+      const key = startOfDay(doc.createdAt).toDateString();
+      const bucket = chartMap.get(key);
+      if (!bucket) return;
+      if (doc.kind === "TAILORED_RESUME") bucket.tailored++;
+      else if (doc.kind === "COVER_LETTER") bucket.cover++;
+      else if (doc.kind === "CREATED_RESUME") bucket.created++;
+    });
+    const chartData = Array.from(chartMap.values());
 
     // Average per user
     const userCount = await prisma.user.count();

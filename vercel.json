@@ -7,7 +7,7 @@
   "crons": [
     {
       "path": "/api/admin/briefing-ingest",
-      "schedule": "0 6 * * *"
+      "schedule": "0 6 * * 1"
     }
   ]
 }

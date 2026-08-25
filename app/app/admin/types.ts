@@ -2,15 +2,17 @@ export interface AdminMetrics {
   totalUsers: number;
   activeUsers: number;
   newSignupsToday: number;
+  newSignupsYesterday: number;
   totalDocuments: number;
   documentsToday: number;
-  mrr: number;
-  totalRevenue: number;
+  documentsYesterday: number;
   activationRate: number;
   churnRate: number;
   freeUsers: number;
   paidUsers: number;
   avgDocsPerUser: number;
+  activeSubscribersByTier: Array<{ tier: string; count: number }>;
+  trialingSubscribers: number;
 }
 
 export interface ChartData {

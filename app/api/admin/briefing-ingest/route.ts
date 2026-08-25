@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await runPipeline();
+    const result = await runPipeline("CRON");
     return NextResponse.json({ ok: true, ...result });
   } catch (err: any) {
     console.error("briefing-ingest error", err);

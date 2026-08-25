@@ -44,7 +44,7 @@ export interface PipelineResult {
   errors: number;
 }
 
-export async function runPipeline(): Promise<PipelineResult> {
+async function runIngest(): Promise<PipelineResult> {
   let saved = 0;
   let skipped = 0;
   let errors = 0;
@@ -103,4 +103,34 @@ export async function runPipeline(): Promise<PipelineResult> {
   }
 
   return { saved, skipped, errors };
+}
+
+export async function runPipeline(trigger: "MANUAL" | "CRON" = "MANUAL"): Promise<PipelineResult> {
+  const run = await prisma.ingestRun.create({ data: { trigger, status: "RUNNING" } });
+
+  let result: PipelineResult = { saved: 0, skipped: 0, errors: 0 };
+  let failed = false;
+  let errorMessage: string | undefined;
+
+  try {
+    result = await runIngest();
+  } catch (e) {
+    failed = true;
+    errorMessage = (e as Error)?.message || String(e);
+    throw e;
+  } finally {
+    await prisma.ingestRun.update({
+      where: { id: run.id },
+      data: {
+        status: failed ? "FAILED" : "SUCCESS",
+        saved: result.saved,
+        skipped: result.skipped,
+        errors: result.errors,
+        errorMessage,
+        finishedAt: new Date(),
+      },
+    });
+  }
+
+  return result;
 }

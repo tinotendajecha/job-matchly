@@ -3,9 +3,10 @@
 import { MetricCard } from '../components/MetricCard';
 import { PurchasesTable } from '../components/PurchasesTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { mockPurchases } from '../lib/mockData';
 import { formatNumber, formatCurrency, formatPercentage } from '../lib/utils';
-import { DollarSign, TrendingUp, CheckCircle, CreditCard } from 'lucide-react';
+import { DollarSign, TrendingUp, CheckCircle, CreditCard, FlaskConical } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function RevenuePage() {
@@ -90,6 +91,14 @@ export default function RevenuePage() {
         <h1 className="text-3xl font-bold text-foreground">Revenue & Purchases</h1>
         <p className="text-muted-foreground mt-1">Monitor revenue and transactions</p>
       </div>
+
+      <Alert>
+        <FlaskConical className="h-4 w-4" />
+        <AlertTitle>Preview data</AlertTitle>
+        <AlertDescription>
+          This tab is not yet connected to live metrics — everything below is sample data for layout purposes only.
+        </AlertDescription>
+      </Alert>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard

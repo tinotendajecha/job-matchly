@@ -2,6 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { FlaskConical } from 'lucide-react';
 import { mockUsers, mockDocuments, mockPurchases, getChartData } from '../lib/mockData';
 import { formatCurrency } from '../lib/utils';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -90,6 +92,14 @@ export default function AnalyticsPage() {
         <h1 className="text-3xl font-bold text-foreground">Analytics</h1>
         <p className="text-muted-foreground mt-1">Deep dive into your platform metrics</p>
       </div>
+
+      <Alert>
+        <FlaskConical className="h-4 w-4" />
+        <AlertTitle>Preview data</AlertTitle>
+        <AlertDescription>
+          This tab is not yet connected to live metrics — everything below is sample data for layout purposes only.
+        </AlertDescription>
+      </Alert>
 
       <Tabs defaultValue="growth" className="space-y-6">
         <TabsList className="bg-muted">

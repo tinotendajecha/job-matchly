@@ -13,18 +13,24 @@ export async function GET(request: NextRequest) {
     const thirtyDaysAgo = subDays(now, 30);
     const sixMonthsAgo = subMonths(now, 6);
 
+    const yesterday = subDays(today, 1);
+
     const [
       totalUsers,
       activeUsers,
       newSignupsToday,
+      newSignupsYesterday,
       totalDocuments,
       documentsToday,
-      paidPurchases,
+      documentsYesterday,
       usersWithDocuments,
       inactiveUsers,
       dailySignupsRaw,
       documentsByTypeRaw,
       revenueByMonthRaw,
+      sessionsForActiveTrend,
+      subscribersByTierRaw,
+      trialingSubscribers,
       recentActivitiesRaw,
     ] = await Promise.all([
       prisma.user.count(),
@@ -35,14 +41,13 @@ export async function GET(request: NextRequest) {
 
       prisma.user.count({ where: { createdAt: { gte: today } } }),
 
+      prisma.user.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
+
       prisma.document.count(),
 
       prisma.document.count({ where: { createdAt: { gte: today } } }),
 
-      prisma.purchase.findMany({
-        where: { status: 'PAID' },
-        select: { amount: true, createdAt: true },
-      }),
+      prisma.document.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
 
       prisma.user.count({ where: { documents: { some: {} } } }),
 
@@ -67,6 +72,19 @@ export async function GET(request: NextRequest) {
         where: { status: 'PAID', createdAt: { gte: sixMonthsAgo } },
         select: { amount: true, createdAt: true },
       }),
+
+      prisma.session.findMany({
+        where: { createdAt: { gte: thirtyDaysAgo } },
+        select: { userId: true, createdAt: true },
+      }),
+
+      prisma.subscription.groupBy({
+        by: ['tier'],
+        where: { status: 'ACTIVE' },
+        _count: true,
+      }),
+
+      prisma.subscription.count({ where: { status: 'TRIALING' } }),
 
       Promise.all([
         prisma.user.findMany({
@@ -99,8 +117,6 @@ export async function GET(request: NextRequest) {
       ]),
     ]);
 
-    const totalRevenue = paidPurchases.reduce((sum, p) => sum + p.amount, 0);
-    const mrr = totalRevenue / 6;
     const activationRate = totalUsers > 0 ? (usersWithDocuments / totalUsers) * 100 : 0;
     const churnRate = totalUsers > 0 ? (inactiveUsers / totalUsers) * 100 : 0;
 
@@ -122,10 +138,22 @@ export async function GET(request: NextRequest) {
       .map(([date, signups]) => ({ date, signups }))
       .reverse();
 
-    const activeUsersTrend = dailySignups.map((item) => ({
-      date: item.date,
-      active: Math.floor(item.signups * 3.5),
-    }));
+    const activeUsersByDayMap = new Map<string, Set<string>>();
+    for (let i = 0; i < 30; i++) {
+      activeUsersByDayMap.set(format(subDays(now, i), 'MMM dd'), new Set());
+    }
+    sessionsForActiveTrend.forEach((session) => {
+      const date = format(new Date(session.createdAt), 'MMM dd');
+      activeUsersByDayMap.get(date)?.add(session.userId);
+    });
+    const activeUsersTrend = Array.from(activeUsersByDayMap.entries())
+      .map(([date, userIds]) => ({ date, active: userIds.size }))
+      .reverse();
+
+    const tierOrder: Record<string, number> = { STARTER: 0, PRO: 1, PLUS: 2 };
+    const activeSubscribersByTier = subscribersByTierRaw
+      .map((item) => ({ tier: item.tier, count: item._count }))
+      .sort((a, b) => (tierOrder[a.tier] ?? 99) - (tierOrder[b.tier] ?? 99));
 
     const documentsByType = documentsByTypeRaw.map((item) => ({
       type: item.kind.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase()),
@@ -181,15 +209,17 @@ export async function GET(request: NextRequest) {
           totalUsers,
           activeUsers,
           newSignupsToday,
+          newSignupsYesterday,
           totalDocuments,
           documentsToday,
-          mrr: mrr / 100,
-          totalRevenue: totalRevenue / 100,
+          documentsYesterday,
           activationRate,
           churnRate,
           freeUsers,
           paidUsers: paidUsersCount,
           avgDocsPerUser,
+          activeSubscribersByTier,
+          trialingSubscribers,
         },
         charts: {
           dailySignups,

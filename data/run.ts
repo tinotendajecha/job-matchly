@@ -6,7 +6,7 @@ import { runPipeline } from "./pipeline";
 
 async function main() {
   console.log("Starting briefing ingest pipeline...");
-  const result = await runPipeline();
+  const result = await runPipeline("MANUAL");
   console.log(`\nDone. Saved ${result.saved}, skipped ${result.skipped}, errors ${result.errors}.`);
 }
 

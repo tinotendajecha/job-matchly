@@ -299,6 +299,31 @@ model BriefingItem {
   @@index([category])
 }
 
+enum IngestTrigger {
+  MANUAL
+  CRON
+}
+
+enum IngestStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model IngestRun {
+  id           String        @id @default(cuid())
+  trigger      IngestTrigger
+  status       IngestStatus  @default(RUNNING)
+  saved        Int           @default(0)
+  skipped      Int           @default(0)
+  errors       Int           @default(0)
+  errorMessage String?
+  startedAt    DateTime      @default(now())
+  finishedAt   DateTime?
+
+  @@index([startedAt])
+}
+
 model SubscriptionUsage {
   id               String   @id @default(cuid())
   userId           String

@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { tagSingleUser } from "@/data/jobs/tagUsers";
+import { rebuildMatchesForUser } from "@/lib/jobs/match";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,6 +58,19 @@ export async function POST(req: Request) {
         onboardingComplete: complete ? true : undefined,
       },
     });
+
+    // Tag and match immediately so a brand-new user gets personalized jobs and
+    // becomes eligible for the weekly digest right away, rather than waiting for
+    // the nightly run. Rules-only, so no AI cost, and never allowed to fail the
+    // save the user just made.
+    if (complete) {
+      try {
+        const tagged = await tagSingleUser(user.id);
+        if (tagged) await rebuildMatchesForUser(user.id);
+      } catch (err) {
+        console.error('post-onboarding tagging failed', err);
+      }
+    }
 
     return NextResponse.json({
       ok: true,

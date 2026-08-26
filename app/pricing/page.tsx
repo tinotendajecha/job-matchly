@@ -10,18 +10,64 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Check, X, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMarket } from '@/hooks/use-market';
-import { PLAN_PRICES } from '@/lib/pricing/plans';
+import { PLAN_PRICES, PLAN_LIMITS } from '@/lib/pricing/plans';
 
 type Cycle = 'monthly' | 'yearly';
 
-const FEATURES = [
-  { label: 'AI Resume Tailoring', starter: true, pro: true, plus: true },
-  { label: 'Cover Letters', starter: '2 / month', pro: '10 / month', plus: 'Unlimited' },
-  { label: 'PDF Download', starter: true, pro: true, plus: true },
-  { label: 'DOCX Download', starter: false, pro: true, plus: true },
-  { label: 'Resume Templates', starter: 'Classic + Modern', pro: 'All templates', plus: 'All templates' },
-  { label: 'Documents saved', starter: true, pro: true, plus: true },
-  { label: 'Priority support', starter: false, pro: true, plus: true },
+/**
+ * Comparison rows derived from PLAN_LIMITS so they cannot drift from what the
+ * API actually enforces. The `free` column reflects what is genuinely ungated
+ * in code today. ("Priority support" was removed — no support tier exists.)
+ */
+const countLabel = (n: number | null) => (n === null ? 'Unlimited' : `${n} / month`);
+
+const FEATURES: Array<{
+  label: string;
+  free: boolean | string;
+  starter: boolean | string;
+  pro: boolean | string;
+  plus: boolean | string;
+}> = [
+  { label: 'Resume builder', free: true, starter: true, pro: true, plus: true },
+  { label: 'AI writing suggestions', free: true, starter: true, pro: true, plus: true },
+  { label: 'Browse live vacancies', free: true, starter: true, pro: true, plus: true },
+  { label: 'Weekly job alerts', free: true, starter: true, pro: true, plus: true },
+  { label: 'Career articles', free: true, starter: true, pro: true, plus: true },
+  {
+    label: 'AI resume tailoring',
+    free: false,
+    starter: countLabel(PLAN_LIMITS.STARTER.tailorsPerMonth),
+    pro: countLabel(PLAN_LIMITS.PRO.tailorsPerMonth),
+    plus: countLabel(PLAN_LIMITS.PLUS.tailorsPerMonth),
+  },
+  {
+    label: 'Cover letters',
+    free: false,
+    starter: countLabel(PLAN_LIMITS.STARTER.coverLettersPerMonth),
+    pro: countLabel(PLAN_LIMITS.PRO.coverLettersPerMonth),
+    plus: countLabel(PLAN_LIMITS.PLUS.coverLettersPerMonth),
+  },
+  {
+    label: 'Downloads',
+    free: false,
+    starter: countLabel(PLAN_LIMITS.STARTER.downloadsPerMonth),
+    pro: countLabel(PLAN_LIMITS.PRO.downloadsPerMonth),
+    plus: countLabel(PLAN_LIMITS.PLUS.downloadsPerMonth),
+  },
+  {
+    label: 'DOCX download',
+    free: false,
+    starter: PLAN_LIMITS.STARTER.docxDownloads,
+    pro: PLAN_LIMITS.PRO.docxDownloads,
+    plus: PLAN_LIMITS.PLUS.docxDownloads,
+  },
+  {
+    label: 'All templates',
+    free: false,
+    starter: PLAN_LIMITS.STARTER.allTemplates,
+    pro: PLAN_LIMITS.PRO.allTemplates,
+    plus: PLAN_LIMITS.PLUS.allTemplates,
+  },
 ];
 
 const FAQS = [
@@ -72,32 +118,57 @@ export default function PricingPage() {
     return cycle === 'yearly' ? prices[tier].yearlyDisplay : null;
   }
 
-  const plans = [
-    {
-      key: 'STARTER' as const,
-      name: 'Starter',
-      description: 'Perfect for a focused job search',
-      tailors: '5 tailors / month',
-      downloads: '5 downloads / month',
-      popular: false,
-    },
-    {
-      key: 'PRO' as const,
-      name: 'Pro',
-      description: 'For serious job seekers',
-      tailors: '20 tailors / month',
-      downloads: '20 downloads / month',
-      popular: true,
-    },
-    {
-      key: 'PLUS' as const,
-      name: 'Plus',
-      description: 'Unlimited access, no limits',
-      tailors: 'Unlimited tailors',
-      downloads: 'Unlimited downloads',
-      popular: false,
-    },
+  /**
+   * What every account gets without paying. These are genuinely ungated in
+   * code — the resume builder and /api/resume-builder/ai-suggest have no
+   * subscription check, the jobs feed is open to any signed-in user, and job
+   * alert emails go to free users too (they're the re-engagement hook).
+   */
+  const freeFeatures = [
+    'Resume builder with live preview',
+    'AI writing suggestions',
+    'Browse all live vacancies',
+    'Weekly job alerts by email',
+    'Career articles & advice',
   ];
+
+  /**
+   * Paid feature lists are derived from PLAN_LIMITS — the same constants the
+   * API gates enforce — so this page cannot drift from what users actually get.
+   */
+  function limitLabel(n: number | null, noun: string) {
+    return n === null ? `Unlimited ${noun}` : `${n} ${noun} / month`;
+  }
+
+  const plans = (['STARTER', 'PRO', 'PLUS'] as const).map((key) => {
+    const limits = PLAN_LIMITS[key];
+    return {
+      key,
+      name: key === 'STARTER' ? 'Starter' : key === 'PRO' ? 'Pro' : 'Plus',
+      description:
+        key === 'STARTER'
+          ? 'Perfect for a focused job search'
+          : key === 'PRO'
+            ? 'For serious job seekers'
+            : 'Unlimited access, no limits',
+      popular: key === 'PRO',
+      features: [
+        limitLabel(limits.tailorsPerMonth, 'resume tailors'),
+        limitLabel(limits.coverLettersPerMonth, 'cover letters'),
+        limitLabel(limits.downloadsPerMonth, 'downloads'),
+        'PDF download',
+      ],
+      missing: [
+        ...(limits.docxDownloads ? [] : ['DOCX download']),
+        ...(limits.allTemplates ? [] : ['All templates']),
+      ],
+      extras: [
+        ...(limits.docxDownloads ? ['DOCX download'] : []),
+        ...(limits.allTemplates ? ['All premium templates'] : []),
+        ...(key === 'STARTER' ? ['14-day free trial'] : []),
+      ],
+    };
+  });
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -157,7 +228,34 @@ export default function PricingPage() {
           </button>
         </div>
 
-        {/* Plan cards */}
+        {/* Free tier — shown first so visitors can see what costs nothing */}
+        <section className="px-4 max-w-5xl mx-auto mb-6">
+          <div className="rounded-2xl border border-border/60 bg-card/60 p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold font-display">
+                  Free <span className="text-muted-foreground font-normal text-sm">— no card needed</span>
+                </h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Build a resume and find jobs at no cost. Upgrade only when you want to tailor.
+                </p>
+              </div>
+              <Button asChild variant="outline" size="lg" className="flex-shrink-0">
+                <Link href="/auth/signup">Get started free</Link>
+              </Button>
+            </div>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-sm mt-5">
+              {freeFeatures.map((f) => (
+                <li key={f} className="flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        {/* Paid plans */}
         <section className="px-4 max-w-5xl mx-auto mb-16">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {plans.map((plan) => (
@@ -197,37 +295,22 @@ export default function PricingPage() {
                     )}
                   </div>
 
+                  <p className="text-xs font-medium text-muted-foreground mb-3">
+                    Everything in Free, plus:
+                  </p>
                   <ul className="space-y-2.5 text-sm mb-6">
-                    <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-                      <span>{plan.tailors}</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-                      <span>{plan.downloads}</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-                      <span>PDF download</span>
-                    </li>
-                    {plan.key !== 'STARTER' && (
-                      <li className="flex items-center gap-2">
+                    {[...plan.features, ...plan.extras].map((f) => (
+                      <li key={f} className="flex items-center gap-2">
                         <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-                        <span>DOCX download</span>
+                        <span>{f}</span>
                       </li>
-                    )}
-                    {plan.key === 'STARTER' && (
-                      <li className="flex items-center gap-2 text-muted-foreground/60">
+                    ))}
+                    {plan.missing.map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-muted-foreground/60">
                         <X className="h-3.5 w-3.5 flex-shrink-0" />
-                        <span>DOCX download</span>
+                        <span>{f}</span>
                       </li>
-                    )}
-                    {plan.key === 'STARTER' && (
-                      <li className="flex items-center gap-2">
-                        <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-                        <span>14-day free trial</span>
-                      </li>
-                    )}
+                    ))}
                   </ul>
                 </div>
 
@@ -256,9 +339,10 @@ export default function PricingPage() {
         {/* Feature comparison table */}
         <section className="px-4 max-w-4xl mx-auto mb-20">
           <h2 className="text-xl font-bold font-display text-center mb-6">Compare plans</h2>
-          <div className="rounded-xl border border-border/60 overflow-hidden">
-            <div className="grid grid-cols-4 bg-muted/30 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border/60">
+          <div className="rounded-xl border border-border/60 overflow-x-auto">
+            <div className="grid grid-cols-5 bg-muted/30 px-3 sm:px-4 py-3 text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-border/60">
               <div>Feature</div>
+              <div className="text-center">Free</div>
               <div className="text-center">Starter</div>
               <div className="text-center">Pro</div>
               <div className="text-center">Plus</div>
@@ -267,11 +351,12 @@ export default function PricingPage() {
               <div
                 key={f.label}
                 className={cn(
-                  'grid grid-cols-4 px-4 py-3 text-sm items-center',
+                  'grid grid-cols-5 px-3 sm:px-4 py-3 text-xs sm:text-sm items-center gap-1',
                   i % 2 === 0 ? '' : 'bg-muted/10',
                 )}
               >
                 <div className="text-foreground/80">{f.label}</div>
+                <div className="text-center"><FeatureCell value={f.free} /></div>
                 <div className="text-center"><FeatureCell value={f.starter} /></div>
                 <div className="text-center"><FeatureCell value={f.pro} /></div>
                 <div className="text-center"><FeatureCell value={f.plus} /></div>

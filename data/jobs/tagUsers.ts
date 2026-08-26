@@ -100,8 +100,7 @@ export async function tagUsers(options: { useAiFallback?: boolean } = {}): Promi
       select: { userId: true, title: true, createdAt: true },
     }),
     prisma.profile.findMany({
-      where: { resumeMarkdown: { not: null } },
-      select: { userId: true, resumeMarkdown: true },
+      select: { userId: true, resumeMarkdown: true, targetRoles: true, headline: true },
     }),
   ]);
 
@@ -115,11 +114,12 @@ export async function tagUsers(options: { useAiFallback?: boolean } = {}): Promi
     titlesByUser.set(doc.userId, list);
   }
 
-  const resumeByUser = new Map(profiles.map((p) => [p.userId, p.resumeMarkdown as string]));
+  const profileByUser = new Map(profiles.map((p) => [p.userId, p]));
 
   for (const user of users) {
     const titles = titlesByUser.get(user.id) ?? [];
-    const resume = resumeByUser.get(user.id);
+    const profile = profileByUser.get(user.id);
+    const resume = profile?.resumeMarkdown ?? null;
 
     let bracket: Bracket | null = null;
     let evidence: string | null = null;
@@ -128,7 +128,27 @@ export async function tagUsers(options: { useAiFallback?: boolean } = {}): Promi
     let seniority: string | null = null;
     let confidence = 0;
 
+    // 0) Free, and the strongest signal there is: the user telling us directly
+    // during onboarding. Checked first — a stated target role beats anything
+    // inferred from their documents, and it's what makes a brand-new user
+    // eligible for personalized jobs and digests straight away.
+    for (const [field, value] of [
+      ['targetRoles', profile?.targetRoles],
+      ['headline', profile?.headline],
+    ] as const) {
+      if (bracket || !value?.trim()) continue;
+      const guess = guessBracket(value);
+      if (guess?.strong) {
+        bracket = guess.bracket;
+        primaryRole = value.trim().slice(0, 80);
+        seniority = seniorityFromTitle(value);
+        confidence = 0.9;
+        evidence = `onboarding: ${field} "${value.trim().slice(0, 100)}"`;
+      }
+    }
+
     // 1) Free: keyword match on their most recent specific document titles.
+    if (!bracket)
     for (const title of titles.slice(0, 5)) {
       const hit = bracketFromRoleTitle(title);
       if (hit) {
@@ -196,4 +216,104 @@ export async function tagUsers(options: { useAiFallback?: boolean } = {}): Promi
   }
 
   return result;
+}
+
+/**
+ * Tags one user immediately — used right after onboarding so a new user is
+ * eligible for personalized jobs and digests without waiting for the nightly
+ * run. Rules-only by default, so it costs nothing and returns in milliseconds.
+ */
+export async function tagSingleUser(
+  userId: string,
+  options: { useAiFallback?: boolean } = {}
+): Promise<boolean> {
+  const { useAiFallback = false } = options;
+
+  const [profile, documents] = await Promise.all([
+    prisma.profile.findUnique({
+      where: { userId },
+      select: { targetRoles: true, headline: true, resumeMarkdown: true },
+    }),
+    prisma.document.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: { title: true },
+    }),
+  ]);
+
+  let bracket: Bracket | null = null;
+  let primaryRole: string | null = null;
+  let seniority: string | null = null;
+  let confidence = 0;
+  let evidence: string | null = null;
+  let method: 'RULES' | 'AI' = 'RULES';
+
+  for (const [field, value] of [
+    ['targetRoles', profile?.targetRoles],
+    ['headline', profile?.headline],
+  ] as const) {
+    if (bracket || !value?.trim()) continue;
+    const guess = guessBracket(value);
+    if (guess?.strong) {
+      bracket = guess.bracket;
+      primaryRole = value.trim().slice(0, 80);
+      seniority = seniorityFromTitle(value);
+      confidence = 0.9;
+      evidence = `onboarding: ${field} "${value.trim().slice(0, 100)}"`;
+    }
+  }
+
+  if (!bracket) {
+    for (const doc of documents) {
+      const clean = doc.title ? cleanTitle(doc.title) : '';
+      if (!clean || GENERIC_TITLE.test(clean)) continue;
+      const hit = bracketFromRoleTitle(clean);
+      if (hit) {
+        bracket = hit.bracket;
+        primaryRole = clean;
+        seniority = seniorityFromTitle(clean);
+        confidence = 0.8;
+        evidence = `document title: "${clean}"`;
+        break;
+      }
+    }
+  }
+
+  const snippet = profile?.resumeMarkdown
+    ? profile.resumeMarkdown.replace(/\s+/g, ' ').trim().slice(0, RESUME_SNIPPET_CHARS)
+    : null;
+
+  if (!bracket && snippet) {
+    const guess = guessBracket(snippet);
+    if (guess?.strong) {
+      bracket = guess.bracket;
+      seniority = seniorityFromTitle(snippet);
+      confidence = 0.6;
+      evidence = `resume opening (matched "${guess.keyword}")`;
+    }
+  }
+
+  if (!bracket && useAiFallback && snippet) {
+    const ai = await aiTag(snippet);
+    if (ai) {
+      bracket = ai.bracket as Bracket;
+      primaryRole = ai.primaryRole;
+      seniority = ai.seniority;
+      confidence = ai.confidence;
+      evidence = 'ai from resume opening';
+      method = 'AI';
+    }
+  }
+
+  // No evidence — skip rather than guess.
+  if (!bracket) return false;
+
+  await prisma.userProfession.upsert({
+    where: { userId },
+    create: { userId, bracket, primaryRole, seniority, confidence, method, evidence },
+    update: { bracket, primaryRole, seniority, confidence, method, evidence, derivedAt: new Date() },
+  });
+
+  return true;
 }

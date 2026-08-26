@@ -1,10 +1,11 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
   ArrowRight, CheckCircle, Star, FileText, Target, Zap,
-  BarChart3, TrendingUp, Smartphone, Sparkles, Check,
+  BarChart3, TrendingUp, Smartphone, Sparkles, Check, Briefcase, Mail, BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,68 +34,34 @@ function stagger(delay = 0) {
 }
 
 /* ─── Static data ─── */
-const testimonialsZA = [
-  {
-    name: 'Sipho Dlamini',
-    role: 'Software Developer · Capitec Bank',
-    photo: 'https://randomuser.me/api/portraits/men/25.jpg',
-    quote: 'Landed a senior dev role at Capitec after using JobMatchly. JD tailoring saved me hours of rewriting for every application.',
-    rating: 5,
-  },
-  {
-    name: 'Nomvula Khumalo',
-    role: 'HR Business Partner · Standard Bank',
-    photo: 'https://randomuser.me/api/portraits/women/30.jpg',
-    quote: "I recommend JobMatchly to every candidate I coach. The ATS optimisation alone doubles your chances of getting past the first screen.",
-    rating: 5,
-  },
-  {
-    name: 'Kagiso Sithole',
-    role: 'Data Analyst · Discovery',
-    photo: 'https://randomuser.me/api/portraits/men/16.jpg',
-    quote: 'Three weeks, four interviews, one offer. The keyword matching feature is a game-changer for the SA job market.',
-    rating: 5,
-  },
-];
 
-const testimonialsZW = [
-  {
-    name: 'Takudzwa Masango',
-    role: 'Cloud Engineer · Capesso',
-    photo: 'https://randomuser.me/api/portraits/men/25.jpg',
-    quote: 'Got my interview call within 10 days. The tailored CV stood out immediately — my recruiter mentioned it looked perfectly matched.',
-    rating: 5,
-  },
-  {
-    name: 'Grace Chiketa',
-    role: 'Actuary · Old Mutual Zimbabwe',
-    photo: 'https://randomuser.me/api/portraits/women/30.jpg',
-    quote: 'The cover letter generator saved me so much time. Each one felt personal and matched the job perfectly. Highly recommend.',
-    rating: 5,
-  },
-  {
-    name: 'Lawrence Matengu',
-    role: 'Data Analyst · Zimnat',
-    photo: 'https://randomuser.me/api/portraits/men/16.jpg',
-    quote: "I'd been job hunting for months. JobMatchly showed me exactly what ATS was rejecting and helped me fix it. Hired in 3 weeks.",
-    rating: 5,
-  },
-];
+
+
 
 const features = [
   { icon: FileText, title: 'Live Side-by-Side Builder', description: 'See your resume update in real-time as you type. No surprises on download.' },
   { icon: Target, title: 'JD Keyword Tailoring', description: 'Paste any job description. Keywords light up across your CV automatically.' },
-  { icon: BarChart3, title: 'ATS Compatibility Score', description: 'Instant score with targeted fixes. Know exactly why you were rejected — before it happens.' },
+  { icon: Briefcase, title: 'Live Job Board', description: 'Real vacancies from Zimbabwe and South Africa, matched to your profession.' },
   { icon: Zap, title: 'AI Cover Letters', description: 'One click. A cover letter tailored to your resume and the exact role.' },
   { icon: TrendingUp, title: 'Impact-Driven Bullets', description: 'Smart rewrites that quantify achievements and inject power verbs.' },
+  { icon: Mail, title: 'Weekly Job Alerts', description: 'New roles in your field delivered to your inbox. Free, on every plan.' },
+  { icon: BookOpen, title: 'Career Briefing', description: 'Curated advice on resumes, interviews and salary, refreshed regularly.' },
   { icon: Smartphone, title: 'Mobile-First Design', description: 'Edit, preview, and apply from anywhere. Fully optimized for phones.' },
 ];
 
-const stats = [
-  { value: '12K+', label: 'Active Users' },
-  { value: '94%', label: 'ATS Pass Rate' },
-  { value: '4.9★', label: 'User Rating' },
-];
+/**
+ * Real product numbers, fetched from /api/public/stats and rounded DOWN.
+ *
+ * These replaced hardcoded claims ("12K+ Active Users", "94% ATS Pass Rate",
+ * "4.9 star User Rating") that were not true — the app has no ATS scoring and no
+ * rating system, and actual usage was two orders of magnitude smaller. If the
+ * request fails we render the label with no number rather than inventing one.
+ */
+interface PublicStats {
+  liveJobs: number;
+  resumesTailored: number;
+  careerArticles: number;
+}
 
 const problems = [
   { stat: '75%', title: 'of resumes never reach a human', desc: 'ATS systems auto-reject most applications before a recruiter sees them.' },
@@ -115,13 +82,13 @@ function HeroDemoCard() {
           <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
           <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
           <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
-          <span className="ml-2 text-xs text-muted-foreground font-mono">jobmatchly.com — analysis</span>
+          <span className="ml-2 text-xs text-muted-foreground font-mono">jobmatchly.site — tailoring</span>
         </div>
 
         <div className="p-5 space-y-4">
           {/* ATS Score */}
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">ATS Match Score</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Keyword Match</span>
             <motion.span
               className="text-2xl font-bold font-display text-primary"
               initial={{ opacity: 0 }}
@@ -185,7 +152,7 @@ function HeroDemoCard() {
         animate={{ y: [0, -4, 0] }}
         transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
       >
-        ATS Optimized ✓
+        Tailored ✓
       </motion.div>
     </div>
   );
@@ -194,7 +161,21 @@ function HeroDemoCard() {
 /* ─── Page ─── */
 export default function LandingPage() {
   const { isSouthAfrica, market } = useMarket();
-  const testimonials = isSouthAfrica ? testimonialsZA : testimonialsZW;
+  const [stats, setStats] = useState<PublicStats | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/public/stats')
+      .then((r) => r.json())
+      .then((j) => {
+        // Only ever show a number the API actually returned.
+        if (!cancelled && j?.ok) setStats(j);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
@@ -245,7 +226,7 @@ export default function LandingPage() {
                 className="text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed"
               >
                 Paste any job post. Get a tailored CV in under 2 minutes —
-                ATS-optimized and ready to download.
+                keyword-matched and ready to download.
               </motion.p>
 
               <motion.div
@@ -272,12 +253,19 @@ export default function LandingPage() {
                 transition={{ duration: 0.6, delay: 0.55 }}
                 className="flex flex-wrap gap-8 justify-center lg:justify-start"
               >
-                {stats.map((s) => (
-                  <div key={s.label}>
-                    <div className="text-2xl font-bold text-primary font-display">{s.value}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{s.label}</div>
-                  </div>
-                ))}
+                {[
+                  { value: stats ? `${stats.liveJobs.toLocaleString()}+` : null, label: 'Live vacancies' },
+                  { value: stats ? `${stats.resumesTailored.toLocaleString()}+` : null, label: 'Resumes tailored' },
+                  { value: 'ZW & ZA', label: 'Markets covered' },
+                ]
+                  // Hide a stat entirely rather than show a placeholder number.
+                  .filter((s) => s.value !== null)
+                  .map((s) => (
+                    <div key={s.label}>
+                      <div className="text-2xl font-bold text-primary font-display">{s.value}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{s.label}</div>
+                    </div>
+                  ))}
               </motion.div>
             </div>
 
@@ -294,22 +282,30 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ TRUST STRIP ══ */}
+      {/* ══ REAL NUMBERS ══ */}
       <section className="py-10 border-y border-border/50">
         <div className="container px-4 mx-auto max-w-7xl">
-          <div className="flex flex-col items-center gap-5">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Trusted by professionals at
-            </p>
-            <div className="flex flex-wrap justify-center gap-8 md:gap-14">
-              {['Google', 'Microsoft', 'Capitec', 'Standard Bank', 'Discovery', 'Econet'].map((co) => (
-                <span
-                  key={co}
-                  className="text-sm font-semibold text-muted-foreground/50 hover:text-muted-foreground transition-colors duration-200"
-                >
-                  {co}
-                </span>
-              ))}
+          {/* Complements the hero stats rather than repeating them. */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+            <div>
+              <p className="text-base font-semibold text-foreground">Free to start</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Resume builder, AI suggestions and job alerts cost nothing
+              </p>
+            </div>
+            <div>
+              <p className="text-base font-semibold text-foreground">Updated daily</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                New vacancies pulled in every day; closed roles removed
+              </p>
+            </div>
+            <div>
+              <p className="text-base font-semibold text-foreground">
+                {stats ? `${stats.careerArticles.toLocaleString()}+ career guides` : 'Career guides'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Real advice on resumes, interviews and salary
+              </p>
             </div>
           </div>
         </div>
@@ -362,7 +358,7 @@ export default function LandingPage() {
               {[
                 { step: '01', title: 'Build', desc: 'Start from ATS-friendly templates or upload your existing CV — PDF, DOCX, or plain text.' },
                 { step: '02', title: 'Paste the JD', desc: 'Drop in any job description. Keywords highlight instantly across your entire resume.' },
-                { step: '03', title: 'Score it', desc: 'Get an ATS compatibility score with specific, targeted fixes — not vague advice.' },
+                { step: '03', title: 'Apply', desc: 'Download your tailored CV and cover letter, then apply to matched vacancies.' },
                 { step: '04', title: 'Apply', desc: 'Download your optimized PDF or DOCX. Generate a cover letter in one click.' },
               ].map((item, i) => (
                 <motion.div
@@ -463,45 +459,6 @@ export default function LandingPage() {
                     </div>
                     <h3 className="font-semibold mb-2">{feature.title}</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ TESTIMONIALS ══ */}
-      <section className="py-24 bg-card/40">
-        <div className="container px-4 mx-auto max-w-7xl">
-          <motion.div {...fadeUp} className="text-center mb-16">
-            <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-4">Success stories</p>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Real people, real results</h2>
-            <p className="text-lg text-muted-foreground">
-              Join thousands who&apos;ve landed their dream roles
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
-              <motion.div key={t.name} {...stagger(i * 0.1)}>
-                <Card className="h-full hover:border-primary/20 transition-colors duration-300">
-                  <CardContent className="p-6">
-                    <div className="flex gap-0.5 mb-4">
-                      {Array.from({ length: t.rating }).map((_, j) => (
-                        <Star key={j} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      ))}
-                    </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed mb-5">
-                      &ldquo;{t.quote}&rdquo;
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <img src={t.photo} alt={t.name} className="w-9 h-9 rounded-full object-cover" />
-                      <div>
-                        <p className="text-sm font-semibold">{t.name}</p>
-                        <p className="text-xs text-muted-foreground">{t.role}</p>
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               </motion.div>

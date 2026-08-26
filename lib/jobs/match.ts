@@ -103,3 +103,54 @@ export async function rebuildMatches(): Promise<MatchStats> {
 
   return { users: professions.length, matches: totalMatches, bracketsComputed: groups.size };
 }
+
+/**
+ * Recomputes matches for a single user — used immediately after onboarding so a
+ * new user sees personalized jobs without waiting for the nightly rebuild.
+ * Same scoring as rebuildMatches, no AI.
+ */
+export async function rebuildMatchesForUser(userId: string): Promise<number> {
+  const profession = await prisma.userProfession.findUnique({
+    where: { userId },
+    select: { bracket: true, seniority: true },
+  });
+  if (!profession) return 0;
+
+  const jobs = await prisma.jobPost.findMany({
+    where: liveJobWhere(),
+    select: { id: true, bracket: true, seniority: true, postedAt: true, createdAt: true },
+  });
+  if (jobs.length === 0) return 0;
+
+  const scored = jobs
+    .map((job) => {
+      const bracketMatch = job.bracket === profession.bracket;
+      const base = bracketMatch ? 1 : 0.15;
+      const sen = seniorityProximity(profession.seniority, job.seniority);
+      const rec = recencyScore(job.postedAt, job.createdAt);
+
+      const reasons: string[] = [];
+      if (bracketMatch) reasons.push(`Matches your field (${profession.bracket})`);
+      if (profession.seniority && job.seniority === profession.seniority) {
+        reasons.push(`${profession.seniority.toLowerCase()} level`);
+      }
+      if (rec > 0.7) reasons.push('Recently posted');
+
+      return { jobId: job.id, score: base * 0.6 + sen * 0.15 + rec * 0.25, reasons };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, MATCHES_PER_USER);
+
+  await prisma.jobMatch.deleteMany({ where: { userId } });
+  await prisma.jobMatch.createMany({
+    data: scored.map((m) => ({
+      userId,
+      jobId: m.jobId,
+      score: Number(m.score.toFixed(4)),
+      reasons: m.reasons,
+    })),
+    skipDuplicates: true,
+  });
+
+  return scored.length;
+}

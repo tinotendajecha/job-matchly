@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { runJobsPipeline } from "@/data/jobs/pipeline";
 import { tagUsers } from "@/data/jobs/tagUsers";
 import { rebuildMatches } from "@/lib/jobs/match";
+import { reconcileSubscriptionStatuses } from "@/lib/subscription/service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +20,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
+  // Bring stored subscription status in line with the dates before anything
+  // reads it. Own try/catch: an ingest failure must not skip reconciliation.
+  let subscriptions = null;
+  try {
+    subscriptions = await reconcileSubscriptionStatuses();
+  } catch (err) {
+    console.error("subscription reconcile failed", err);
+  }
+
   try {
     const ingest = await runJobsPipeline("CRON");
 
@@ -27,7 +37,7 @@ export async function POST(req: Request) {
     const tagging = await tagUsers();
     const matching = await rebuildMatches();
 
-    return NextResponse.json({ ok: true, ingest, tagging, matching });
+    return NextResponse.json({ ok: true, subscriptions, ingest, tagging, matching });
   } catch (err: any) {
     console.error("jobs-ingest error", err);
     return NextResponse.json({ ok: false, error: "Job ingest failed" }, { status: 500 });

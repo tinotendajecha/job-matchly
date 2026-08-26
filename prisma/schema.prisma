@@ -70,8 +70,11 @@ model User {
   // Admin flag
   isAdmin           Boolean   @default(false)
 
-  // Email broadcast preferences
+  // Email preferences. Deliberately separate: someone who mutes announcements
+  // may still want job alerts, and conflating them loses that distinction.
   marketingOptOut Boolean @default(false)
+  jobAlertsOptOut Boolean @default(false)
+  lastJobDigestAt DateTime?
 
   // relations
   sessions      Session[]

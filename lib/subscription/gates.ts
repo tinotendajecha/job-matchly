@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getActiveSubscription, checkUsageLimit, incrementUsage, type UsageAction } from './service';
+import {
+  getEffectiveTier,
+  isSuperUser,
+  checkUsageLimit,
+  incrementUsage,
+  type UsageAction,
+} from './service';
 import { PLAN_LIMITS } from '@/lib/pricing/plans';
 import type { SubscriptionTier } from '@prisma/client';
 
@@ -18,15 +24,16 @@ export class SubscriptionGateError extends Error {
 }
 
 export async function requireSubscription(userId: string): Promise<SubscriptionTier> {
-  const sub = await getActiveSubscription(userId);
-  if (!sub) {
+  // Resolves to PLUS for admins; otherwise the real active subscription.
+  const tier = await getEffectiveTier(userId);
+  if (!tier) {
     throw new SubscriptionGateError('NO_SUBSCRIPTION', 402, {
       code: 'NO_SUBSCRIPTION',
       message: 'Start a free trial to continue.',
       redirectTo: '/pricing',
     });
   }
-  return sub.tier;
+  return tier;
 }
 
 export async function requireFeatureAccess(
@@ -51,6 +58,11 @@ export async function requireAndConsumeUsage(
   action: UsageAction,
 ): Promise<SubscriptionTier> {
   const tier = await requireSubscription(userId);
+
+  // Admins have unlimited quota, so metering them would only fill
+  // SubscriptionUsage with rows that can never gate anything.
+  if (await isSuperUser(userId)) return tier;
+
   const { allowed, count, limit, resetDate } = await checkUsageLimit(userId, action, tier);
 
   if (!allowed) {

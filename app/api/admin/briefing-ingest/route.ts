@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { runPipeline } from "@/data/pipeline";
 import { prunePageViews } from "@/lib/analytics/prune";
 import { pruneExpiredJobs } from "@/data/jobs/pipeline";
+import { runJobDigest } from "@/lib/jobs/digest";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,9 +38,17 @@ export async function POST(req: Request) {
     console.error("expired job prune failed", err);
   }
 
+  // No-ops unless JOB_DIGEST_ENABLED=true, so this ships dormant.
+  let digest = null;
+  try {
+    digest = await runJobDigest();
+  } catch (err) {
+    console.error("job digest failed", err);
+  }
+
   try {
     const result = await runPipeline("CRON");
-    return NextResponse.json({ ok: true, ...result, prune, jobPrune });
+    return NextResponse.json({ ok: true, ...result, prune, jobPrune, digest });
   } catch (err: any) {
     console.error("briefing-ingest error", err);
     return NextResponse.json({ ok: false, error: "Pipeline failed" }, { status: 500 });

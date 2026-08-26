@@ -15,9 +15,12 @@ export async function GET(req: Request) {
   const market = getMarketFromRequest(req);
 
   const sub = await getUserSubscription(u.id);
-  const active = sub ? isSubscriptionActive(sub) : false;
-  const usage = active && sub ? await getUsageSummary(u.id) : null;
-  const limits = sub ? PLAN_LIMITS[sub.tier] : null;
+  // Admins are entitled to everything regardless of their subscription row.
+  const superUser = Boolean(u.isAdmin);
+  const active = superUser || (sub ? isSubscriptionActive(sub) : false);
+  const effectiveTier = superUser ? 'PLUS' : sub?.tier ?? null;
+  const usage = active && sub && !superUser ? await getUsageSummary(u.id) : null;
+  const limits = effectiveTier ? PLAN_LIMITS[effectiveTier] : null;
 
   return NextResponse.json(
     {
@@ -27,9 +30,12 @@ export async function GET(req: Request) {
         email: u.email,
         name: u.name,
         emailVerified: u.emailVerified,
+        onboardingComplete: u.onboardingComplete,
         isAdmin: u.isAdmin,
         market,
       },
+      superUser,
+      effectiveTier,
       subscription: sub
         ? {
             tier: sub.tier,

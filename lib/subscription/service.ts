@@ -30,6 +30,68 @@ export async function getActiveSubscription(userId: string): Promise<Subscriptio
   return sub;
 }
 
+export async function isSuperUser(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isAdmin: true } });
+  return Boolean(user?.isAdmin);
+}
+
+/**
+ * The tier a user should be treated as having.
+ *
+ * Admins are granted PLUS — every counter in PLAN_LIMITS.PLUS is unlimited and
+ * all features are on, so this needs no special tier. This is an ENTITLEMENT
+ * BYPASS, deliberately kept to this one helper rather than scattered through
+ * the gates, so it is obvious in a security review.
+ *
+ * Returns null when the user has no active subscription and is not an admin.
+ */
+export async function getEffectiveTier(userId: string): Promise<SubscriptionTier | null> {
+  if (await isSuperUser(userId)) return 'PLUS';
+  const sub = await getActiveSubscription(userId);
+  return sub ? sub.tier : null;
+}
+
+/**
+ * Brings the stored `status` column into line with what isSubscriptionActive()
+ * already computes.
+ *
+ * Access control was never wrong — isSubscriptionActive() checks the dates — but
+ * nothing ever transitioned the column, so anything querying `status` directly
+ * (admin reporting, digest audiences) saw long-dead trials as live.
+ */
+export async function reconcileSubscriptionStatuses(): Promise<{
+  trialsExpired: number;
+  lapsedToPastDue: number;
+  canceledExpired: number;
+}> {
+  const now = new Date();
+
+  const trialsExpired = await prisma.subscription.updateMany({
+    where: { status: 'TRIALING', trialEndsAt: { lt: now } },
+    data: { status: 'EXPIRED' },
+  });
+
+  // Explicitly cancelled and the paid period has run out — genuinely over.
+  const canceledExpired = await prisma.subscription.updateMany({
+    where: { status: 'ACTIVE', currentPeriodEnd: { lt: now }, cancelAtPeriodEnd: true },
+    data: { status: 'EXPIRED' },
+  });
+
+  // Still meant to renew but the period lapsed: PAST_DUE, not EXPIRED. A
+  // renewal webhook may still be in flight and hard-expiring a paying customer
+  // over a timing gap is far worse than briefly showing them as past due.
+  const lapsedToPastDue = await prisma.subscription.updateMany({
+    where: { status: 'ACTIVE', currentPeriodEnd: { lt: now }, cancelAtPeriodEnd: false },
+    data: { status: 'PAST_DUE' },
+  });
+
+  return {
+    trialsExpired: trialsExpired.count,
+    lapsedToPastDue: lapsedToPastDue.count,
+    canceledExpired: canceledExpired.count,
+  };
+}
+
 export async function getActiveTier(userId: string): Promise<SubscriptionTier | null> {
   const sub = await getActiveSubscription(userId);
   return sub?.tier ?? null;

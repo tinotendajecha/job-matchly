@@ -40,15 +40,27 @@ export async function GET(req: Request) {
     return page("Invalid link", "This unsubscribe link isn't valid. Please use the link from a recent email.");
   }
 
+  // Job alerts and announcements are separate lists — unsubscribing from one
+  // must not silently mute the other.
+  const isJobAlerts = url.searchParams.get("type") === "jobs";
+
   try {
-    await prisma.user.update({ where: { id: uid }, data: { marketingOptOut: true } });
+    await prisma.user.update({
+      where: { id: uid },
+      data: isJobAlerts ? { jobAlertsOptOut: true } : { marketingOptOut: true },
+    });
   } catch (e) {
     console.error("unsubscribe failed:", e);
     return page("Something went wrong", "We couldn't process that just now. Please try again shortly.");
   }
 
-  return page(
-    "You're unsubscribed",
-    "You won't receive any more announcement or update emails from JobMatchly. Account emails like password resets and email verification will still be sent."
-  );
+  return isJobAlerts
+    ? page(
+        "Job alerts turned off",
+        "You won't receive any more weekly job emails. You can still browse your matches any time at jobmatchly.site/app/jobs, and account emails like password resets are unaffected."
+      )
+    : page(
+        "You're unsubscribed",
+        "You won't receive any more announcement or update emails from JobMatchly. Job alerts, if you have them on, are a separate list and are unaffected. Account emails like password resets will still be sent."
+      );
 }

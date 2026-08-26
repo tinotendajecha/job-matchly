@@ -9,6 +9,11 @@ import type { RawJob } from '../types';
 
 const API = 'https://api.adzuna.com/v1/api/jobs/za/search';
 
+/** Adzuna 503s on rapid-fire requests; spacing them out keeps the run useful. */
+const REQUEST_SPACING_MS = 1200;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export function adzunaConfigured(): boolean {
   return Boolean(process.env.ADZUNA_APP_ID?.trim() && process.env.ADZUNA_APP_KEY?.trim());
 }
@@ -44,19 +49,26 @@ export async function fetchAdzunaJobs(options: {
   categoryTags: string[];
   resultsPerPage: number;
   maxAgeDays?: number;
+  /** Hard ceiling on requests, to stay inside the free monthly quota. */
+  maxCalls?: number;
   onProgress?: (message: string) => void;
-}): Promise<RawJob[]> {
-  const { categoryTags, resultsPerPage, maxAgeDays = 30, onProgress } = options;
+}): Promise<{ jobs: RawJob[]; callsUsed: number }> {
+  const { categoryTags, resultsPerPage, maxAgeDays = 14, maxCalls = 12, onProgress } = options;
   if (!adzunaConfigured()) {
     onProgress?.('  [adzuna] no API keys configured — skipping South Africa');
-    return [];
+    return { jobs: [], callsUsed: 0 };
   }
 
   const appId = process.env.ADZUNA_APP_ID as string;
   const appKey = process.env.ADZUNA_APP_KEY as string;
   const jobs: RawJob[] = [];
+  let callsUsed = 0;
 
   for (const tag of categoryTags) {
+    if (callsUsed >= maxCalls) {
+      onProgress?.(`  [adzuna] call budget reached (${maxCalls}) — stopping`);
+      break;
+    }
     const params = new URLSearchParams({
       app_id: appId,
       app_key: appKey,
@@ -67,7 +79,19 @@ export async function fetchAdzunaJobs(options: {
     });
 
     try {
-      const res = await fetch(`${API}/1?${params}`, { headers: { Accept: 'application/json' } });
+      // Adzuna returns 503 when called too fast — pace the requests rather than
+      // burning quota on failures.
+      if (callsUsed > 0) await sleep(REQUEST_SPACING_MS);
+
+      callsUsed++;
+      let res = await fetch(`${API}/1?${params}`, { headers: { Accept: 'application/json' } });
+
+      if (res.status === 503) {
+        await sleep(REQUEST_SPACING_MS * 3);
+        callsUsed++;
+        res = await fetch(`${API}/1?${params}`, { headers: { Accept: 'application/json' } });
+      }
+
       if (!res.ok) {
         onProgress?.(`  [adzuna:${tag}] HTTP ${res.status}`);
         continue;
@@ -107,5 +131,6 @@ export async function fetchAdzunaJobs(options: {
     }
   }
 
-  return jobs;
+  onProgress?.(`  [adzuna] ${callsUsed} API call(s) used, ${jobs.length} jobs`);
+  return { jobs, callsUsed };
 }

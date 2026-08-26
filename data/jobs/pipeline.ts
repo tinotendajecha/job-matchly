@@ -6,6 +6,7 @@
 import { prisma } from '@/lib/prisma';
 import { fetchVacancyMailJobs } from './sources/vacancymail';
 import { fetchAdzunaJobs, adzunaConfigured } from './sources/adzuna';
+import { ADZUNA_BRACKETS } from '@/lib/jobs/brackets';
 import { UNDATED_JOB_MAX_AGE_DAYS, EXPIRED_JOB_RETENTION_DAYS, undatedJobCutoff } from '@/lib/jobs/policy';
 import type { JobIngestResult, RawJob } from './types';
 
@@ -30,7 +31,10 @@ const VACANCYMAIL_CATEGORIES = [
   'pr-communication-graphic-design-jobs-in-zimbabwe',
 ];
 
-/** Adzuna tags mirroring the same brackets. One API call each — quota is finite. */
+/**
+ * Adzuna tags, ordered by how many tagged users sit in each bracket at run
+ * time — quota should be spent where our users actually are.
+ */
 const ADZUNA_CATEGORIES = [
   'it-jobs',
   'accounting-finance-jobs',
@@ -40,10 +44,35 @@ const ADZUNA_CATEGORIES = [
   'graduate-jobs',
   'pr-advertising-marketing-jobs',
   'healthcare-nursing-jobs',
+  'logistics-warehouse-jobs',
+  'teaching-jobs',
+  'trade-construction-jobs',
+  'legal-jobs',
 ];
 
 const MAX_PER_CATEGORY = 8;
-const ADZUNA_RESULTS_PER_PAGE = 20;
+
+/**
+ * Adzuna's maximum. Crucially this costs NO extra quota — one request returning
+ * 50 jobs bills the same as one returning 20 — so it is free coverage.
+ */
+const ADZUNA_RESULTS_PER_PAGE = 50;
+
+/**
+ * Hard ceiling per run: 12 × 30 days = 360 calls/month against a ~1000 free
+ * tier, leaving headroom for retries and manual runs.
+ */
+const ADZUNA_MAX_CALLS_PER_RUN = 12;
+
+/** Puts the brackets our users occupy at the front of the queue. */
+async function orderCategoriesByDemand(tags: string[]): Promise<string[]> {
+  const byBracket = await prisma.userProfession.groupBy({ by: ['bracket'], _count: true });
+  const demand = new Map(byBracket.map((b) => [b.bracket, b._count]));
+  return [...tags].sort(
+    (a, b) =>
+      (demand.get(ADZUNA_BRACKETS[b] ?? '') ?? 0) - (demand.get(ADZUNA_BRACKETS[a] ?? '') ?? 0)
+  );
+}
 
 export async function pruneExpiredJobs(): Promise<{ deleted: number }> {
   const cutoff = new Date(Date.now() - EXPIRED_JOB_RETENTION_DAYS * 86_400_000);
@@ -127,13 +156,14 @@ export async function runJobsPipeline(
     });
 
     log(`\n[adzuna] South Africa${adzunaConfigured() ? '' : ' (not configured)'}`);
-    const za = (
-      await fetchAdzunaJobs({
-        categoryTags: ADZUNA_CATEGORIES,
-        resultsPerPage: ADZUNA_RESULTS_PER_PAGE,
-        onProgress: log,
-      })
-    ).filter((j) => !knownUrls.has(j.url));
+    const adzunaResult = await fetchAdzunaJobs({
+      categoryTags: await orderCategoriesByDemand(ADZUNA_CATEGORIES),
+      resultsPerPage: ADZUNA_RESULTS_PER_PAGE,
+      maxAgeDays: UNDATED_JOB_MAX_AGE_DAYS, // don't ingest what expiry will hide
+      maxCalls: ADZUNA_MAX_CALLS_PER_RUN,
+      onProgress: log,
+    });
+    const za = adzunaResult.jobs.filter((j) => !knownUrls.has(j.url));
 
     log('');
     const persisted = await persist([...zw, ...za], log);

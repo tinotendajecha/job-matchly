@@ -290,6 +290,212 @@ export function personalEmailHTML(opts: {
 </html>`;
 }
 
+export interface DigestJob {
+  title: string;
+  company: string | null;
+  location: string | null;
+  url: string;
+  market: string;
+  closesInDays?: number | null;
+}
+
+/**
+ * Job digest layout — structured and branded, but deliberately restrained.
+ *
+ * The brand mark is rendered as styled TEXT, not an image: the logo is an SVG,
+ * which Gmail and Outlook both refuse to render, and any remote image is
+ * blocked by default until the reader opts in. A wordmark always shows.
+ *
+ * Kept free of big colour blocks and CTA buttons on purpose — that chrome is
+ * what pushes mail into Gmail's Promotions tab, which is exactly what this
+ * account already ran into.
+ */
+export function jobDigestEmailHTML(opts: {
+  intro: string;
+  jobs: DigestJob[];
+  name?: string | null;
+  browseUrl: string;
+  unsubscribeUrl?: string;
+}) {
+  const ink = '#111827';
+  const muted = '#6b7280';
+  const line = '#e5e7eb';
+  const link = '#1a56db';
+  const accent = '#84cc16';
+
+  const greeting = (opts.name || '').trim().split(/\s+/)[0] || 'there';
+
+  const jobRows = opts.jobs
+    .map((job) => {
+      const meta = [job.company, job.location]
+        .filter((v): v is string => Boolean(v))
+        .map(escapeHtml)
+        .join(' &middot; ');
+      const urgent =
+        typeof job.closesInDays === 'number' && job.closesInDays >= 0 && job.closesInDays <= 3;
+      const closing =
+        typeof job.closesInDays === 'number' && job.closesInDays >= 0
+          ? `<span style="font-size:12px;color:${urgent ? '#b91c1c' : muted};">${
+              job.closesInDays === 0 ? 'Closes today' : `Closes in ${job.closesInDays} day${job.closesInDays === 1 ? '' : 's'}`
+            }</span>`
+          : '';
+      const country = job.market === 'ZA' ? 'South Africa' : 'Zimbabwe';
+
+      return `
+      <tr>
+        <td style="padding:14px 0;border-bottom:1px solid ${line};">
+          <a href="${job.url}" style="color:${ink};font-size:16px;font-weight:600;text-decoration:none;line-height:1.35;">${escapeHtml(
+            job.title
+          )}</a>
+          ${meta ? `<div style="margin-top:4px;font-size:13px;color:${muted};">${meta}</div>` : ''}
+          <div style="margin-top:6px;font-size:12px;color:${muted};">
+            ${country}${closing ? ' &middot; ' : ''}${closing}
+          </div>
+          <div style="margin-top:8px;">
+            <a href="${job.url}" style="font-size:13px;color:${link};text-decoration:underline;">View &amp; apply &rarr;</a>
+          </div>
+        </td>
+      </tr>`;
+    })
+    .join('');
+
+  const unsubscribeBlock = opts.unsubscribeUrl
+    ? `<p style="margin:6px 0 0 0;font-size:12px;color:${muted};">
+         <a href="${opts.unsubscribeUrl}" style="color:${muted};">Turn off job alerts</a>
+       </p>`
+    : '';
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light only" />
+    <title>${escapeHtml(opts.intro)}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#ffffff;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;">
+      <tr>
+        <td align="center" style="padding:24px 16px;">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:100%;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+
+            <!-- Wordmark: styled text, never a blocked image -->
+            <tr>
+              <td style="padding-bottom:20px;">
+                <span style="font-size:17px;font-weight:700;color:${ink};letter-spacing:-0.2px;">Job<span style="color:${accent};">Matchly</span></span>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="font-size:15px;line-height:1.6;color:${ink};">
+                <p style="margin:0 0 6px 0;">Hi ${escapeHtml(greeting)},</p>
+                <p style="margin:0 0 4px 0;">${escapeHtml(opts.intro)}</p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding-top:6px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  ${jobRows}
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding-top:18px;font-size:14px;line-height:1.6;color:${ink};">
+                <a href="${opts.browseUrl}" style="color:${link};text-decoration:underline;">See all your matches</a>
+                <p style="margin:16px 0 0 0;">Good luck,<br />Tino</p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding-top:22px;border-top:1px solid ${line};margin-top:20px;">
+                <p style="margin:12px 0 0 0;font-size:12px;color:${muted};">
+                  You're getting this because you have a JobMatchly account.
+                </p>
+                ${unsubscribeBlock}
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+export function jobDigestEmailText(opts: {
+  intro: string;
+  jobs: DigestJob[];
+  name?: string | null;
+  browseUrl: string;
+  unsubscribeUrl?: string;
+}) {
+  const greeting = (opts.name || '').trim().split(/\s+/)[0] || 'there';
+  const lines = [`Hi ${greeting},`, '', opts.intro, ''];
+  for (const job of opts.jobs) {
+    lines.push(job.title);
+    const meta = [job.company, job.location].filter(Boolean).join(' · ');
+    if (meta) lines.push(meta);
+    lines.push(job.url);
+    lines.push('');
+  }
+  lines.push(`See all your matches: ${opts.browseUrl}`);
+  lines.push('', 'Good luck,', 'Tino');
+  if (opts.unsubscribeUrl) lines.push('', `Turn off job alerts: ${opts.unsubscribeUrl}`);
+  return lines.join('\n');
+}
+
+/** Sends one fully-rendered digest. */
+export async function sendJobDigestEmail(opts: {
+  to: string;
+  subject: string;
+  intro: string;
+  jobs: DigestJob[];
+  name?: string | null;
+  browseUrl: string;
+  unsubscribeUrl?: string;
+}): Promise<BroadcastRecipientResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = broadcastFrom();
+  const replyTo = broadcastReplyTo();
+
+  if (!apiKey) {
+    console.log(`[DEV] Would send digest "${opts.subject}" to ${opts.to}`);
+    return { email: opts.to, accepted: false, error: 'RESEND_API_KEY not configured' };
+  }
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from,
+        to: opts.to,
+        subject: opts.subject,
+        ...(replyTo ? { reply_to: replyTo } : {}),
+        html: jobDigestEmailHTML(opts),
+        text: jobDigestEmailText(opts),
+      }),
+    });
+    const raw = await res.text().catch(() => '');
+    if (!res.ok) {
+      return { email: opts.to, accepted: false, error: `Resend ${res.status}: ${raw.slice(0, 200)}` };
+    }
+    const id = (() => {
+      try {
+        return JSON.parse(raw)?.id as string | undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    return { email: opts.to, resendId: id, accepted: Boolean(id) };
+  } catch (e) {
+    return { email: opts.to, accepted: false, error: (e as Error)?.message || String(e) };
+  }
+}
+
 export function broadcastEmailText(bodyText: string, name?: string | null, unsubscribeUrl?: string) {
   const greetingName = (name || "there").trim() || "there";
   const personalized = bodyText

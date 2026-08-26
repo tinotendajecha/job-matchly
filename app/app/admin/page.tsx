@@ -71,7 +71,8 @@ export default function AdminDashboard() {
     fetchData();
   }, []);
 
-  const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))'];
+  // One per slice: Free / Trialing / Paying.
+  const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))'];
 
   if (error) {
     return (
@@ -361,9 +362,12 @@ export default function AdminDashboard() {
               height={36}
               iconType="circle"
               formatter={(value, entry: any) => {
+                // For a Pie legend, `entry.value` is the slice NAME — the count
+                // lives on the payload. Reading entry.value here produced NaN.
+                const count = Number(entry?.payload?.value ?? 0);
                 const total = charts.userDistribution.reduce((sum, item) => sum + item.value, 0);
-                const percentage = ((entry.value / total) * 100).toFixed(0);
-                return `${value}: ${entry.value} (${percentage}%)`;
+                const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+                return `${value}: ${formatNumber(count)} (${percentage}%)`;
               }}
               wrapperStyle={{
                 fontSize: '12px',

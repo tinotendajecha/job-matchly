@@ -16,7 +16,7 @@ import {
   Target,
   TrendingDown,
   AlertCircle,
-  Sparkles,
+  BadgeCheck,
 } from 'lucide-react';
 import {
   LineChart,
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
         <MetricCard
           title="Active Subscribers"
           value={formatNumber(metrics.activeSubscribersByTier.reduce((sum, t) => sum + t.count, 0))}
-          icon={Sparkles}
+          icon={BadgeCheck}
           description={
             metrics.activeSubscribersByTier.length
               ? metrics.activeSubscribersByTier.map((t) => `${t.count} ${t.tier[0]}${t.tier.slice(1).toLowerCase()}`).join(' · ') +

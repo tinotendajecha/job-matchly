@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
   ArrowRight, CheckCircle, Star, FileText, Target, Zap,
-  BarChart3, TrendingUp, Smartphone, Sparkles, Check, Briefcase, Mail, BookOpen,
+  BarChart3, TrendingUp, Smartphone, Check, Briefcase, Mail, BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -199,10 +199,9 @@ export default function LandingPage() {
               >
                 <Badge
                   variant="outline"
-                  className="mb-6 gap-2 border-primary/30 bg-primary/8 text-primary px-4 py-1.5"
+                  className="mb-6 border-primary/30 bg-primary/8 text-primary px-4 py-1.5"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium">AI-Powered · Built for Africa</span>
+                  <span className="text-xs font-medium">Built for Zimbabwe &amp; South Africa</span>
                 </Badge>
               </motion.div>
 

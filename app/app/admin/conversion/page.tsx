@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MetricCard } from '../components/MetricCard';
 import { PurchasesTable } from '../components/PurchasesTable';
-import { AlertCircle, AlertTriangle, Target, Repeat, Sparkles, CreditCard } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Target, Repeat, Timer, CreditCard } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AdminConversionData, MoneyByCurrency } from '../types';
 import { formatNumber } from '../lib/utils';
@@ -129,7 +129,7 @@ export default function ConversionPage() {
         <MetricCard
           title="Active Trials"
           value={formatNumber(trials.active)}
-          icon={Sparkles}
+          icon={Timer}
           description={`${trials.converted} converted to paid`}
         />
         <MetricCard

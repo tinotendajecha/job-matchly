@@ -14,7 +14,6 @@ import {
   Upload, 
   CheckCheck, 
   Lightbulb, 
-  Sparkles 
 } from 'lucide-react';
 import Tesseract from 'tesseract.js';
 import { apiNormalizeJDFromText, apiAnalyze, apiTailor, TailorError } from '../helpers/api';
@@ -470,7 +469,6 @@ export const StepTwo = ({
               ) : (
                 <>
                   Tailor my resume
-                  <Sparkles className="h-4 w-4 ml-2" />
                 </>
               )}
             </Button>

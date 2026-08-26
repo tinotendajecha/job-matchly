@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Sparkles, X } from 'lucide-react';
+import { Target, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const DISMISS_KEY = 'jm_onboarding_prompt_dismissed_at';
@@ -78,7 +78,7 @@ export function OnboardingPrompt() {
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pr-6">
         <div className="flex-1 min-w-0">
           <h3 className="flex items-center gap-2 font-semibold text-foreground">
-            <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
+            <Target className="h-4 w-4 text-primary flex-shrink-0" />
             Get better job matches
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">

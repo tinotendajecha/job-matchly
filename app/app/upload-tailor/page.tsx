@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Header } from '@/components/layout/header';
-import { Sparkles } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import { useTailorStore } from '@/lib/zustand/store';
@@ -100,7 +99,7 @@ export default function UploadTailorWizardPage() {
       <div className="container mx-auto p-4 py-6 md:py-8 max-w-6xl">
         <div className="mb-6 md:mb-8 text-center">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            Tailor your resume in 3 easy steps <Sparkles className="inline h-6 w-6 text-primary ml-1" />
+            Tailor your resume in 3 easy steps
           </h1>
         </div>
 

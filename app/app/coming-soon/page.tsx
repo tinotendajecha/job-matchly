@@ -12,7 +12,7 @@ import {
   Bell,
   CheckCircle,
   Clock,
-  Sparkles
+  Clock3
 } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { motion } from 'framer-motion';
@@ -122,7 +122,7 @@ export default function ComingSoonPage() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
             >
-              <Sparkles className="h-16 w-16 text-primary mx-auto mb-6" />
+              <Clock3 className="h-16 w-16 text-primary mx-auto mb-6" />
             </motion.div>
             <h1 className="text-4xl font-bold mb-4">What's Coming Next</h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">

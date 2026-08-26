@@ -26,7 +26,6 @@ import {
   Loader2,
   FileText,
   FileType2,
-  Sparkles,
 } from 'lucide-react';
 import { MarkdownPreview, splitChanges } from '../helpers/utils';
 import { downloadDocument, downloadSavedDocument, startDocumentUnlock, SubscriptionLimitError } from '../helpers/api';
@@ -457,11 +456,7 @@ export const StepThree = ({
                         disabled={startingTrial || !tailoredMarkdown || subState === 'loading'}
                         className="shrink-0"
                       >
-                        {startingTrial ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-                        ) : (
-                          <Sparkles className="h-4 w-4 mr-1.5" />
-                        )}
+                        {startingTrial && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
                         Start Free Trial
                       </Button>
                     )

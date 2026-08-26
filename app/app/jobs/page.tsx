@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, Sparkles, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Briefcase, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -147,7 +147,7 @@ export default function JobsPage() {
 
             {!loading && data && !data.hasProfession && data.jobs.length > 0 && (
               <Alert>
-                <Sparkles className="h-4 w-4" />
+                <Briefcase className="h-4 w-4" />
                 <AlertTitle>Showing the latest jobs</AlertTitle>
                 <AlertDescription>
                   Tailor a CV to a role you want and we&apos;ll learn what you&apos;re looking for, then put

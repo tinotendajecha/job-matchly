@@ -4,6 +4,7 @@ import type { MarketCode, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { resolveMarket } from '@/lib/market/config';
+import { liveJobWhere } from '@/lib/jobs/policy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -79,11 +80,7 @@ export async function GET(req: Request) {
       requested === 'ALL' ? 'ALL' : requested === 'ZW' || requested === 'ZA' ? requested : resolvedDefault;
 
     const marketWhere = market === 'ALL' ? {} : { market: market as MarketCode };
-    const liveJob: Prisma.JobPostWhereInput = {
-      status: 'ACTIVE',
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-      ...marketWhere,
-    };
+    const liveJob: Prisma.JobPostWhereInput = { ...liveJobWhere(), ...marketWhere };
 
     const profession = await prisma.userProfession.findUnique({
       where: { userId: user.id },
@@ -94,7 +91,7 @@ export async function GET(req: Request) {
     // before the user clicks it.
     const countsRaw = await prisma.jobPost.groupBy({
       by: ['market'],
-      where: { status: 'ACTIVE', OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      where: liveJobWhere(),
       _count: true,
     });
     const counts = {

@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { runPipeline } from "@/data/pipeline";
 import { prunePageViews } from "@/lib/analytics/prune";
+import { pruneExpiredJobs } from "@/data/jobs/pipeline";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,9 +30,16 @@ export async function POST(req: Request) {
     console.error("pageview prune failed", err);
   }
 
+  let jobPrune: { deleted: number } | null = null;
+  try {
+    jobPrune = await pruneExpiredJobs();
+  } catch (err) {
+    console.error("expired job prune failed", err);
+  }
+
   try {
     const result = await runPipeline("CRON");
-    return NextResponse.json({ ok: true, ...result, prune });
+    return NextResponse.json({ ok: true, ...result, prune, jobPrune });
   } catch (err: any) {
     console.error("briefing-ingest error", err);
     return NextResponse.json({ ok: false, error: "Pipeline failed" }, { status: 500 });

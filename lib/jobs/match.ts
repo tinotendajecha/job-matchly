@@ -11,6 +11,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { seniorityProximity } from './brackets';
+import { liveJobWhere } from './policy';
 
 const MATCHES_PER_USER = 30;
 const RECENCY_HALFLIFE_DAYS = 14;
@@ -34,10 +35,7 @@ export async function rebuildMatches(): Promise<MatchStats> {
   if (professions.length === 0) return { users: 0, matches: 0, bracketsComputed: 0 };
 
   const jobs = await prisma.jobPost.findMany({
-    where: {
-      status: 'ACTIVE',
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-    },
+    where: liveJobWhere(),
     select: {
       id: true,
       bracket: true,

@@ -6,6 +6,7 @@
 import { prisma } from '@/lib/prisma';
 import { fetchVacancyMailJobs } from './sources/vacancymail';
 import { fetchAdzunaJobs, adzunaConfigured } from './sources/adzuna';
+import { UNDATED_JOB_MAX_AGE_DAYS, EXPIRED_JOB_RETENTION_DAYS, undatedJobCutoff } from '@/lib/jobs/policy';
 import type { JobIngestResult, RawJob } from './types';
 
 /**
@@ -43,6 +44,14 @@ const ADZUNA_CATEGORIES = [
 
 const MAX_PER_CATEGORY = 8;
 const ADZUNA_RESULTS_PER_PAGE = 20;
+
+export async function pruneExpiredJobs(): Promise<{ deleted: number }> {
+  const cutoff = new Date(Date.now() - EXPIRED_JOB_RETENTION_DAYS * 86_400_000);
+  const { count } = await prisma.jobPost.deleteMany({
+    where: { status: 'EXPIRED', updatedAt: { lt: cutoff } },
+  });
+  return { deleted: count };
+}
 
 async function persist(jobs: RawJob[], log: (m: string) => void) {
   let saved = 0;
@@ -131,12 +140,29 @@ export async function runJobsPipeline(
     result.saved = persisted.saved;
     result.skipped = persisted.skipped;
 
-    // Anything past its advertised closing date drops out of the feed.
-    const expired = await prisma.jobPost.updateMany({
+    // 1) Anything past its advertised closing date drops out of the feed.
+    const expiredByDate = await prisma.jobPost.updateMany({
       where: { status: 'ACTIVE', expiresAt: { lt: new Date() } },
       data: { status: 'EXPIRED' },
     });
-    result.expired = expired.count;
+
+    // 2) Adzuna publishes no closing date, so undated listings would otherwise
+    // stay ACTIVE forever. Age them out instead — a listing this old is usually
+    // filled, and sending someone to a closed vacancy is worse than a shorter feed.
+    const staleCutoff = undatedJobCutoff();
+    const expiredByAge = await prisma.jobPost.updateMany({
+      where: {
+        status: 'ACTIVE',
+        expiresAt: null,
+        OR: [{ postedAt: { lt: staleCutoff } }, { postedAt: null, createdAt: { lt: staleCutoff } }],
+      },
+      data: { status: 'EXPIRED' },
+    });
+
+    result.expired = expiredByDate.count + expiredByAge.count;
+    log(
+      `\n[expiry] ${expiredByDate.count} past closing date, ${expiredByAge.count} aged out (>${UNDATED_JOB_MAX_AGE_DAYS}d, no closing date)`
+    );
   } catch (e) {
     failed = true;
     errorMessage = (e as Error)?.message || String(e);

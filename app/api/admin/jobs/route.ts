@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     const weekAgo = subDays(new Date(), 7);
 
-    const [byStatusRaw, total, rows, closedThisWeek, byMarketRaw, oldest] =
+    const [byStatusRaw, total, rows, closedThisWeek, byMarketRaw, oldest, runs] =
       await Promise.all([
         prisma.jobPost.groupBy({ by: ["status"], _count: true }),
         prisma.jobPost.count({ where }),
@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
             status: true,
             postedAt: true,
             closedAt: true,
+            lastSeenAt: true,
             createdAt: true,
           },
         }),
@@ -80,6 +81,21 @@ export async function GET(request: NextRequest) {
           where: { closedAt: { not: null } },
           orderBy: { closedAt: "asc" },
           select: { closedAt: true },
+        }),
+        prisma.ingestRun.findMany({
+          where: { kind: "JOBS" },
+          orderBy: { startedAt: "desc" },
+          take: 8,
+          select: {
+            id: true,
+            trigger: true,
+            status: true,
+            saved: true,
+            skipped: true,
+            meta: true,
+            startedAt: true,
+            finishedAt: true,
+          },
         }),
       ]);
 
@@ -117,7 +133,15 @@ export async function GET(request: NextRequest) {
         ...j,
         postedAt: j.postedAt?.toISOString() ?? null,
         closedAt: j.closedAt?.toISOString() ?? null,
+        lastSeenAt: j.lastSeenAt?.toISOString() ?? null,
         createdAt: j.createdAt.toISOString(),
+      })),
+      // Coverage per run. A drop in listings is only a market signal once you
+      // can see that the crawl behind it reached as much ground as the last one.
+      runs: runs.map((r) => ({
+        ...r,
+        startedAt: r.startedAt.toISOString(),
+        finishedAt: r.finishedAt?.toISOString() ?? null,
       })),
       pagination: {
         page,

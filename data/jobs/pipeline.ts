@@ -3,12 +3,13 @@
 // Ingests jobs from every configured source, classifies them from the source's
 // OWN taxonomy (zero AI), and records the run in IngestRun.
 
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { fetchVacancyMailJobs } from './sources/vacancymail';
 import { fetchAdzunaJobs, adzunaConfigured } from './sources/adzuna';
 import { ADZUNA_BRACKETS } from '@/lib/jobs/brackets';
 import { UNDATED_JOB_MAX_AGE_DAYS, EXPIRED_JOB_ARCHIVE_DAYS, undatedJobCutoff } from '@/lib/jobs/policy';
-import type { JobIngestResult, RawJob } from './types';
+import type { JobIngestResult, RawJob, SourceCoverage } from './types';
 
 /**
  * VacancyMail categories worth crawling. Ordered so the brackets our users
@@ -148,6 +149,7 @@ export async function runJobsPipeline(
   let result: JobIngestResult = { saved: 0, skipped: 0, errors: 0, expired: 0 };
   let failed = false;
   let errorMessage: string | undefined;
+  let coverage: Record<string, SourceCoverage> | null = null;
 
   try {
     const knownUrls = new Set(
@@ -156,7 +158,7 @@ export async function runJobsPipeline(
     const isKnownUrl = async (url: string) => knownUrls.has(url);
 
     log('\n[vacancymail] Zimbabwe');
-    const zw = await fetchVacancyMailJobs({
+    const vmResult = await fetchVacancyMailJobs({
       categories: VACANCYMAIL_CATEGORIES,
       maxPerCategory: MAX_PER_CATEGORY,
       isKnownUrl,
@@ -171,12 +173,35 @@ export async function runJobsPipeline(
       maxCalls: ADZUNA_MAX_CALLS_PER_RUN,
       onProgress: log,
     });
+    const zw = vmResult.jobs;
     const za = adzunaResult.jobs.filter((j) => !knownUrls.has(j.url));
 
     log('');
     const persisted = await persist([...zw, ...za], log);
     result.saved = persisted.saved;
     result.skipped = persisted.skipped;
+
+    // Anything still advertised on its source is confirmed open, regardless of
+    // whether we re-fetched it. This is the observation that later separates a
+    // listing the market closed from one our own ageing rule hid.
+    const seenUrls = [...new Set([...vmResult.seenUrls, ...adzunaResult.seenUrls])];
+    const seenAt = new Date();
+    let refreshed = 0;
+    for (let i = 0; i < seenUrls.length; i += 500) {
+      const { count } = await prisma.jobPost.updateMany({
+        where: { url: { in: seenUrls.slice(i, i + 500) } },
+        data: { lastSeenAt: seenAt },
+      });
+      refreshed += count;
+    }
+    result.refreshed = refreshed;
+    log(`
+[presence] ${refreshed} of ${seenUrls.length} observed listings confirmed still open`);
+
+    coverage = {
+      VACANCYMAIL: vmResult.coverage,
+      ADZUNA: adzunaResult.coverage,
+    };
 
     // 1) Anything past its advertised closing date drops out of the feed.
     const closedAt = new Date();
@@ -216,6 +241,12 @@ export async function runJobsPipeline(
         errors: result.errors,
         errorMessage,
         finishedAt: new Date(),
+        // Written even on failure — a run that died halfway is exactly the case
+        // where a later trend query would otherwise read our outage as the
+        // market going quiet.
+        meta: (coverage
+          ? { sources: coverage, refreshed: result.refreshed ?? 0 }
+          : { sources: null, refreshed: 0 }) as unknown as Prisma.InputJsonValue,
       },
     });
   }

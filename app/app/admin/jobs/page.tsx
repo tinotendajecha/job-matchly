@@ -26,7 +26,28 @@ interface ArchiveJob {
   status: JobStatus;
   postedAt: string | null;
   closedAt: string | null;
+  lastSeenAt: string | null;
   createdAt: string;
+}
+
+interface SourceCoverage {
+  categoriesAttempted: number;
+  categoriesOk: number;
+  categoriesFailed: string[];
+  listingsSeen: number;
+  callsUsed?: number;
+  cappedCategories?: string[];
+}
+
+interface CrawlRun {
+  id: string;
+  trigger: 'MANUAL' | 'CRON';
+  status: 'RUNNING' | 'SUCCESS' | 'FAILED';
+  saved: number;
+  skipped: number;
+  meta: { sources: Record<string, SourceCoverage> | null; refreshed: number } | null;
+  startedAt: string;
+  finishedAt: string | null;
 }
 
 interface JobsData {
@@ -44,6 +65,7 @@ interface JobsData {
   };
   status: JobStatus | 'ALL';
   jobs: ArchiveJob[];
+  runs: CrawlRun[];
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
 
@@ -175,6 +197,86 @@ export default function AdminJobsPage() {
         </Alert>
       )}
 
+      {data && data.runs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Crawl coverage</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              What each run actually reached. A fall in listings only means the market slowed if the
+              crawl behind it covered the same ground — otherwise it&apos;s our own coverage moving.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Run</TableHead>
+                    <TableHead>Result</TableHead>
+                    <TableHead>Categories reached</TableHead>
+                    <TableHead>Listings seen</TableHead>
+                    <TableHead className="text-right">Confirmed open</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.runs.map((run) => {
+                    const sources = run.meta?.sources;
+                    const entries = sources ? Object.entries(sources) : [];
+                    const seen = entries.reduce((n, [, c]) => n + (c?.listingsSeen ?? 0), 0);
+                    const failedAny = entries.some(([, c]) => (c?.categoriesFailed?.length ?? 0) > 0);
+                    return (
+                      <TableRow key={run.id}>
+                        <TableCell className="whitespace-nowrap">
+                          <span className="font-medium">{formatRelativeTime(new Date(run.startedAt))}</span>
+                          <span className="block text-xs text-muted-foreground">{run.trigger}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={run.status === 'FAILED' ? 'destructive' : 'secondary'}>
+                            {run.status}
+                          </Badge>
+                          <span className="block text-xs text-muted-foreground mt-1">
+                            +{run.saved} new
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {entries.length === 0 ? (
+                            <span className="text-muted-foreground">Not recorded</span>
+                          ) : (
+                            entries.map(([name, c]) => (
+                              <span key={name} className="block text-xs">
+                                <span className="text-muted-foreground">{name}: </span>
+                                <span className={cn('tabular-nums', c.categoriesFailed?.length && 'text-destructive')}>
+                                  {c.categoriesOk}/{c.categoriesAttempted}
+                                </span>
+                                {typeof c.callsUsed === 'number' && (
+                                  <span className="text-muted-foreground"> · {c.callsUsed} calls</span>
+                                )}
+                              </span>
+                            ))
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm tabular-nums">
+                          {entries.length === 0 ? '—' : seen.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">
+                          {run.meta ? (run.meta.refreshed ?? 0).toLocaleString() : '—'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            {data.runs.some((r) => !r.meta?.sources) && (
+              <p className="text-xs text-muted-foreground mt-3">
+                Runs from before coverage tracking show &ldquo;Not recorded&rdquo; — their listing counts
+                can&apos;t be compared against later runs.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="gap-4">
           <CardTitle className="text-base">Listings</CardTitle>
@@ -226,6 +328,7 @@ export default function AdminJobsPage() {
                       <TableHead>Bracket</TableHead>
                       <TableHead>Market</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Last seen</TableHead>
                       <TableHead>Closed</TableHead>
                       <TableHead className="text-right">On market</TableHead>
                     </TableRow>
@@ -252,6 +355,9 @@ export default function AdminJobsPage() {
                         <TableCell className="text-sm">{job.market}</TableCell>
                         <TableCell>
                           <Badge variant={STATUS_VARIANT[job.status]}>{job.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {job.lastSeenAt ? formatRelativeTime(new Date(job.lastSeenAt)) : '—'}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                           {job.closedAt ? formatRelativeTime(new Date(job.closedAt)) : '—'}

@@ -21,9 +21,29 @@ export interface RawJob {
   expiresAt: Date | null;
 }
 
+/**
+ * What a source actually managed to cover in one run.
+ *
+ * This is the denominator for every later trend question. A jump in listings
+ * means nothing unless we know whether we crawled more ground than last time.
+ */
+export interface SourceCoverage {
+  categoriesAttempted: number;
+  categoriesOk: number;
+  categoriesFailed: string[];
+  /** Distinct listing URLs observed on the source, including ones we already had. */
+  listingsSeen: number;
+  /** API calls spent, for sources with a quota. */
+  callsUsed?: number;
+  /** Categories where we hit the per-category cap, so coverage there is partial. */
+  cappedCategories?: string[];
+}
+
 export interface JobIngestResult {
   saved: number;
   skipped: number;
   errors: number;
   expired: number;
+  /** Listings confirmed still present on their source this run. */
+  refreshed?: number;
 }

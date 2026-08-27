@@ -18,7 +18,7 @@ import {
   DEFAULT_BRACKET,
   type Bracket,
 } from '@/lib/jobs/brackets';
-import type { RawJob } from '../types';
+import type { RawJob, SourceCoverage } from '../types';
 
 const BASE = 'https://vacancymail.co.zw';
 const USER_AGENT = 'Mozilla/5.0 (compatible; JobMatchlyBot/1.0; +https://jobmatchly.site)';
@@ -224,26 +224,41 @@ export async function fetchVacancyMailJobs(options: {
   maxPerCategory: number;
   isKnownUrl: (url: string) => Promise<boolean>;
   onProgress?: (message: string) => void;
-}): Promise<RawJob[]> {
+}): Promise<{ jobs: RawJob[]; seenUrls: string[]; coverage: SourceCoverage }> {
   const { categories, maxPerCategory, isKnownUrl, onProgress } = options;
   const jobs: RawJob[] = [];
 
+  // Every URL the source still advertises, whether or not we already hold it.
+  // This is the presence signal behind lastSeenAt, so it is collected from the
+  // category listing before the per-category cap applies — a listing we chose
+  // not to re-fetch is still a listing that is demonstrably still open.
+  const seen = new Set<string>();
+  const attempted: string[] = [];
+  const failed: string[] = [];
+  const capped: string[] = [];
+
   for (const slug of categories) {
     if (EXCLUDED_CATEGORIES.has(slug)) continue;
+    attempted.push(slug);
 
     const listUrl = `${BASE}/categories/${slug}/`;
     const listHtml = await fetchHtml(listUrl);
     if (!listHtml) {
       onProgress?.(`  [skip] could not load ${slug}`);
+      failed.push(slug);
       continue;
     }
 
     const links = collectJobLinks(listHtml);
     onProgress?.(`  [${slug}] ${links.length} listings`);
+    links.forEach((l) => seen.add(l.url));
 
     let added = 0;
     for (const { url, expiresText } of links) {
-      if (added >= maxPerCategory) break;
+      if (added >= maxPerCategory) {
+        capped.push(slug);
+        break;
+      }
       if (await isKnownUrl(url)) continue;
 
       const job = await fetchJob(url, slug);
@@ -255,5 +270,15 @@ export async function fetchVacancyMailJobs(options: {
     }
   }
 
-  return jobs;
+  return {
+    jobs,
+    seenUrls: [...seen],
+    coverage: {
+      categoriesAttempted: attempted.length,
+      categoriesOk: attempted.length - failed.length,
+      categoriesFailed: failed,
+      listingsSeen: seen.size,
+      cappedCategories: capped,
+    },
+  };
 }

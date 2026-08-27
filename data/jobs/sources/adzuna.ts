@@ -5,7 +5,7 @@
 // requests one page per category rather than paginating greedily.
 
 import { ADZUNA_BRACKETS, resolveBracket, seniorityFromTitle } from '@/lib/jobs/brackets';
-import type { RawJob } from '../types';
+import type { RawJob, SourceCoverage } from '../types';
 
 const API = 'https://api.adzuna.com/v1/api/jobs/za/search';
 
@@ -52,23 +52,39 @@ export async function fetchAdzunaJobs(options: {
   /** Hard ceiling on requests, to stay inside the free monthly quota. */
   maxCalls?: number;
   onProgress?: (message: string) => void;
-}): Promise<{ jobs: RawJob[]; callsUsed: number }> {
+}): Promise<{ jobs: RawJob[]; seenUrls: string[]; coverage: SourceCoverage }> {
   const { categoryTags, resultsPerPage, maxAgeDays = 14, maxCalls = 12, onProgress } = options;
   if (!adzunaConfigured()) {
     onProgress?.('  [adzuna] no API keys configured — skipping South Africa');
-    return { jobs: [], callsUsed: 0 };
+    return {
+      jobs: [],
+      seenUrls: [],
+      coverage: {
+        categoriesAttempted: 0,
+        categoriesOk: 0,
+        categoriesFailed: [],
+        listingsSeen: 0,
+        callsUsed: 0,
+      },
+    };
   }
 
   const appId = process.env.ADZUNA_APP_ID as string;
   const appKey = process.env.ADZUNA_APP_KEY as string;
   const jobs: RawJob[] = [];
+  const seen = new Set<string>();
+  const attempted: string[] = [];
+  const failed: string[] = [];
   let callsUsed = 0;
+  let budgetHit = false;
 
   for (const tag of categoryTags) {
     if (callsUsed >= maxCalls) {
       onProgress?.(`  [adzuna] call budget reached (${maxCalls}) — stopping`);
+      budgetHit = true;
       break;
     }
+    attempted.push(tag);
     const params = new URLSearchParams({
       app_id: appId,
       app_key: appKey,
@@ -94,6 +110,7 @@ export async function fetchAdzunaJobs(options: {
 
       if (!res.ok) {
         onProgress?.(`  [adzuna:${tag}] HTTP ${res.status}`);
+        failed.push(tag);
         continue;
       }
       const json = (await res.json()) as { results?: AdzunaResult[] };
@@ -102,6 +119,7 @@ export async function fetchAdzunaJobs(options: {
 
       for (const r of results) {
         if (!r.id || !r.title || !r.redirect_url) continue;
+        seen.add(r.redirect_url);
         const description = String(r.description ?? '').trim();
         if (description.length < 40) continue;
 
@@ -128,9 +146,22 @@ export async function fetchAdzunaJobs(options: {
       }
     } catch (e) {
       onProgress?.(`  [adzuna:${tag}] failed: ${(e as Error).message}`);
+      failed.push(tag);
     }
   }
 
   onProgress?.(`  [adzuna] ${callsUsed} API call(s) used, ${jobs.length} jobs`);
-  return { jobs, callsUsed };
+  return {
+    jobs,
+    seenUrls: [...seen],
+    coverage: {
+      categoriesAttempted: attempted.length,
+      categoriesOk: attempted.length - failed.length,
+      categoriesFailed: failed,
+      listingsSeen: seen.size,
+      callsUsed,
+      // A truncated run under-reports the market rather than the market shrinking.
+      cappedCategories: budgetHit ? ['__call_budget_reached__'] : [],
+    },
+  };
 }

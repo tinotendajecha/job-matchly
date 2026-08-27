@@ -333,6 +333,11 @@ model IngestRun {
   skipped      Int           @default(0)
   errors       Int           @default(0)
   errorMessage String?
+  /// What this run actually covered: sources attempted, categories reached or
+  /// failed, API calls spent, listings observed. Without it a later query can't
+  /// tell a real change in the market from a change in our own crawl — adding
+  /// categories or losing a source to rate limiting both look like hiring moves.
+  meta         Json?
   startedAt    DateTime      @default(now())
   finishedAt   DateTime?
 
@@ -422,6 +427,15 @@ model JobPost {
   /// transition. Distinct from updatedAt, which any later write would overwrite —
   /// this is the field that makes time-on-market computable after the fact.
   closedAt       DateTime?
+  /// Last crawl in which this listing was still present on its source.
+  ///
+  /// Our expiry is date-driven: an undated listing is aged out at
+  /// UNDATED_JOB_MAX_AGE_DAYS whether or not it is still advertised, so closedAt
+  /// for those rows records our policy rather than the market. lastSeenAt is the
+  /// observation — when it stops advancing, the source really did drop the
+  /// listing. Only interpretable against the run's coverage: a listing can also
+  /// go unseen because we never crawled its category that run.
+  lastSeenAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -432,6 +446,7 @@ model JobPost {
   @@index([market, status, postedAt])
   @@index([bracket])
   @@index([status, closedAt])
+  @@index([status, lastSeenAt])
 }
 
 /// What we believe a user does, and — importantly — what that was inferred from.

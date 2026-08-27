@@ -41,7 +41,7 @@ function stagger(delay = 0) {
 const features = [
   { icon: FileText, title: 'Live Side-by-Side Builder', description: 'See your resume update in real-time as you type. No surprises on download.' },
   { icon: Target, title: 'JD Keyword Tailoring', description: 'Paste any job description. Keywords light up across your CV automatically.' },
-  { icon: Briefcase, title: 'Live Job Board', description: 'Real vacancies from Zimbabwe and South Africa, matched to your profession.' },
+  { icon: Briefcase, title: 'Live Job Board', description: 'Real vacancies matched to your profession. Live in Zimbabwe and South Africa, expanding across Africa.' },
   { icon: Zap, title: 'AI Cover Letters', description: 'One click. A cover letter tailored to your resume and the exact role.' },
   { icon: TrendingUp, title: 'Impact-Driven Bullets', description: 'Smart rewrites that quantify achievements and inject power verbs.' },
   { icon: Mail, title: 'Weekly Job Alerts', description: 'New roles in your field delivered to your inbox. Free, on every plan.' },
@@ -226,8 +226,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.65, delay: 0.2, ease }}
                 className="text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed"
               >
-                Tailor your CV to any job in under two minutes, then find live vacancies
-                across Zimbabwe and South Africa — matched to what you actually do.
+                Africa&apos;s AI hiring platform. Tailor your CV to any job in under two
+                minutes, then find live vacancies matched to what you actually do.
               </motion.p>
 
               <motion.div

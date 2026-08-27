@@ -21,6 +21,7 @@ interface JobsResponse {
   defaultMarket: 'ZW' | 'ZA';
   counts: { ZW: number; ZA: number; ALL: number };
   profession: { bracket: string; primaryRole: string | null; seniority: string | null } | null;
+  allFields: boolean;
   jobs: JobItem[];
   pagination: { page: number; limit: number; total: number; totalPages: number };
 }
@@ -44,14 +45,17 @@ export default function JobsPage() {
   const [page, setPage] = useState(1);
   // null until the first response tells us which country this visitor is in.
   const [market, setMarket] = useState<MarketFilter | null>(null);
+  // Off by default: a tagged user should see their own field, not everything.
+  const [allFields, setAllFields] = useState(false);
 
   const load = useCallback(
-    async (opts: { page: number; market: MarketFilter | null }) => {
+    async (opts: { page: number; market: MarketFilter | null; allFields: boolean }) => {
       setLoading(true);
       setError(null);
       try {
         const params = new URLSearchParams({ page: String(opts.page), limit: String(PER_PAGE) });
         if (opts.market) params.set('market', opts.market);
+        if (opts.allFields) params.set('allFields', '1');
 
         const res = await fetch(`/api/jobs?${params}`, { cache: 'no-store' });
         const json = await res.json();
@@ -69,13 +73,19 @@ export default function JobsPage() {
   );
 
   useEffect(() => {
-    load({ page, market });
-  }, [page, market, load]);
+    load({ page, market, allFields });
+  }, [page, market, allFields, load]);
 
   function changeMarket(next: MarketFilter) {
     if (next === market) return;
     setMarket(next);
     setPage(1); // a different country is a different result set
+  }
+
+  function changeFields(next: boolean) {
+    if (next === allFields) return;
+    setAllFields(next);
+    setPage(1);
   }
 
   const pagination = data?.pagination;
@@ -97,7 +107,9 @@ export default function JobsPage() {
               <h1 className="text-2xl sm:text-3xl font-bold font-display">Jobs for you</h1>
               <p className="text-sm text-muted-foreground mt-1">
                 {data?.hasProfession && data.profession
-                  ? `Matched to your ${data.profession.bracket} background, then the newest openings`
+                  ? allFields
+                    ? 'Every open vacancy, newest first'
+                    : `${data.profession.bracket} roles only, best matches first`
                   : 'Live vacancies from Zimbabwe and South Africa'}
               </p>
             </motion.div>
@@ -136,6 +148,33 @@ export default function JobsPage() {
                 </button>
               )}
             </div>
+
+            {/* Field filter — a tagged user's own bracket is the default, but
+                they can deliberately widen to browse everything. */}
+            {data?.hasProfession && data.profession && (
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { key: false, label: data.profession.bracket },
+                  { key: true, label: 'All fields' },
+                ].map((opt) => {
+                  const active = allFields === opt.key;
+                  return (
+                    <button
+                      key={String(opt.key)}
+                      onClick={() => changeFields(opt.key)}
+                      className={cn(
+                        'rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors',
+                        active
+                          ? 'border-primary/30 bg-primary/10 text-primary'
+                          : 'border-border/60 text-muted-foreground hover:text-foreground hover:bg-accent'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {error && (
               <Alert variant="destructive">
@@ -214,16 +253,29 @@ export default function JobsPage() {
                 <div className="rounded-2xl border border-border/60 bg-card p-10 text-center">
                   <Briefcase className="mx-auto h-8 w-8 text-muted-foreground" />
                   <p className="mt-3 font-medium">
-                    No open vacancies{market && market !== 'ALL' ? ` in ${market === 'ZA' ? 'South Africa' : 'Zimbabwe'}` : ''} right now
+                    No {!allFields && data?.profession ? `${data.profession.bracket} ` : 'open '}vacancies
+                    {market && market !== 'ALL'
+                      ? ` in ${market === 'ZA' ? 'South Africa' : 'Zimbabwe'}`
+                      : ''}{' '}
+                    right now
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Listings expire quickly — try another country or check back shortly.
+                    {!allFields && data?.profession
+                      ? 'We only show roles in your field, so this page is thin when your field is quiet. Widen it or try another country.'
+                      : 'Listings expire quickly — try another country or check back shortly.'}
                   </p>
-                  {market !== 'ALL' && (
-                    <Button variant="outline" size="sm" className="mt-4" onClick={() => changeMarket('ALL')}>
-                      Show all countries
-                    </Button>
-                  )}
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                    {market !== 'ALL' && (
+                      <Button variant="outline" size="sm" onClick={() => changeMarket('ALL')}>
+                        Show all countries
+                      </Button>
+                    )}
+                    {!allFields && data?.hasProfession && (
+                      <Button variant="outline" size="sm" onClick={() => changeFields(true)}>
+                        Show all fields
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )
             )}

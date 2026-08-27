@@ -63,17 +63,16 @@ export async function rebuildMatches(): Promise<MatchStats> {
     const [bracket, seniority] = key.split('|');
 
     const scored = jobs
+      // Only the user's own field. Off-bracket jobs used to be included at a low
+      // score to avoid a thin feed, but that meant an IT candidate being shown
+      // sales roles — worse than showing fewer, genuinely relevant ones.
+      .filter((job) => job.bracket === bracket)
       .map((job) => {
-        const bracketMatch = job.bracket === bracket;
-        // Off-bracket jobs are heavily penalised but not excluded outright, so a
-        // thin bracket still shows something rather than an empty feed.
-        const base = bracketMatch ? 1 : 0.15;
         const sen = seniorityProximity(seniority || null, job.seniority);
         const rec = recencyScore(job.postedAt, job.createdAt);
-        const score = base * 0.6 + sen * 0.15 + rec * 0.25;
+        const score = 0.6 + sen * 0.15 + rec * 0.25;
 
-        const reasons: string[] = [];
-        if (bracketMatch) reasons.push(`Matches your field (${bracket})`);
+        const reasons: string[] = [`Matches your field (${bracket})`];
         if (seniority && job.seniority === seniority) reasons.push(`${seniority.toLowerCase()} level`);
         if (rec > 0.7) reasons.push('Recently posted');
 
@@ -123,20 +122,18 @@ export async function rebuildMatchesForUser(userId: string): Promise<number> {
   if (jobs.length === 0) return 0;
 
   const scored = jobs
+    .filter((job) => job.bracket === profession.bracket)
     .map((job) => {
-      const bracketMatch = job.bracket === profession.bracket;
-      const base = bracketMatch ? 1 : 0.15;
       const sen = seniorityProximity(profession.seniority, job.seniority);
       const rec = recencyScore(job.postedAt, job.createdAt);
 
-      const reasons: string[] = [];
-      if (bracketMatch) reasons.push(`Matches your field (${profession.bracket})`);
+      const reasons: string[] = [`Matches your field (${profession.bracket})`];
       if (profession.seniority && job.seniority === profession.seniority) {
         reasons.push(`${profession.seniority.toLowerCase()} level`);
       }
       if (rec > 0.7) reasons.push('Recently posted');
 
-      return { jobId: job.id, score: base * 0.6 + sen * 0.15 + rec * 0.25, reasons };
+      return { jobId: job.id, score: 0.6 + sen * 0.15 + rec * 0.25, reasons };
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, MATCHES_PER_USER);

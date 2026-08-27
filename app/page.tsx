@@ -201,7 +201,9 @@ export default function LandingPage() {
                   variant="outline"
                   className="mb-6 border-primary/30 bg-primary/8 text-primary px-4 py-1.5"
                 >
-                  <span className="text-xs font-medium">Built for Zimbabwe &amp; South Africa</span>
+                  <span className="text-xs font-medium">
+                    Empowering the next generation of job seekers
+                  </span>
                 </Badge>
               </motion.div>
 
@@ -224,8 +226,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.65, delay: 0.2, ease }}
                 className="text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed"
               >
-                Paste any job post. Get a tailored CV in under 2 minutes —
-                keyword-matched and ready to download.
+                Tailor your CV to any job in under two minutes, then find live vacancies
+                across Zimbabwe and South Africa — matched to what you actually do.
               </motion.p>
 
               <motion.div

@@ -80,18 +80,30 @@ export async function GET(req: Request) {
       requested === 'ALL' ? 'ALL' : requested === 'ZW' || requested === 'ZA' ? requested : resolvedDefault;
 
     const marketWhere = market === 'ALL' ? {} : { market: market as MarketCode };
-    const liveJob: Prisma.JobPostWhereInput = { ...liveJobWhere(), ...marketWhere };
 
     const profession = await prisma.userProfession.findUnique({
       where: { userId: user.id },
       select: { bracket: true, primaryRole: true, seniority: true },
     });
 
+    // Relevance is the default: a tagged user sees their own field only.
+    // Showing an IT candidate sales roles to pad the page is worse than showing
+    // fewer. `allFields=1` is the explicit opt-out for browsing everything.
+    const allFields = url.searchParams.get('allFields') === '1';
+    const bracketWhere =
+      profession && !allFields ? { bracket: profession.bracket } : {};
+
+    const liveJob: Prisma.JobPostWhereInput = {
+      ...liveJobWhere(),
+      ...marketWhere,
+      ...bracketWhere,
+    };
+
     // Counts per market power the filter tabs, so an empty tab is visible
     // before the user clicks it.
     const countsRaw = await prisma.jobPost.groupBy({
       by: ['market'],
-      where: liveJobWhere(),
+      where: { ...liveJobWhere(), ...bracketWhere },
       _count: true,
     });
     const counts = {
@@ -105,6 +117,7 @@ export async function GET(req: Request) {
       defaultMarket: resolvedDefault,
       counts,
       profession,
+      allFields,
     };
 
     const total = await prisma.jobPost.count({ where: liveJob });

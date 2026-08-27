@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { fetchVacancyMailJobs } from './sources/vacancymail';
 import { fetchAdzunaJobs, adzunaConfigured } from './sources/adzuna';
 import { ADZUNA_BRACKETS } from '@/lib/jobs/brackets';
-import { UNDATED_JOB_MAX_AGE_DAYS, EXPIRED_JOB_RETENTION_DAYS, undatedJobCutoff } from '@/lib/jobs/policy';
+import { UNDATED_JOB_MAX_AGE_DAYS, EXPIRED_JOB_ARCHIVE_DAYS, undatedJobCutoff } from '@/lib/jobs/policy';
 import type { JobIngestResult, RawJob } from './types';
 
 /**
@@ -74,12 +74,20 @@ async function orderCategoriesByDemand(tags: string[]): Promise<string[]> {
   );
 }
 
-export async function pruneExpiredJobs(): Promise<{ deleted: number }> {
-  const cutoff = new Date(Date.now() - EXPIRED_JOB_RETENTION_DAYS * 86_400_000);
-  const { count } = await prisma.jobPost.deleteMany({
-    where: { status: 'EXPIRED', updatedAt: { lt: cutoff } },
+/**
+ * Moves long-expired listings into the archive. Nothing is deleted.
+ *
+ * This used to hard-delete after the retention window, which quietly destroyed
+ * the only dataset we can't re-acquire: what the market looked like last month.
+ * Job seekers are unaffected either way — liveJobWhere() matches ACTIVE only.
+ */
+export async function archiveExpiredJobs(): Promise<{ archived: number }> {
+  const cutoff = new Date(Date.now() - EXPIRED_JOB_ARCHIVE_DAYS * 86_400_000);
+  const { count } = await prisma.jobPost.updateMany({
+    where: { status: 'EXPIRED', closedAt: { lt: cutoff } },
+    data: { status: 'ARCHIVED' },
   });
-  return { deleted: count };
+  return { archived: count };
 }
 
 async function persist(jobs: RawJob[], log: (m: string) => void) {
@@ -171,9 +179,10 @@ export async function runJobsPipeline(
     result.skipped = persisted.skipped;
 
     // 1) Anything past its advertised closing date drops out of the feed.
+    const closedAt = new Date();
     const expiredByDate = await prisma.jobPost.updateMany({
-      where: { status: 'ACTIVE', expiresAt: { lt: new Date() } },
-      data: { status: 'EXPIRED' },
+      where: { status: 'ACTIVE', expiresAt: { lt: closedAt } },
+      data: { status: 'EXPIRED', closedAt },
     });
 
     // 2) Adzuna publishes no closing date, so undated listings would otherwise
@@ -186,7 +195,7 @@ export async function runJobsPipeline(
         expiresAt: null,
         OR: [{ postedAt: { lt: staleCutoff } }, { postedAt: null, createdAt: { lt: staleCutoff } }],
       },
-      data: { status: 'EXPIRED' },
+      data: { status: 'EXPIRED', closedAt },
     });
 
     result.expired = expiredByDate.count + expiredByAge.count;

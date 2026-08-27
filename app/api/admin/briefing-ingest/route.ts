@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server";
 import { runPipeline } from "@/data/pipeline";
 import { prunePageViews } from "@/lib/analytics/prune";
-import { pruneExpiredJobs } from "@/data/jobs/pipeline";
+import { archiveExpiredJobs } from "@/data/jobs/pipeline";
 import { runJobDigest } from "@/lib/jobs/digest";
 
 export const runtime = "nodejs";
@@ -31,11 +31,11 @@ export async function POST(req: Request) {
     console.error("pageview prune failed", err);
   }
 
-  let jobPrune: { deleted: number } | null = null;
+  let jobArchive: { archived: number } | null = null;
   try {
-    jobPrune = await pruneExpiredJobs();
+    jobArchive = await archiveExpiredJobs();
   } catch (err) {
-    console.error("expired job prune failed", err);
+    console.error("expired job archive failed", err);
   }
 
   // No-ops unless JOB_DIGEST_ENABLED=true, so this ships dormant.
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
 
   try {
     const result = await runPipeline("CRON");
-    return NextResponse.json({ ok: true, ...result, prune, jobPrune, digest });
+    return NextResponse.json({ ok: true, ...result, prune, jobArchive, digest });
   } catch (err: any) {
     console.error("briefing-ingest error", err);
     return NextResponse.json({ ok: false, error: "Pipeline failed" }, { status: 500 });

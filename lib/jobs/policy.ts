@@ -12,8 +12,17 @@ import type { Prisma } from '@prisma/client';
  */
 export const UNDATED_JOB_MAX_AGE_DAYS = 14;
 
-/** Expired listings are invisible to users; keep them briefly, then drop them. */
-export const EXPIRED_JOB_RETENTION_DAYS = 60;
+/**
+ * How long an expired listing stays EXPIRED before moving to ARCHIVED.
+ *
+ * Nothing is ever deleted. Both states are invisible to job seekers, so the
+ * distinction is purely for us: EXPIRED means recently closed and still worth
+ * showing in admin as current churn, ARCHIVED means historical record. The
+ * archive is the raw material for market-history analysis — how long roles stay
+ * open, which employers are ramping or going quiet — and that history cannot be
+ * reconstructed after the fact, so it is kept indefinitely.
+ */
+export const EXPIRED_JOB_ARCHIVE_DAYS = 60;
 
 export function undatedJobCutoff(now: Date = new Date()): Date {
   return new Date(now.getTime() - UNDATED_JOB_MAX_AGE_DAYS * 86_400_000);

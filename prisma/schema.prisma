@@ -392,6 +392,8 @@ enum JobSource {
 enum JobStatus {
   ACTIVE
   EXPIRED
+  /// Kept indefinitely for market-history analysis; never shown to job seekers.
+  ARCHIVED
   HIDDEN
 }
 
@@ -416,6 +418,10 @@ model JobPost {
   postedAt       DateTime?
   expiresAt      DateTime?
   status         JobStatus  @default(ACTIVE)
+  /// When the listing actually left the market, set once on the ACTIVE -> EXPIRED
+  /// transition. Distinct from updatedAt, which any later write would overwrite —
+  /// this is the field that makes time-on-market computable after the fact.
+  closedAt       DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -425,6 +431,7 @@ model JobPost {
   @@unique([source, sourceRef])
   @@index([market, status, postedAt])
   @@index([bracket])
+  @@index([status, closedAt])
 }
 
 /// What we believe a user does, and — importantly — what that was inferred from.

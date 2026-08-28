@@ -1,6 +1,7 @@
 // app/api/auth/signup/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { consentVersionFor, recordConsent } from '@/lib/consent/service';
 import bcrypt from "bcryptjs";
 import { sendVerificationEmail } from "@/lib/mail";
 import { getMarketFromRequest } from "@/lib/market/request";
@@ -13,7 +14,7 @@ function sixDigit() {
 
 export async function POST(req: Request) {
   try {
-    const { email, password, name, consentGiven, consentVersion } = await req.json();
+    const { email, password, name, consentGiven } = await req.json();
     if (!email || !password) return NextResponse.json({ ok: false, error: "Email & password required" }, { status: 400 });
     if (!consentGiven) return NextResponse.json({ ok: false, error: "You must agree to the Data Protection & Consent Agreement" }, { status: 400 });
 
@@ -21,7 +22,9 @@ export async function POST(req: Request) {
     if (existing) return NextResponse.json({ ok: false, error: "Email already in use" }, { status: 400 });
 
     const market = getMarketFromRequest(req);
-    const resolvedConsentVersion = consentVersion || `${market}-2026-v1`;
+    // Trust the server's current version over whatever the client posted — a
+    // stale or forged version string would misstate what was actually agreed.
+    const resolvedConsentVersion = consentVersionFor(market);
 
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await prisma.user.create({
@@ -33,6 +36,16 @@ export async function POST(req: Request) {
         consentGivenAt: new Date(),
         consentVersion: resolvedConsentVersion,
       },
+    });
+
+    // Signup consent covers the agreement only. Recruiter visibility is a
+    // separate, later decision and is deliberately not granted here.
+    await recordConsent({
+      userId: user.id,
+      purpose: 'ACCOUNT_TERMS',
+      granted: true,
+      version: resolvedConsentVersion,
+      source: 'signup',
     });
 
     // create verification code

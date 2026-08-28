@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PreferencesPanel } from '@/components/profile/preferences-panel';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -42,17 +43,9 @@ const activityLog = [
   { action: 'ATS check passed', item: 'Startup Founder Resume', time: '1 week ago', type: 'check' },
 ];
 
-const preferences = {
-  emailNotifications: true,
-  marketingEmails: false,
-  weeklyDigest: true,
-  newFeatures: true,
-};
-
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState(profileData);
-  const [notificationPrefs, setNotificationPrefs] = useState(preferences);
 
   const handleSave = () => {
     setIsEditing(false);
@@ -285,50 +278,7 @@ export default function ProfilePage() {
 
             {/* Preferences Tab */}
             <TabsContent value="preferences" className="space-y-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Notification Preferences</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {[
-                      { key: 'emailNotifications', label: 'Email Notifications', description: 'Receive important updates via email' },
-                      { key: 'marketingEmails', label: 'Marketing Emails', description: 'Tips, tutorials, and product news' },
-                      { key: 'weeklyDigest', label: 'Weekly Digest', description: 'Summary of your activity and new features' },
-                      { key: 'newFeatures', label: 'New Features', description: 'Be the first to know about new features' },
-                    ].map((pref, index) => (
-                      <motion.div
-                        key={pref.key}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex items-center justify-between p-3 border rounded-lg"
-                      >
-                        <div>
-                          <p className="font-medium">{pref.label}</p>
-                          <p className="text-sm text-muted-foreground">{pref.description}</p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={notificationPrefs[pref.key as keyof typeof notificationPrefs]}
-                          onChange={(e) => {
-                            setNotificationPrefs({
-                              ...notificationPrefs,
-                              [pref.key]: e.target.checked
-                            });
-                            toast.success('Preferences updated');
-                          }}
-                          className="w-4 h-4"
-                        />
-                      </motion.div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </motion.div>
+              <PreferencesPanel />
 
               {/* Account Actions */}
               <motion.div

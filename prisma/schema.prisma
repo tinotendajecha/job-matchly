@@ -76,6 +76,13 @@ model User {
   jobAlertsOptOut Boolean @default(false)
   lastJobDigestAt DateTime?
 
+  // Discoverability by recruiters. Defaults to false and only ever becomes true
+  // through an affirmative action by the user — never by signup, import, or
+  // inference. This is the operational read; ConsentRecord is the audit trail,
+  // and the two are always written together.
+  recruiterVisible   Boolean   @default(false)
+  recruiterVisibleAt DateTime?
+
   // relations
   sessions      Session[]
   documents     Document[]
@@ -88,6 +95,7 @@ model User {
   usageRecords  SubscriptionUsage[]
   profession    UserProfession?
   jobMatches    JobMatch[]
+  consents      ConsentRecord[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -392,6 +400,40 @@ model EmailDelivery {
 enum JobSource {
   VACANCYMAIL
   ADZUNA
+}
+
+enum ConsentPurpose {
+  /// The signup Data Protection & Consent Agreement.
+  ACCOUNT_TERMS
+  /// Being discoverable by, and contactable through, verified recruiters.
+  RECRUITER_VISIBILITY
+  /// Electronic direct marketing (POPIA s69).
+  MARKETING_EMAIL
+  /// Job alert digests.
+  JOB_ALERTS
+}
+
+/// Append-only consent log.
+///
+/// A boolean on User records what someone agreed to; it cannot show that they
+/// agreed on a date, under a specific policy version, and later withdrew. POPIA
+/// requires the latter, so nothing here is ever updated or deleted — a
+/// withdrawal is a new row with granted = false. Rows go when the account does.
+model ConsentRecord {
+  id        String         @id @default(cuid())
+  userId    String
+  purpose   ConsentPurpose
+  granted   Boolean
+  /// Policy version the user was shown at the moment they acted.
+  version   String
+  /// Where the action happened: signup, profile, unsubscribe-link, campaign.
+  source    String?
+  createdAt DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt])
+  @@index([purpose, granted, createdAt])
 }
 
 enum JobStatus {

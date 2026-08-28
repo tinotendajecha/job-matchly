@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { consentVersionFor, recordConsent } from '@/lib/consent/service';
 import { createSession } from '@/lib/auth';
 import { getMarketFromRequest } from '@/lib/market/request';
 
@@ -65,7 +66,7 @@ export async function GET(req: Request) {
     if (!profile.id || !profile.email) return fail('google_failed');
 
     const market = getMarketFromRequest(req);
-    const consentVersion = `${market}-2026-v1`;
+    const consentVersion = consentVersionFor(market);
     const expiresAt = tokenData.expires_in
       ? Math.floor(Date.now() / 1000) + tokenData.expires_in
       : null;
@@ -102,6 +103,16 @@ export async function GET(req: Request) {
             },
           },
         },
+      });
+
+      // Same rule as password signup: the agreement only. Recruiter visibility
+      // stays off until the user turns it on themselves.
+      await recordConsent({
+        userId: user.id,
+        purpose: 'ACCOUNT_TERMS',
+        granted: true,
+        version: consentVersion,
+        source: 'signup',
       });
     } else {
       // Existing user — upsert the OAuth link and ensure email is verified

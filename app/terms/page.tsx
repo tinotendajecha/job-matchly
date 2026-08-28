@@ -24,7 +24,7 @@ const CONTENT = {
       'As a company registered in South Africa, Jobmatchly is committed to full compliance with POPIA. Your personal information is processed lawfully, fairly, and in a transparent manner. You have the right to lodge a complaint with the Information Regulator of South Africa.',
     companyNote:
       'Jobmatchly is a product of Point Pro POS Solutions, a company registered in South Africa.',
-    consentVersion: 'ZA-2026-v1',
+    consentVersion: 'ZA-2026-v2',
   },
   ZW: {
     marketLabel: 'Zimbabwe',
@@ -38,7 +38,7 @@ const CONTENT = {
       'Jobmatchly operates under South African company law and is committed to responsible data handling in all markets. Zimbabwean users may also exercise rights under Zimbabwe data protection legislation where applicable.',
     companyNote:
       'Jobmatchly is a product of Point Pro POS Solutions, a company registered in South Africa, operating across African markets including Zimbabwe.',
-    consentVersion: 'ZW-2026-v1',
+    consentVersion: 'ZW-2026-v2',
   },
 } as const;
 
@@ -200,39 +200,46 @@ export default async function TermsPage() {
           </ul>
         </Section>
 
-        <Section num={4} title="Candidate Consent to Share Employment Information">
-          <p>
-            By using Jobmatchly, you expressly authorise Jobmatchly to:
+        <Section num={4} title="Sharing Your Profile With Recruiters">
+          <p className="font-medium text-foreground">
+            We do not share your profile with recruiters unless you switch this on yourself.
           </p>
+          <p>
+            Recruiter visibility is off by default. Creating an account, uploading a CV, or using any
+            other part of Jobmatchly does not make you discoverable to recruiters. It becomes active
+            only when you turn on <em>Let recruiters find you</em> in your profile settings, and it
+            stops the moment you turn it off.
+          </p>
+
+          <p className="mt-3">While it is switched on, verified recruiters may see:</p>
           <ul className="list-disc list-inside pl-2 space-y-1">
-            <li>
-              Share your professional profile, CV, employment history, skills, qualifications, and employment
-              status with verified recruiters, recruitment firms, hiring companies, staffing agencies, and
-              talent partners.
-            </li>
-            <li>Recommend or introduce you to potential employers and recruitment partners.</li>
-            <li>
-              Use AI systems and automated technologies to analyse and match your profile with relevant job
-              opportunities.
-            </li>
-            <li>
-              Contact you regarding employment opportunities, recruitment campaigns, hiring events,
-              internships, freelance work, contract work, and remote opportunities.
-            </li>
-            <li>
-              Make your candidate profile discoverable to authorised employers and recruiters within the
-              Jobmatchly ecosystem.
-            </li>
+            <li>Your name and professional headline</li>
+            <li>Your city and country</li>
+            <li>Your profession, experience level, and the skills listed on your profile</li>
           </ul>
-          <p className="mt-3">This consent may include sharing opportunities across:</p>
+
+          <p className="mt-3">They will not see:</p>
           <ul className="list-disc list-inside pl-2 space-y-1">
-            <li>{c.marketLabel} (your primary market)</li>
-            <li>Other African markets</li>
-            <li>International companies and remote-first employers</li>
-            <li>Global recruitment networks</li>
+            <li>Your email address or phone number</li>
+            <li>CV files you have uploaded, or documents you have tailored</li>
+            <li>Any contact details, unless you accept a recruiter&apos;s approach first</li>
           </ul>
+
           <p className="mt-3">
-            Jobmatchly will make reasonable efforts to work only with legitimate and verified recruitment partners.
+            Where a recruiter wishes to contact you, we pass the request to you and you decide whether
+            to respond. Your contact details are released only if you accept.
+          </p>
+          <p className="mt-3">
+            You may withdraw at any time from your profile settings, without giving a reason and
+            without affecting any other part of your account. Withdrawal removes you from recruiter
+            searches immediately. We keep a dated record of when you granted and withdrew this
+            permission, which exists so that both you and we can establish what was agreed and when.
+          </p>
+          <p className="mt-3">
+            Where you have switched this on, opportunities may be shared with verified recruitment
+            partners in {c.marketLabel}, other African markets, and with international or remote-first
+            employers. Jobmatchly works only with recruitment partners who accept written obligations
+            covering how they may use what they see.
           </p>
         </Section>
 
@@ -250,9 +257,11 @@ export default async function TermsPage() {
             <li>Offer premium recruitment and staffing services</li>
           </ul>
           <p className="mt-3">
-            Where possible, Jobmatchly will implement privacy controls allowing users to update visibility
-            preferences, opt out of public candidate discovery, delete or modify profile information, and
-            control recruiter visibility settings.
+            These are directions of travel, not services we operate today. None of them changes the rule
+            in section 4: your profile is shared with recruiters only while you have switched that on.
+            Privacy controls are not conditional on what we build — you can update your visibility
+            preferences, remove yourself from candidate discovery, and modify or delete your profile
+            information at any time, from your profile settings.
           </p>
         </Section>
 

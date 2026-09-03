@@ -1,5 +1,15 @@
 import type { SubscriptionTier } from '@prisma/client';
 
+/**
+ * Tailors a signed-out-of-billing user gets before subscribing. Lifetime, not
+ * monthly — enough to see that the tool works, not enough to live on.
+ *
+ * Existing users all start from zero rather than being backfilled from past
+ * usage: 53 of 195 had already tailored for free, and cutting them off with no
+ * notice costs more than the one-time spend of letting them each have one.
+ */
+export const FREE_TAILOR_LIFETIME_LIMIT = 1;
+
 export const PLAN_LIMITS = {
   STARTER: {
     tailorsPerMonth: 5,

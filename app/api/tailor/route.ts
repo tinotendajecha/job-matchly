@@ -8,11 +8,20 @@ import { getMarketFromRequest } from "@/lib/market/request";
 import { prisma } from "@/lib/prisma";
 import { safeFileName } from "@/lib/files";
 import { getActiveSubscription } from "@/lib/subscription/service";
+import {
+  requireTailorAccess,
+  releaseFreeTailor,
+  SubscriptionGateError,
+} from "@/lib/subscription/gates";
 
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  // Declared out here so the catch can tell a free run from a metered one; only
+  // a free claim is refundable.
+  let freeClaim: { userId: string } | null = null;
+
   try {
     const market = getMarketFromRequest(req);
     const marketConfig = getMarketConfig(market);
@@ -23,6 +32,13 @@ export async function POST(req: Request) {
     const { resumeJson, resumeText, jdText, tone = "professional", seniority = "junior" } = await req.json();
     if (!resumeText || !jdText)
       return NextResponse.json({ ok: false, error: "Missing inputs" }, { status: 400 });
+
+    // Gate before the model call, not after: this is the most expensive model
+    // in the stack, and until now the route read the subscription without ever
+    // branching on it. Subscribers keep their metered quota; everyone else gets
+    // one free tailor, claimed atomically inside here.
+    const grant = await requireTailorAccess(user.id);
+    if (grant.usedFreeAllowance) freeClaim = { userId: user.id };
 
     const activeSub = await getActiveSubscription(user.id);
     const hasActiveSub = !!activeSub;
@@ -242,6 +258,13 @@ Job Description:
       downloadState,
     });
   } catch (err: any) {
+    if (err instanceof SubscriptionGateError) return err.toResponse();
+
+    // A failed generation must not cost someone their only free tailor. Only
+    // refunds an allowance this request actually claimed — a subscriber's
+    // failed tailor must not touch their historical free count.
+    if (freeClaim) await releaseFreeTailor(freeClaim.userId);
+
     console.error("tailor fatal:", err?.message || err);
     return NextResponse.json({ ok: false, error: "Server error while tailoring." }, { status: 500 });
   }

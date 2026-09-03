@@ -10,7 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Check, X, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMarket } from '@/hooks/use-market';
-import { PLAN_PRICES, PLAN_LIMITS } from '@/lib/pricing/plans';
+import { PLAN_PRICES, PLAN_LIMITS, FREE_TAILOR_LIFETIME_LIMIT } from '@/lib/pricing/plans';
 
 type Cycle = 'monthly' | 'yearly';
 
@@ -35,7 +35,8 @@ const FEATURES: Array<{
   { label: 'Career articles', free: true, starter: true, pro: true, plus: true },
   {
     label: 'AI resume tailoring',
-    free: false,
+    // Matches FREE_TAILOR_LIFETIME_LIMIT, which is what the gate enforces.
+    free: FREE_TAILOR_LIFETIME_LIMIT === 1 ? '1 total' : `${FREE_TAILOR_LIFETIME_LIMIT} total`,
     starter: countLabel(PLAN_LIMITS.STARTER.tailorsPerMonth),
     pro: countLabel(PLAN_LIMITS.PRO.tailorsPerMonth),
     plus: countLabel(PLAN_LIMITS.PLUS.tailorsPerMonth),
@@ -127,6 +128,7 @@ export default function PricingPage() {
   const freeFeatures = [
     'Resume builder with live preview',
     'AI writing suggestions',
+    `${FREE_TAILOR_LIFETIME_LIMIT === 1 ? 'One' : FREE_TAILOR_LIFETIME_LIMIT} free AI-tailored CV`,
     'Browse all live vacancies',
     'Weekly job alerts by email',
     'Career articles & advice',
@@ -237,7 +239,8 @@ export default function PricingPage() {
                   Free <span className="text-muted-foreground font-normal text-sm">— no card needed</span>
                 </h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Build a resume and find jobs at no cost. Upgrade only when you want to tailor.
+                  Build a resume, find jobs, and tailor your CV once — at no cost. Upgrade when you
+                  want to tailor for every role you apply to.
                 </p>
               </div>
               <Button asChild variant="outline" size="lg" className="flex-shrink-0">

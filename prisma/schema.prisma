@@ -67,6 +67,14 @@ model User {
   consentGivenAt  DateTime?
   consentVersion  String?   // e.g. "ZA-2026-v1" or "ZW-2026-v1"
 
+  /// Lifetime count of tailors run without a paid subscription.
+  ///
+  /// Deliberately not a period counter like SubscriptionUsage: the free
+  /// allowance is once ever, not once a month, so it must not reset. Claimed
+  /// atomically before the model call so two concurrent requests can't both
+  /// spend the last one.
+  freeTailorsUsed   Int       @default(0)
+
   // Admin flag
   isAdmin           Boolean   @default(false)
 

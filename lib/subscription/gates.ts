@@ -6,7 +6,8 @@ import {
   incrementUsage,
   type UsageAction,
 } from './service';
-import { PLAN_LIMITS } from '@/lib/pricing/plans';
+import { PLAN_LIMITS, FREE_TAILOR_LIFETIME_LIMIT } from '@/lib/pricing/plans';
+import { prisma } from '@/lib/prisma';
 import type { SubscriptionTier } from '@prisma/client';
 
 export class SubscriptionGateError extends Error {
@@ -86,4 +87,65 @@ export async function requireAndConsumeUsage(
 
   await incrementUsage(userId, action);
   return tier;
+}
+
+export interface TailorGrant {
+  /** Null when the tailor is being paid for out of the free allowance. */
+  tier: SubscriptionTier | null;
+  usedFreeAllowance: boolean;
+}
+
+/**
+ * Gates a tailor, allowing one free run before a subscription is needed.
+ *
+ * Tailoring calls the most expensive model in the stack and was previously
+ * ungated entirely: the route read the subscription and then never branched on
+ * it, so 251 generations had run against zero active subscriptions.
+ *
+ * Subscribers keep their normal metered quota. Everyone else gets
+ * FREE_TAILOR_LIFETIME_LIMIT, claimed atomically here so two concurrent
+ * requests cannot both spend the last one. A caller that fails to generate must
+ * call releaseFreeTailor() so a server error doesn't cost someone their only go.
+ */
+export async function requireTailorAccess(userId: string): Promise<TailorGrant> {
+  const tier = await getEffectiveTier(userId);
+
+  // Subscribers, trialists and admins go through the existing metered path.
+  if (tier) {
+    await requireAndConsumeUsage(userId, 'tailor');
+    return { tier, usedFreeAllowance: false };
+  }
+
+  // Conditional update, so the check and the spend are one operation.
+  const claimed = await prisma.user.updateMany({
+    where: { id: userId, freeTailorsUsed: { lt: FREE_TAILOR_LIFETIME_LIMIT } },
+    data: { freeTailorsUsed: { increment: 1 } },
+  });
+
+  if (claimed.count === 0) {
+    throw new SubscriptionGateError('FREE_LIMIT_REACHED', 402, {
+      code: 'FREE_LIMIT_REACHED',
+      message:
+        FREE_TAILOR_LIFETIME_LIMIT === 1
+          ? "You've used your free tailored CV. Subscribe to keep tailoring for every job you apply to."
+          : `You've used all ${FREE_TAILOR_LIFETIME_LIMIT} free tailored CVs. Subscribe to keep going.`,
+      freeLimit: FREE_TAILOR_LIFETIME_LIMIT,
+      requiredTier: 'STARTER',
+      redirectTo: '/pricing',
+    });
+  }
+
+  return { tier: null, usedFreeAllowance: true };
+}
+
+/** Refunds a free tailor claimed for a run that then failed. */
+export async function releaseFreeTailor(userId: string): Promise<void> {
+  try {
+    await prisma.user.updateMany({
+      where: { id: userId, freeTailorsUsed: { gt: 0 } },
+      data: { freeTailorsUsed: { decrement: 1 } },
+    });
+  } catch (err) {
+    console.error('could not release free tailor', err);
+  }
 }

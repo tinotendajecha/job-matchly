@@ -236,7 +236,8 @@ export async function apiTailor(payload: { resumeJson: any; resumeText: string; 
     const data = await res.json().catch(() => ({}));
     throw new TailorError(
       data.message || data.error || 'Tailor failed',
-      data.error || 'UNKNOWN',
+      // Subscription gates send `code`; older paths send `error`.
+      data.code || data.error || 'UNKNOWN',
       data.documentId,
     );
   }

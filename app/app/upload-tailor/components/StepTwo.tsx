@@ -166,7 +166,22 @@ export const StepTwo = ({
           }
         } catch (e: any) {
           console.error('Auto-tailoring failed:', e);
-          if (e instanceof TailorError && e.code === 'OUTSTANDING_PAYMENT_REQUIRED') {
+          if (
+            e instanceof TailorError &&
+            (e.code === 'FREE_LIMIT_REACHED' ||
+              e.code === 'LIMIT_REACHED' ||
+              e.code === 'NO_SUBSCRIPTION')
+          ) {
+            toast.error(
+              <span>
+                {e.message}{' '}
+                <button className="underline font-medium" onClick={() => router.push('/pricing')}>
+                  See plans
+                </button>
+              </span>,
+              { autoClose: 10000 }
+            );
+          } else if (e instanceof TailorError && e.code === 'OUTSTANDING_PAYMENT_REQUIRED') {
             toast.error(
               <span>
                 You have an unpaid resume.{' '}
@@ -247,7 +262,22 @@ export const StepTwo = ({
     } catch (err: any) {
       console.error(err);
       onSetStepStatus('tailor', 'error');
-      if (err instanceof TailorError && err.code === 'OUTSTANDING_PAYMENT_REQUIRED') {
+      if (
+        err instanceof TailorError &&
+        (err.code === 'FREE_LIMIT_REACHED' ||
+          err.code === 'LIMIT_REACHED' ||
+          err.code === 'NO_SUBSCRIPTION')
+      ) {
+        toast.error(
+          <span>
+            {err.message}{' '}
+            <button className="underline font-medium" onClick={() => router.push('/pricing')}>
+              See plans
+            </button>
+          </span>,
+          { autoClose: 10000 }
+        );
+      } else if (err instanceof TailorError && err.code === 'OUTSTANDING_PAYMENT_REQUIRED') {
         toast.error(
           <span>
             You have an unpaid resume.{' '}

@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { consentVersionFor, recordConsent } from '@/lib/consent/service';
+import { recordArrivalSignup } from '@/lib/jobs/share';
 import bcrypt from "bcryptjs";
 import { sendVerificationEmail } from "@/lib/mail";
 import { getMarketFromRequest } from "@/lib/market/request";
@@ -37,6 +38,8 @@ export async function POST(req: Request) {
         consentVersion: resolvedConsentVersion,
       },
     });
+
+    await recordArrivalSignup(user.id);
 
     // Signup consent covers the agreement only. Recruiter visibility is a
     // separate, later decision and is deliberately not granted here.

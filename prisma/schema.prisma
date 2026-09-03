@@ -418,14 +418,22 @@ model JobShareEvent {
   /// SHARED when someone copies or sends the link, VIEWED when the public page
   /// is opened, SIGNUP when a visit leads to a new account.
   kind   String
-  /// Set only where we know it: the sharer for SHARED, the visitor for SIGNUP.
+  /// Set only where we know it: the sharer for SHARED, the new account for SIGNUP.
   userId String?
+  /// The jm_vid cookie. Lets a repeat reader be counted once, and links a view
+  /// to the signup that followed it.
+  visitorId String? @db.VarChar(36)
+  /// Referring host, or null for direct. Messaging apps usually send no
+  /// referrer, so this mainly separates search traffic — these pages are
+  /// indexable, and a view is not evidence of a share on its own.
+  referrerHost String? @db.VarChar(128)
   createdAt DateTime @default(now())
 
   job JobPost @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([jobId, kind])
-  @@index([createdAt])
+  @@index([kind, createdAt])
+  @@index([visitorId])
 }
 
 enum ConsentPurpose {

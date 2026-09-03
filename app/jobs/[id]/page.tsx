@@ -28,7 +28,15 @@ import { Badge } from '@/components/ui/badge';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { liveJobWhere } from '@/lib/jobs/policy';
-import { shareBaseUrl, shareUrlFor, summarize, trackShareEvent } from '@/lib/jobs/share';
+import {
+  shareBaseUrl,
+  shareUrlFor,
+  summarize,
+  trackShareEvent,
+  referrerHostOf,
+} from '@/lib/jobs/share';
+import { cookies, headers } from 'next/headers';
+import { isBot } from '@/lib/analytics/botFilter';
 import { ShareButton } from './share-button';
 import { ArrivalTracker } from '@/components/jobs/arrival-tracker';
 
@@ -107,7 +115,18 @@ export default async function PublicJobPage({ params }: { params: { id: string }
   });
   const isLive = stillLive > 0;
 
-  await trackShareEvent(job.id, 'VIEWED', user?.id);
+  // Every shared link is fetched by a preview crawler before any human sees
+  // it — WhatsApp, Facebook and Slack all do this — so counting raw renders
+  // would show one guaranteed "view" per share and make the funnel look like
+  // it works. isBot() already covers those user agents.
+  const h = headers();
+  if (!isBot(h.get('user-agent'))) {
+    await trackShareEvent(job.id, 'VIEWED', {
+      userId: user?.id,
+      visitorId: cookies().get('jm_vid')?.value ?? null,
+      referrerHost: referrerHostOf(h.get('referer')),
+    });
+  }
 
   const where = job.location || (job.market === 'ZA' ? 'South Africa' : 'Zimbabwe');
   const shareUrl = shareUrlFor(job.id, job.market);
@@ -145,7 +164,7 @@ export default async function PublicJobPage({ params }: { params: { id: string }
       />
       {/* Only for visitors without an account — anyone signed in already has
           a field, or will be asked directly. */}
-      {!user && <ArrivalTracker bracket={job.bracket} jobTitle={job.title} />}
+      {!user && <ArrivalTracker jobId={job.id} bracket={job.bracket} jobTitle={job.title} />}
       <Header />
 
       <main className="flex-1">

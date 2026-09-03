@@ -16,23 +16,26 @@ import { useEffect } from 'react';
  * carries none of the original URL.
  */
 export function ArrivalTracker({
+  jobId,
   bracket,
   jobTitle,
 }: {
+  jobId: string;
   bracket: string | null;
   jobTitle: string;
 }) {
   useEffect(() => {
-    if (!bracket) return;
     try {
-      const payload = encodeURIComponent(JSON.stringify({ bracket, jobTitle }));
+      // jobId is always set, bracket may not be — the cookie is also what
+      // attributes a later signup back to the job that brought them.
+      const payload = encodeURIComponent(JSON.stringify({ jobId, bracket, jobTitle }));
       // 7 days: long enough for a verification detour, short enough that a
       // stale prior can't quietly steer someone months later.
       document.cookie = `jm_arrival=${payload}; path=/; max-age=604800; samesite=lax`;
     } catch {
       /* the field question still works without a pre-selection */
     }
-  }, [bracket, jobTitle]);
+  }, [jobId, bracket, jobTitle]);
 
   return null;
 }

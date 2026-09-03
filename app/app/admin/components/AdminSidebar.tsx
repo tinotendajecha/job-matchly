@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, BarChart3, FileText, TrendingUp, Settings, X, ChevronLeft, ChevronRight, Newspaper, Send, Archive } from 'lucide-react';
+import { LayoutDashboard, Users, BarChart3, FileText, TrendingUp, Settings, X, ChevronLeft, ChevronRight, Newspaper, Send, Archive, Share2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +13,7 @@ const navItems = [
   { href: '/app/admin/documents', label: 'Documents', icon: FileText },
   { href: '/app/admin/content', label: 'Content', icon: Newspaper },
   { href: '/app/admin/jobs', label: 'Job archive', icon: Archive },
+  { href: '/app/admin/shares', label: 'Job sharing', icon: Share2 },
   { href: '/app/admin/broadcast', label: 'Broadcast', icon: Send },
   { href: '/app/admin/conversion', label: 'Conversion', icon: TrendingUp },
   { href: '/app/admin/system', label: 'System', icon: Settings },

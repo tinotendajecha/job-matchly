@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { consentVersionFor, recordConsent } from '@/lib/consent/service';
+import { recordArrivalSignup } from '@/lib/jobs/share';
 import { createSession } from '@/lib/auth';
 import { getMarketFromRequest } from '@/lib/market/request';
 
@@ -104,6 +105,8 @@ export async function GET(req: Request) {
           },
         },
       });
+
+      await recordArrivalSignup(user.id);
 
       // Same rule as password signup: the agreement only. Recruiter visibility
       // stays off until the user turns it on themselves.

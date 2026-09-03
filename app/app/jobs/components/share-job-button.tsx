@@ -25,16 +25,21 @@ export function ShareJobButton({ job }: { job: JobItem }) {
     const url = `${window.location.origin}/jobs/${job.id}`;
     const text = job.company ? `${job.title} at ${job.company}` : job.title;
 
-    fetch('/api/jobs/share', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId: job.id }),
-      keepalive: true,
-    }).catch(() => {});
+    // Recorded only once the share actually happens. Firing before the sheet
+    // opens counted every cancelled share, which would overstate the top of
+    // the funnel.
+    const record = () =>
+      fetch('/api/jobs/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: job.id }),
+        keepalive: true,
+      }).catch(() => {});
 
     if (navigator.share) {
       try {
         await navigator.share({ title: text, text: `${text} — on JobMatchly`, url });
+        record();
         return;
       } catch (err) {
         if ((err as Error)?.name === 'AbortError') return;
@@ -45,6 +50,7 @@ export function ShareJobButton({ job }: { job: JobItem }) {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      record();
       toast.success('Link copied — paste it anywhere');
     } catch {
       toast.error('Could not copy the link');

@@ -3,6 +3,7 @@
 // Helpers for the public share pages. Kept out of the page files so the
 // absolute-URL rule lives in one place — a share link with the wrong host is
 // worse than no share link.
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import type { MarketCode } from '@prisma/client';
 
@@ -31,12 +32,59 @@ export function shareUrlFor(jobId: string, market?: MarketCode | null): string {
 export async function trackShareEvent(
   jobId: string,
   kind: 'SHARED' | 'VIEWED' | 'SIGNUP',
-  userId?: string | null
+  opts: {
+    userId?: string | null;
+    visitorId?: string | null;
+    referrerHost?: string | null;
+  } = {}
 ): Promise<void> {
   try {
-    await prisma.jobShareEvent.create({ data: { jobId, kind, userId: userId ?? null } });
+    await prisma.jobShareEvent.create({
+      data: {
+        jobId,
+        kind,
+        userId: opts.userId ?? null,
+        visitorId: opts.visitorId ?? null,
+        referrerHost: opts.referrerHost ?? null,
+      },
+    });
   } catch (err) {
     console.error('share event not recorded', err);
+  }
+}
+
+/** Host only, so a referrer never carries a path or query into our logs. */
+export function referrerHostOf(referer: string | null | undefined): string | null {
+  if (!referer) return null;
+  try {
+    const host = new URL(referer).host.toLowerCase();
+    // Our own pages linking to each other aren't acquisition.
+    if (host.includes('jobmatchly')) return null;
+    return host.slice(0, 128);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Attributes a new account to the job that brought them, if any.
+ *
+ * Reads the jm_arrival cookie the public job page set. Without this the SIGNUP
+ * leg of the funnel is always zero, which reads as "sharing brings nobody in"
+ * rather than "we never measured it".
+ */
+export async function recordArrivalSignup(userId: string): Promise<void> {
+  try {
+    const raw = cookies().get('jm_arrival')?.value;
+    if (!raw) return;
+    const parsed = JSON.parse(decodeURIComponent(raw));
+    if (typeof parsed?.jobId !== 'string' || !parsed.jobId) return;
+    await trackShareEvent(parsed.jobId, 'SIGNUP', {
+      userId,
+      visitorId: cookies().get('jm_vid')?.value ?? null,
+    });
+  } catch (err) {
+    console.error('arrival signup not attributed', err);
   }
 }
 

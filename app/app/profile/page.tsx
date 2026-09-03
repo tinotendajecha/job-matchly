@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,321 +9,407 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PreferencesPanel } from '@/components/profile/preferences-panel';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
+import {
   User,
-  Mail,
   MapPin,
-  Calendar,
   FileText,
   Target,
-  Zap,
-  CheckCircle,
+  Mail,
   Settings,
   Save,
-  Camera
+  Sparkles,
+  BadgeCheck,
 } from 'lucide-react';
 import { Header } from '@/components/layout/header';
+import { AppSidebar } from '@/components/layout/app-sidebar';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 
-const profileData = {
-  name: 'John Doe',
-  email: 'john@example.com',
-  location: 'Cape Town, South Africa',
-  joinedDate: 'December 2024',
-  title: 'Frontend Developer',
-  bio: 'Passionate about creating beautiful, user-friendly web applications.',
+interface ProfileData {
+  name: string;
+  email: string;
+  headline: string;
+  location: string;
+  targetRoles: string;
+  joinedAt: string;
+  emailVerified: boolean;
+  bracket: string | null;
+}
+
+interface Stats {
+  tailored: number;
+  coverLetters: number;
+  created: number;
+  tier: string | null;
+  freeTailorsLeft: number | null;
+}
+
+interface Activity {
+  id: string;
+  kind: 'TAILORED_RESUME' | 'COVER_LETTER' | 'CREATED_RESUME';
+  title: string;
+  createdAt: string;
+}
+
+const ACTIVITY_LABEL: Record<Activity['kind'], { label: string; icon: typeof FileText }> = {
+  TAILORED_RESUME: { label: 'Tailored a CV', icon: Target },
+  COVER_LETTER: { label: 'Wrote a cover letter', icon: Mail },
+  CREATED_RESUME: { label: 'Built a resume', icon: FileText },
 };
 
-const activityLog = [
-  { action: 'Created resume', item: 'Software Engineer Resume', time: '2 hours ago', type: 'create' },
-  { action: 'Tailored to job', item: 'Google Frontend Developer', time: '1 day ago', type: 'tailor' },
-  { action: 'Generated cover letter', item: 'Meta Product Designer', time: '3 days ago', type: 'cover' },
-  { action: 'Updated profile', item: 'Professional title changed', time: '5 days ago', type: 'profile' },
-  { action: 'ATS check passed', item: 'Startup Founder Resume', time: '1 week ago', type: 'check' },
-];
+function whenLabel(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function initialsOf(name: string, email: string): string {
+  const source = name.trim() || email.split('@')[0] || '?';
+  return source
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('');
+}
 
 export default function ProfilePage() {
+  const [data, setData] = useState<ProfileData | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [activity, setActivity] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedProfile, setEditedProfile] = useState(profileData);
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState<Pick<ProfileData, 'name' | 'headline' | 'location'>>({
+    name: '',
+    headline: '',
+    location: '',
+  });
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast.success('Profile updated successfully!');
-  };
+  useEffect(() => {
+    fetch('/api/profile/me', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j?.ok) throw new Error(j?.error || 'Failed to load');
+        setData(j.profile);
+        setStats(j.stats);
+        setActivity(j.activity);
+        setDraft({
+          name: j.profile.name,
+          headline: j.profile.headline,
+          location: j.profile.location,
+        });
+      })
+      .catch(() => toast.error('Could not load your profile'))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const handleCancel = () => {
-    setEditedProfile(profileData);
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/profile/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draft),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || 'Save failed');
+      setData((d) => (d ? { ...d, ...draft } : d));
+      setIsEditing(false);
+      toast.success('Profile saved');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save your profile');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function cancel() {
+    if (data) setDraft({ name: data.name, headline: data.headline, location: data.location });
     setIsEditing(false);
-  };
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
-      <div className="container mx-auto p-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto"
-        >
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Profile & Activity</h1>
-            <p className="text-muted-foreground">
-              Manage your account and view your JobMatchly activity
-            </p>
-          </div>
+      <div className="flex">
+        <AppSidebar />
+        <main className="flex-1 min-w-0 overflow-x-hidden">
+          <div className="px-4 sm:px-6 lg:px-8 py-6 md:py-8 max-w-4xl mx-auto">
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+              <h1 className="text-2xl sm:text-3xl font-bold font-display">Profile</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your account, what you&apos;ve made, and what we send you.
+              </p>
+            </motion.div>
 
-          <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 max-w-md">
-              <TabsTrigger value="profile">Profile</TabsTrigger>
-              <TabsTrigger value="activity">Activity</TabsTrigger>
-              <TabsTrigger value="preferences">Preferences</TabsTrigger>
-            </TabsList>
+            <Tabs defaultValue="profile" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 max-w-md">
+                <TabsTrigger value="profile">Profile</TabsTrigger>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
+                <TabsTrigger value="preferences">Preferences</TabsTrigger>
+              </TabsList>
 
-            {/* Profile Tab */}
-            <TabsContent value="profile" className="space-y-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
+              <TabsContent value="profile" className="space-y-6 mt-6">
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
-                        <User className="h-5 w-5" />
-                        Personal Information
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <User className="h-4 w-4" />
+                        Personal information
                       </CardTitle>
-                      {!isEditing ? (
-                        <Button variant="outline" onClick={() => setIsEditing(true)}>
-                          <Settings className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
-                      ) : (
-                        <div className="flex gap-2">
-                          <Button variant="outline" onClick={handleCancel}>
-                            Cancel
+                      {!loading &&
+                        (!isEditing ? (
+                          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                            <Settings className="h-4 w-4 mr-2" />
+                            Edit
                           </Button>
-                          <Button onClick={handleSave}>
-                            <Save className="h-4 w-4 mr-2" />
-                            Save
-                          </Button>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={cancel} disabled={saving}>
+                              Cancel
+                            </Button>
+                            <Button size="sm" onClick={save} disabled={saving}>
+                              <Save className="h-4 w-4 mr-2" />
+                              {saving ? 'Saving…' : 'Save'}
+                            </Button>
+                          </div>
+                        ))}
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
-                      {/* Avatar Section */}
-                      <div className="flex items-center gap-6">
-                        <div className="relative">
-                          <Avatar className="w-20 h-20">
-                            <AvatarFallback className="text-xl">
-                              {editedProfile.name.split(' ').map(n => n[0]).join('')}
+                    {loading || !data ? (
+                      <div className="space-y-4">
+                        <Skeleton className="h-20 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-5">
+                          <Avatar className="w-16 h-16">
+                            <AvatarFallback className="text-lg">
+                              {initialsOf(data.name, data.email)}
                             </AvatarFallback>
                           </Avatar>
-                          {isEditing && (
-                            <motion.button
-                              className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg"
-                              whileHover={{ scale: 1.1 }}
-                              onClick={() => toast.info('Avatar upload coming soon!')}
-                            >
-                              <Camera className="h-4 w-4 text-primary-foreground" />
-                            </motion.button>
-                          )}
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate">{data.name || 'No name set'}</p>
+                            <p className="text-sm text-muted-foreground truncate">{data.email}</p>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                              {data.emailVerified && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  <BadgeCheck className="h-3 w-3 mr-1" />
+                                  Verified
+                                </Badge>
+                              )}
+                              {data.bracket && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  {data.bracket}
+                                </Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground">
+                                Joined{' '}
+                                {new Date(data.joinedAt).toLocaleDateString('en-GB', {
+                                  month: 'long',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-xl font-semibold">{editedProfile.name}</h3>
-                          <p className="text-muted-foreground">{editedProfile.title}</p>
-                          <Badge variant="outline" className="mt-2">
-                            Member since {profileData.joinedDate}
-                          </Badge>
-                        </div>
-                      </div>
 
-                      {/* Form Fields */}
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="name">Full Name</Label>
-                          <Input
-                            id="name"
-                            value={editedProfile.name}
-                            onChange={(e) => setEditedProfile({...editedProfile, name: e.target.value})}
-                            disabled={!isEditing}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="email">Email</Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            value={editedProfile.email}
-                            onChange={(e) => setEditedProfile({...editedProfile, email: e.target.value})}
-                            disabled={!isEditing}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="title">Professional Title</Label>
-                          <Input
-                            id="title"
-                            value={editedProfile.title}
-                            onChange={(e) => setEditedProfile({...editedProfile, title: e.target.value})}
-                            disabled={!isEditing}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="location">Location</Label>
-                          <Input
-                            id="location"
-                            value={editedProfile.location}
-                            onChange={(e) => setEditedProfile({...editedProfile, location: e.target.value})}
-                            disabled={!isEditing}
-                          />
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="name">Full name</Label>
+                            <Input
+                              id="name"
+                              value={draft.name}
+                              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                              disabled={!isEditing}
+                              placeholder="Your name"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input id="email" value={data.email} disabled />
+                            <p className="text-xs text-muted-foreground">
+                              Contact support to change the address on your account.
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="headline">Professional title</Label>
+                            <Input
+                              id="headline"
+                              value={draft.headline}
+                              onChange={(e) => setDraft({ ...draft, headline: e.target.value })}
+                              disabled={!isEditing}
+                              placeholder="e.g. Software Developer"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="location">Location</Label>
+                            <Input
+                              id="location"
+                              value={draft.location}
+                              onChange={(e) => setDraft({ ...draft, location: e.target.value })}
+                              disabled={!isEditing}
+                              placeholder="e.g. Harare, Zimbabwe"
+                            />
+                          </div>
                         </div>
                       </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="bio">Bio</Label>
-                        <Input
-                          id="bio"
-                          value={editedProfile.bio}
-                          onChange={(e) => setEditedProfile({...editedProfile, bio: e.target.value})}
-                          disabled={!isEditing}
-                          placeholder="Tell us about yourself..."
-                        />
-                      </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
-              </motion.div>
-            </TabsContent>
 
-            {/* Activity Tab */}
-            <TabsContent value="activity" className="space-y-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
+                {!loading && stats && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Your plan</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-col sm:flex-row sm:items-center gap-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">
+                          {stats.tier ? `${stats.tier.charAt(0)}${stats.tier.slice(1).toLowerCase()}` : 'Free'}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          {stats.tier
+                            ? 'Tailoring, cover letters and downloads are included.'
+                            : stats.freeTailorsLeft && stats.freeTailorsLeft > 0
+                              ? `You have ${stats.freeTailorsLeft} free tailored CV left.`
+                              : "You've used your free tailored CV. Subscribe to keep tailoring."}
+                        </p>
+                      </div>
+                      <Button asChild variant={stats.tier ? 'outline' : 'default'} size="sm" className="flex-shrink-0">
+                        <Link href={stats.tier ? '/app/billing' : '/pricing'}>
+                          {stats.tier ? 'Manage billing' : 'See plans'}
+                        </Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="activity" className="space-y-6 mt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {loading || !stats
+                    ? Array.from({ length: 3 }).map((_, i) => (
+                        <Skeleton key={i} className="h-[104px] rounded-xl" />
+                      ))
+                    : [
+                        { label: 'CVs tailored', value: stats.tailored, icon: Target },
+                        { label: 'Cover letters', value: stats.coverLetters, icon: Mail },
+                        { label: 'Resumes built', value: stats.created, icon: FileText },
+                      ].map((s) => (
+                        <Card key={s.label}>
+                          <CardContent className="p-5 text-center">
+                            <s.icon className="h-6 w-6 text-primary mx-auto mb-2" />
+                            <div className="text-2xl font-bold tabular-nums">{s.value}</div>
+                            <p className="text-sm text-muted-foreground">{s.label}</p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                </div>
+
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      Recent Activity
-                    </CardTitle>
+                    <CardTitle className="text-base">Recent activity</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {activityLog.map((activity, index) => (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            activity.type === 'create' ? 'bg-blue-100 dark:bg-blue-900' :
-                            activity.type === 'tailor' ? 'bg-green-100 dark:bg-green-900' :
-                            activity.type === 'cover' ? 'bg-purple-100 dark:bg-purple-900' :
-                            activity.type === 'profile' ? 'bg-orange-100 dark:bg-orange-900' :
-                            'bg-gray-100 dark:bg-gray-900'
-                          }`}>
-                            {activity.type === 'create' && <FileText className="h-4 w-4" />}
-                            {activity.type === 'tailor' && <Target className="h-4 w-4" />}
-                            {activity.type === 'cover' && <Mail className="h-4 w-4" />}
-                            {activity.type === 'profile' && <User className="h-4 w-4" />}
-                            {activity.type === 'check' && <CheckCircle className="h-4 w-4" />}
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{activity.action}</p>
-                            <p className="text-xs text-muted-foreground">{activity.item}</p>
-                          </div>
-                          <span className="text-xs text-muted-foreground">{activity.time}</span>
-                        </motion.div>
-                      ))}
-                    </div>
+                    {loading ? (
+                      <div className="space-y-2">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <Skeleton key={i} className="h-14 w-full" />
+                        ))}
+                      </div>
+                    ) : activity.length > 0 ? (
+                      <div className="space-y-1">
+                        {activity.map((a, i) => {
+                          const meta = ACTIVITY_LABEL[a.kind] ?? ACTIVITY_LABEL.CREATED_RESUME;
+                          return (
+                            <motion.div
+                              key={a.id}
+                              initial={{ opacity: 0, x: -8 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: Math.min(i * 0.04, 0.3) }}
+                            >
+                              <Link
+                                href={`/app/documents/${a.id}`}
+                                className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors"
+                              >
+                                <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                  <meta.icon className="h-4 w-4 text-primary" />
+                                </span>
+                                <span className="flex-1 min-w-0">
+                                  <span className="block text-sm font-medium">{meta.label}</span>
+                                  <span className="block text-xs text-muted-foreground truncate">
+                                    {a.title}
+                                  </span>
+                                </span>
+                                <span className="text-xs text-muted-foreground flex-shrink-0">
+                                  {whenLabel(a.createdAt)}
+                                </span>
+                              </Link>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="py-10 text-center">
+                        <Sparkles className="mx-auto h-7 w-7 text-muted-foreground" />
+                        <p className="mt-3 font-medium">Nothing here yet</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Tailor a CV to a job and it&apos;ll show up here.
+                        </p>
+                        <Button asChild size="sm" className="mt-4">
+                          <Link href="/app/jobs">Find a job to apply for</Link>
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
-              </motion.div>
+              </TabsContent>
 
-              {/* Stats Cards */}
-              <div className="grid md:grid-cols-3 gap-6">
-                {[
-                  { label: 'Resumes Created', value: '8', icon: FileText },
-                  { label: 'Jobs Applied', value: '23', icon: Target },
-                  { label: 'Avg ATS Score', value: '87%', icon: CheckCircle },
-                ].map((stat, index) => (
-                  <motion.div
-                    key={stat.label}
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 + index * 0.1 }}
-                  >
-                    <Card>
-                      <CardContent className="p-6 text-center">
-                        <stat.icon className="h-8 w-8 text-primary mx-auto mb-3" />
-                        <div className="text-2xl font-bold mb-1">{stat.value}</div>
-                        <p className="text-sm text-muted-foreground">{stat.label}</p>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            </TabsContent>
+              <TabsContent value="preferences" className="space-y-6 mt-6">
+                <PreferencesPanel />
 
-            {/* Preferences Tab */}
-            <TabsContent value="preferences" className="space-y-6">
-              <PreferencesPanel />
-
-              {/* Account Actions */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
                 <Card>
                   <CardHeader>
-                    <CardTitle>Account Actions</CardTitle>
+                    <CardTitle className="text-base">Your data</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => toast.info('Export feature coming soon!')}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Export All Data
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start"
-                      onClick={() => toast.info('Password reset email sent!')}
-                    >
-                      <Settings className="h-4 w-4 mr-2" />
-                      Change Password
-                    </Button>
-                    
-                    <Button 
-                      variant="destructive" 
-                      className="w-full justify-start"
-                      onClick={() => toast.info('Account deletion requires confirmation')}
-                    >
-                      <Target className="h-4 w-4 mr-2" />
-                      Delete Account
-                    </Button>
+                  <CardContent className="space-y-3 text-sm text-muted-foreground">
+                    <p>
+                      You can ask us for a copy of everything we hold about you, or to delete your
+                      account and its data. Email{' '}
+                      <a
+                        href="mailto:hello@jobmatchly.site"
+                        className="text-foreground underline underline-offset-2"
+                      >
+                        hello@jobmatchly.site
+                      </a>{' '}
+                      and we&apos;ll action it.
+                    </p>
+                    <p className="flex items-start gap-2">
+                      <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>
+                        What we collect and why is set out in the{' '}
+                        <Link href="/terms" className="text-foreground underline underline-offset-2">
+                          Data Protection &amp; Consent Agreement
+                        </Link>
+                        .
+                      </span>
+                    </p>
                   </CardContent>
                 </Card>
-              </motion.div>
-            </TabsContent>
-          </Tabs>
-        </motion.div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </main>
       </div>
     </div>
   );

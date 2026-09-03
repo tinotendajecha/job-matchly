@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { CreditCard, LogOut, Sun, Moon, Crown } from 'lucide-react';
+import { CreditCard, LogOut, Sun, Moon, Crown, User as UserIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { toast } from 'react-toastify';
@@ -189,6 +189,13 @@ export function Header({ isPublic = false }: HeaderProps) {
                     </Link>
                   </DropdownMenuItem>
                 )}
+
+                <DropdownMenuItem asChild>
+                  <Link href="/app/profile" className="flex cursor-pointer">
+                    <UserIcon className="mr-2 h-4 w-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
                   <Link href="/app/billing" className="flex cursor-pointer">

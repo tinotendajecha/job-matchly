@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Plus, Upload, FileText, Target, CreditCard, Star, MessageCircle, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Plus, Upload, FileText, Target, CreditCard, Star, MessageCircle, Briefcase, UserCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
@@ -13,6 +13,7 @@ const navLinks = [
   { label: 'Jobs', href: '/app/jobs', icon: Briefcase },
   { label: 'Career Coach', href: '', icon: MessageCircle, disabled: true, badge: 'Soon' },
   { label: 'ATS Check', href: '', icon: Target, disabled: true, badge: 'Soon' },
+  { label: 'Profile', href: '/app/profile', icon: UserCircle },
   { label: 'Billing', href: '/app/billing', icon: CreditCard },
   { label: 'Roadmap', href: '/app/coming-soon', icon: Star },
 ];

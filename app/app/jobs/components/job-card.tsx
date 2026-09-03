@@ -2,6 +2,7 @@
 
 import { MapPin, Building2, Clock, ArrowUpRight, Banknote } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ShareJobButton } from './share-job-button';
 
 export interface JobItem {
   id: string;
@@ -40,19 +41,23 @@ export function JobCard({ job, compact = false }: { job: JobItem; compact?: bool
   const urgent = closingIn !== null && closingIn <= 3;
 
   return (
-    <a
-      href={job.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block h-full"
-    >
+    <div className="group relative h-full">
       <article
         className={cn(
           'flex flex-col h-full rounded-2xl border border-border/60 bg-card transition-all',
-          'hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5',
+          'group-hover:border-primary/30 group-hover:shadow-lg group-hover:shadow-primary/5',
           compact ? 'p-4' : 'p-5'
         )}
       >
+        {/* Covers the card so the whole surface stays clickable, while leaving
+            the share control reachable above it. */}
+        <a
+          href={job.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute inset-0 rounded-2xl focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+          aria-label={`${job.title}${job.company ? ` at ${job.company}` : ''} — open listing`}
+        />
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h3
@@ -109,20 +114,26 @@ export function JobCard({ job, compact = false }: { job: JobItem; compact?: bool
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
             {job.market === 'ZW' ? 'Zimbabwe' : 'South Africa'}
           </span>
-          {closingIn !== null && closingIn >= 0 && (
-            <span
-              className={cn(
-                'rounded-full px-2 py-0.5 text-[10px] font-medium',
-                urgent
-                  ? 'bg-destructive/10 text-destructive'
-                  : 'bg-muted text-muted-foreground'
-              )}
-            >
-              {closingIn === 0 ? 'Closes today' : `Closes in ${closingIn}d`}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            {closingIn !== null && closingIn >= 0 && (
+              <span
+                className={cn(
+                  'rounded-full px-2 py-0.5 text-[10px] font-medium',
+                  urgent
+                    ? 'bg-destructive/10 text-destructive'
+                    : 'bg-muted text-muted-foreground'
+                )}
+              >
+                {closingIn === 0 ? 'Closes today' : `Closes in ${closingIn}d`}
+              </span>
+            )}
+            {/* Above the overlay link, so sharing never opens the listing. */}
+            <div className="relative">
+              <ShareJobButton job={job} />
+            </div>
+          </div>
         </div>
       </article>
-    </a>
+    </div>
   );
 }

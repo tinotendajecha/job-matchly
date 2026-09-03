@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,8 +16,14 @@ import { toast } from 'react-toastify';
 import { cn } from '@/lib/utils';
 import { useMarket } from '@/hooks/use-market';
 
-export default function SignUpPage() {
+function SignUpPageContent() {
   const router = useRouter();
+  const params = useSearchParams();
+  // Same-site paths only: an open redirect here would make every shared job
+  // link a usable phishing vector.
+  const nextParam = params.get('next');
+  const safeNext =
+    nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null;
   const { market, isSouthAfrica } = useMarket();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -81,7 +87,11 @@ export default function SignUpPage() {
       const email = formData.email.trim().toLowerCase();
       try { localStorage.setItem('pendingVerifyEmail', email); } catch {}
       toast.success('Verification code sent. Check your email 📩');
-      router.push(`/auth/verify?email=${encodeURIComponent(email)}`);
+      router.push(
+        `/auth/verify?email=${encodeURIComponent(email)}${
+          safeNext ? `&next=${encodeURIComponent(safeNext)}` : ''
+        }`
+      );
     } catch (err: any) {
       console.error(err);
       toast.error('Network error. Please try again.');
@@ -247,5 +257,13 @@ export default function SignUpPage() {
         </p>
       </motion.div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense>
+      <SignUpPageContent />
+    </Suspense>
   );
 }

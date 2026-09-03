@@ -402,6 +402,24 @@ enum JobSource {
   ADZUNA
 }
 
+/// One outbound click on a shared job link, so we can tell whether sharing
+/// actually brings people in and which jobs travel.
+model JobShareEvent {
+  id     String @id @default(cuid())
+  jobId  String
+  /// SHARED when someone copies or sends the link, VIEWED when the public page
+  /// is opened, SIGNUP when a visit leads to a new account.
+  kind   String
+  /// Set only where we know it: the sharer for SHARED, the visitor for SIGNUP.
+  userId String?
+  createdAt DateTime @default(now())
+
+  job JobPost @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, kind])
+  @@index([createdAt])
+}
+
 enum ConsentPurpose {
   /// The signup Data Protection & Consent Agreement.
   ACCOUNT_TERMS
@@ -483,6 +501,7 @@ model JobPost {
   updatedAt DateTime @updatedAt
 
   matches JobMatch[]
+  shares  JobShareEvent[]
 
   @@unique([source, sourceRef])
   @@index([market, status, postedAt])

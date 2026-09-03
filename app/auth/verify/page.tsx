@@ -18,6 +18,12 @@ function isValidEmail(e: string) {
 function VerifyEmailPageContent() {
   const router = useRouter();
   const params = useSearchParams();
+  // Same-site paths only: an open redirect here would make every shared job
+  // link a usable phishing vector.
+  const nextParam = params.get('next');
+  const safeNext =
+    nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null;
+
 
   const [email, setEmail] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
@@ -98,7 +104,7 @@ function VerifyEmailPageContent() {
 
       toast.success('Email verified! You can sign in now.');
       try { localStorage.removeItem('pendingVerifyEmail'); } catch { }
-      router.push('/auth/signin');
+      router.push(safeNext ? `/auth/signin?next=${encodeURIComponent(safeNext)}` : '/auth/signin');
     } catch (err) {
       console.error(err);
       toast.error('Network error. Please try again.');

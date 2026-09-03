@@ -19,6 +19,11 @@ function isValidEmail(v: string) {
 function SignInPageContent() {
   const router = useRouter();
   const params = useSearchParams();
+  // Only same-site paths: an open redirect here would turn every shared job
+  // link into a usable phishing vector.
+  const nextParam = params.get('next');
+  const safeNext =
+    nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null;
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,7 +80,9 @@ function SignInPageContent() {
       }
 
       toast.success('Welcome back! Redirecting…');
-      router.push('/app/dashboard');
+      // Someone who arrived from a shared job link goes back to that job, not
+      // to a dashboard they never asked for.
+      router.push(safeNext ?? '/app/dashboard');
     } catch (err) {
       console.error(err);
       toast.error('Network error. Please try again.');

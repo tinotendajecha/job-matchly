@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { JobCard, type JobItem } from './components/job-card';
+import { FieldPicker } from '@/components/jobs/field-picker';
 
 type MarketFilter = 'ZW' | 'ZA' | 'ALL';
 
@@ -175,6 +176,14 @@ export default function JobsPage() {
                 })}
               </div>
             )}
+
+            {/* Answering this changes the feed underneath, so reload it. */}
+            <FieldPicker
+              onSaved={() => {
+                setPage(1);
+                load({ page: 1, market, allFields: false });
+              }}
+            />
 
             {error && (
               <Alert variant="destructive">

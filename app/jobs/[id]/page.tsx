@@ -30,6 +30,7 @@ import { Footer } from '@/components/layout/footer';
 import { liveJobWhere } from '@/lib/jobs/policy';
 import { shareBaseUrl, shareUrlFor, summarize, trackShareEvent } from '@/lib/jobs/share';
 import { ShareButton } from './share-button';
+import { ArrivalTracker } from '@/components/jobs/arrival-tracker';
 
 export const runtime = 'nodejs';
 // A listing's status changes between crawls, and a stale "still open" is the
@@ -142,6 +143,9 @@ export default async function PublicJobPage({ params }: { params: { id: string }
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      {/* Only for visitors without an account — anyone signed in already has
+          a field, or will be asked directly. */}
+      {!user && <ArrivalTracker bracket={job.bracket} jobTitle={job.title} />}
       <Header />
 
       <main className="flex-1">

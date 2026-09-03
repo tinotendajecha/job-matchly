@@ -93,7 +93,7 @@ export async function tagUsers(options: { useAiFallback?: boolean } = {}): Promi
   const result: TagResult = { tagged: 0, byRules: 0, byAi: 0, skipped: 0, aiInputChars: 0 };
 
   // Two queries total, joined in memory — never one query per user.
-  const [users, documents, profiles] = await Promise.all([
+  const [users, documents, profiles, selfPicked] = await Promise.all([
     prisma.user.findMany({ select: { id: true } }),
     prisma.document.findMany({
       orderBy: { createdAt: 'desc' },
@@ -102,7 +102,13 @@ export async function tagUsers(options: { useAiFallback?: boolean } = {}): Promi
     prisma.profile.findMany({
       select: { userId: true, resumeMarkdown: true, targetRoles: true, headline: true },
     }),
+    // Users who told us their own field. We never overwrite that with a guess.
+    prisma.userProfession.findMany({
+      where: { method: 'SELF' },
+      select: { userId: true },
+    }),
   ]);
+  const selfPickedIds = new Set(selfPicked.map((p) => p.userId));
 
   const titlesByUser = new Map<string, string[]>();
   for (const doc of documents) {
@@ -117,6 +123,10 @@ export async function tagUsers(options: { useAiFallback?: boolean } = {}): Promi
   const profileByUser = new Map(profiles.map((p) => [p.userId, p]));
 
   for (const user of users) {
+    if (selfPickedIds.has(user.id)) {
+      result.skipped++;
+      continue;
+    }
     const titles = titlesByUser.get(user.id) ?? [];
     const profile = profileByUser.get(user.id);
     const resume = profile?.resumeMarkdown ?? null;
@@ -228,6 +238,16 @@ export async function tagSingleUser(
   options: { useAiFallback?: boolean } = {}
 ): Promise<boolean> {
   const { useAiFallback = false } = options;
+
+  // A field the user picked themselves beats anything we can infer from their
+  // documents. Without this guard the next tagging run silently replaces their
+  // answer with a guess, and their feed changes under them for no visible
+  // reason.
+  const existing = await prisma.userProfession.findUnique({
+    where: { userId },
+    select: { method: true },
+  });
+  if (existing?.method === 'SELF') return false;
 
   const [profile, documents] = await Promise.all([
     prisma.profile.findUnique({

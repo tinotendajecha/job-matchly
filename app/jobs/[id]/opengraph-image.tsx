@@ -4,12 +4,15 @@
 // X. Generated rather than static so the role, employer and location are
 // legible in the preview itself — the difference between "some link" and
 // "a Senior Data Engineer job in Johannesburg".
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { ImageResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 
-export const runtime = 'nodejs';
+// Edge, not Node. ImageResponse's stream swallows any error thrown while
+// starting, so a failure surfaces as a 200 with an empty body rather than a
+// stack trace — which is how this shipped broken the first time. The Node build
+// of @vercel/og reads its wasm and fallback font off disk and those reads don't
+// survive bundling; the edge build inlines them. Edge can't reach Prisma, hence
+// the fetch below.
+export const runtime = 'edge';
 export const alt = 'Job vacancy on JobMatchly';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
@@ -29,55 +32,83 @@ const MUTED = '#8A9179';
 // works on the edge runtime, and this route needs Node for Prisma. Read once at
 // module scope so it costs nothing per render; next.config.js traces the files
 // into the serverless bundle.
-const FONT_DIR = join(process.cwd(), 'assets', 'fonts');
-
 /**
- * Returns null rather than throwing if the files aren't in the bundle.
+ * Brand fonts, or null if they can't be loaded.
  *
- * Loading at module scope would take the whole route down on a file-tracing
- * miss. A preview in the fallback face is a cosmetic problem; a 500 means no
- * preview at all, which is the thing this route exists to prevent.
+ * Never allowed to throw: an exception here would blank the whole card. The
+ * fallback face is a cosmetic loss, no preview at all is the failure this route
+ * exists to prevent.
  */
-function brandFonts() {
+async function brandFonts() {
   try {
+    const [regular, bold] = await Promise.all([
+      fetch(new URL('./dm-sans-regular.ttf', import.meta.url)).then((r) => r.arrayBuffer()),
+      fetch(new URL('./dm-sans-bold.ttf', import.meta.url)).then((r) => r.arrayBuffer()),
+    ]);
     return [
-      {
-        name: 'DM Sans',
-        data: readFileSync(join(FONT_DIR, 'dm-sans-regular.ttf')),
-        weight: 400 as const,
-        style: 'normal' as const,
-      },
-      {
-        name: 'DM Sans',
-        data: readFileSync(join(FONT_DIR, 'dm-sans-bold.ttf')),
-        weight: 700 as const,
-        style: 'normal' as const,
-      },
+      { name: 'DM Sans', data: regular, weight: 400 as const, style: 'normal' as const },
+      { name: 'DM Sans', data: bold, weight: 700 as const, style: 'normal' as const },
     ];
   } catch (err) {
-    console.error('OG brand fonts unavailable, falling back to default', err);
+    console.error('OG brand fonts unavailable, using default face', err);
+    return null;
+  }
+}
+
+/** Absolute origin for the data fetch. Edge has no request context here. */
+function origin(): string {
+  const explicit = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL;
+  if (explicit) return explicit.replace(/\/$/, '');
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return 'https://www.jobmatchly.site';
+}
+
+function dedupePlace(location: string | null | undefined): string {
+  if (!location) return '';
+  const seen = new Set<string>();
+  return location
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => {
+      const key = part.toLowerCase();
+      if (!part || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join(', ');
+}
+
+type OgJob = {
+  title: string;
+  company: string | null;
+  location: string | null;
+  market: string;
+  salaryText: string | null;
+  bracket: string | null;
+  employmentType: string | null;
+};
+
+async function loadJob(id: string): Promise<OgJob | null> {
+  try {
+    const res = await fetch(`${origin()}/api/public/job/${id}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json?.ok ? (json.job as OgJob) : null;
+  } catch (err) {
+    console.error('OG job lookup failed', err);
     return null;
   }
 }
 
 export default async function Image({ params }: { params: { id: string } }) {
-  const fonts = brandFonts();
-  const job = await prisma.jobPost.findUnique({
-    where: { id: params.id },
-    select: {
-      title: true,
-      company: true,
-      location: true,
-      market: true,
-      salaryText: true,
-      bracket: true,
-      employmentType: true,
-    },
-  });
+  // Both are allowed to come back empty; the card still renders.
+  const [fonts, job] = await Promise.all([brandFonts(), loadJob(params.id)]);
 
   const title = job?.title ?? 'Job vacancy';
   const company = job?.company ?? null;
-  const place = job?.location || (job?.market === 'ZA' ? 'South Africa' : 'Zimbabwe');
+  // Sources often repeat the city as its own province ("Harare, Harare"), which
+  // looks careless on a card people forward to each other.
+  const place = dedupePlace(job?.location) || (job?.market === 'ZA' ? 'South Africa' : 'Zimbabwe');
 
   // Long scraped titles are common; shrink rather than clip so the role stays
   // readable at thumbnail size.
@@ -108,7 +139,7 @@ export default async function Image({ params }: { params: { id: string } }) {
             top: 0,
             left: 0,
             width: 14,
-            height: '100%',
+            height: size.height,
             background: LIME,
           }}
         />
@@ -117,6 +148,7 @@ export default async function Image({ params }: { params: { id: string } }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 40 }}>
             <div
               style={{
+                display: 'flex',
                 fontSize: 26,
                 fontWeight: 700,
                 color: '#FFFFFF',

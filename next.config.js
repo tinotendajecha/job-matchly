@@ -14,8 +14,6 @@ const nextConfig = {
     outputFileTracingIncludes: {
       // Must match the route path for app router
       '/api/export/pdf/route': ['node_modules/@sparticuz/chromium/bin/**'],
-      // The share-preview card reads these at runtime, so they must ship with it.
-      '/jobs/[id]/opengraph-image': ['assets/fonts/**'],
     },
   },
 

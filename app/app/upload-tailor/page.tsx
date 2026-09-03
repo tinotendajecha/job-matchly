@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Header } from '@/components/layout/header';
@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 
 import { useTailorStore } from '@/lib/zustand/store';
 import { WizardStepper } from './components/WizardStepper';
+import { JobPrefill } from './components/JobPrefill';
 import { StepOne } from './components/StepOne';
 import { StepTwo } from './components/StepTwo';
 import { StepThree } from './components/StepThree';
@@ -92,6 +93,17 @@ export default function UploadTailorWizardPage() {
   }
 
   // ------------------- Render -------------------
+  // Arriving from a listing fills the description in, so the wizard opens on
+  // step 2 with the paste box already satisfied.
+  const applyJobDescription = useCallback(
+    (description: string) => {
+      setJobDescription(description);
+      setJdProvided(Boolean(description));
+      if (description) setActiveTab('text');
+    },
+    [setJobDescription, setJdProvided, setActiveTab]
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -102,6 +114,12 @@ export default function UploadTailorWizardPage() {
             Tailor your resume in 3 easy steps
           </h1>
         </div>
+
+        {/* Suspense because JobPrefill reads search params; without it this
+            page stops prerendering. */}
+        <Suspense fallback={null}>
+          <JobPrefill onPrefill={applyJobDescription} />
+        </Suspense>
 
         <WizardStepper steps={steps} />
 

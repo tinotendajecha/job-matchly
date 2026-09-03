@@ -255,7 +255,7 @@ export default async function PublicJobPage({ params }: { params: { id: string }
                 </div>
                 <div className="flex flex-wrap gap-2 flex-shrink-0">
                   <Button asChild variant="outline">
-                    <Link href="/app/upload-tailor">Tailor my CV</Link>
+                    <Link href={`/app/upload-tailor?jobId=${job.id}`}>Tailor my CV</Link>
                   </Button>
                   <Button asChild>
                     <a href={job.url} target="_blank" rel="noopener noreferrer nofollow">

@@ -6,6 +6,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { fetchVacancyMailJobs } from './sources/vacancymail';
+import { fetchIhararejobs } from './sources/ihararejobs';
 import { fetchAdzunaJobs, adzunaConfigured } from './sources/adzuna';
 import { ADZUNA_BRACKETS } from '@/lib/jobs/brackets';
 import {
@@ -20,6 +21,38 @@ import type { JobIngestResult, RawJob, SourceCoverage } from './types';
  * VacancyMail categories worth crawling. Ordered so the brackets our users
  * actually occupy (heavily IT/graduate in Zimbabwe) come first.
  */
+/**
+ * ihararejobs.com categories worth crawling.
+ *
+ * Weighted towards the brackets our Zimbabwean feed is thinnest in — Software
+ * & IT had 3 live listings against South Africa's 100-plus, so the technical
+ * categories come first and the cap is spent on them.
+ */
+const IHARAREJOBS_CATEGORIES = [
+  'ict',
+  'software-engineering',
+  'telecommunications',
+  'engineering',
+  'accounting',
+  'banking-and-finance-jobs',
+  'finance',
+  'sales-and-marketing',
+  'admin-and-office-jobs',
+  'human-resources',
+  'healthcare',
+  'nursing-jobs-in-zimbabwe',
+  'ngo-jobs-in-zimbabwe',
+  'education',
+  'logistics',
+  'purchasing-and-supply',
+  'law',
+  'construction',
+  'mining',
+  'graduate-jobs-in-zimbabwe',
+  'internship',
+  'general-jobs',
+];
+
 const VACANCYMAIL_CATEGORIES = [
   'ict-computer-jobs-in-zimbabwe',
   'graduate-trainee-jobs-in-zimbabwe',
@@ -170,6 +203,14 @@ export async function runJobsPipeline(
       onProgress: log,
     });
 
+    log('\n[ihararejobs] Zimbabwe');
+    const ihResult = await fetchIhararejobs({
+      categories: IHARAREJOBS_CATEGORIES,
+      maxPerCategory: MAX_PER_CATEGORY,
+      isKnownUrl,
+      onProgress: log,
+    });
+
     log(`\n[adzuna] South Africa${adzunaConfigured() ? '' : ' (not configured)'}`);
     const adzunaResult = await fetchAdzunaJobs({
       categoryTags: await orderCategoriesByDemand(ADZUNA_CATEGORIES),
@@ -178,7 +219,7 @@ export async function runJobsPipeline(
       maxCalls: ADZUNA_MAX_CALLS_PER_RUN,
       onProgress: log,
     });
-    const zw = vmResult.jobs;
+    const zw = [...vmResult.jobs, ...ihResult.jobs];
     const za = adzunaResult.jobs.filter((j) => !knownUrls.has(j.url));
 
     log('');
@@ -189,7 +230,9 @@ export async function runJobsPipeline(
     // Anything still advertised on its source is confirmed open, regardless of
     // whether we re-fetched it. This is the observation that later separates a
     // listing the market closed from one our own ageing rule hid.
-    const seenUrls = [...new Set([...vmResult.seenUrls, ...adzunaResult.seenUrls])];
+    const seenUrls = [
+      ...new Set([...vmResult.seenUrls, ...ihResult.seenUrls, ...adzunaResult.seenUrls]),
+    ];
     const seenAt = new Date();
     let refreshed = 0;
     for (let i = 0; i < seenUrls.length; i += 500) {
@@ -205,6 +248,7 @@ export async function runJobsPipeline(
 
     coverage = {
       VACANCYMAIL: vmResult.coverage,
+      IHARAREJOBS: ihResult.coverage,
       ADZUNA: adzunaResult.coverage,
     };
 

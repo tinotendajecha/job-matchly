@@ -21,6 +21,7 @@ import {
   Save,
   Sparkles,
   BadgeCheck,
+  Download,
 } from 'lucide-react';
 import { DeleteAccountCard } from '@/components/profile/delete-account';
 import { Header } from '@/components/layout/header';
@@ -393,15 +394,16 @@ export default function ProfilePage() {
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm text-muted-foreground">
                     <p>
-                      Want a copy of everything we hold about you? Email{' '}
-                      <a
-                        href="mailto:hello@jobmatchly.site"
-                        className="text-foreground underline underline-offset-2"
-                      >
-                        hello@jobmatchly.site
-                      </a>{' '}
-                      and we&apos;ll send it.
+                      Download everything we hold about you — your profile, every CV and cover
+                      letter, your job matches, payments, and the record of what you&apos;ve agreed
+                      to. It&apos;s a JSON file you can open in any text editor.
                     </p>
+                    <Button asChild variant="outline" size="sm">
+                      <a href="/api/profile/export" download>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download my data
+                      </a>
+                    </Button>
                     <p className="flex items-start gap-2">
                       <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
                       <span>

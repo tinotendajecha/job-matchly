@@ -420,6 +420,7 @@ model EmailDelivery {
 enum JobSource {
   VACANCYMAIL
   ADZUNA
+  IHARAREJOBS
 }
 
 /// One outbound click on a shared job link, so we can tell whether sharing

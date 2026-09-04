@@ -22,6 +22,7 @@ import {
   Sparkles,
   BadgeCheck,
 } from 'lucide-react';
+import { DeleteAccountCard } from '@/components/profile/delete-account';
 import { Header } from '@/components/layout/header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { motion } from 'framer-motion';
@@ -392,15 +393,14 @@ export default function ProfilePage() {
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm text-muted-foreground">
                     <p>
-                      You can ask us for a copy of everything we hold about you, or to delete your
-                      account and its data. Email{' '}
+                      Want a copy of everything we hold about you? Email{' '}
                       <a
                         href="mailto:hello@jobmatchly.site"
                         className="text-foreground underline underline-offset-2"
                       >
                         hello@jobmatchly.site
                       </a>{' '}
-                      and we&apos;ll action it.
+                      and we&apos;ll send it.
                     </p>
                     <p className="flex items-start gap-2">
                       <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -414,6 +414,8 @@ export default function ProfilePage() {
                     </p>
                   </CardContent>
                 </Card>
+
+                <DeleteAccountCard email={data?.email ?? ''} />
               </TabsContent>
             </Tabs>
           </div>

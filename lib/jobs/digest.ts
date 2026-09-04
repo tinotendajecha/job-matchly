@@ -42,6 +42,7 @@ export async function getDigestRecipients(): Promise<DigestRecipient[]> {
       jobAlertsOptOut: false,
       email: { not: null },
       profession: { isNot: null },
+      deletedAt: null,
     },
     select: {
       id: true,

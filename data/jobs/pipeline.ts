@@ -8,7 +8,12 @@ import { prisma } from '@/lib/prisma';
 import { fetchVacancyMailJobs } from './sources/vacancymail';
 import { fetchAdzunaJobs, adzunaConfigured } from './sources/adzuna';
 import { ADZUNA_BRACKETS } from '@/lib/jobs/brackets';
-import { UNDATED_JOB_MAX_AGE_DAYS, EXPIRED_JOB_ARCHIVE_DAYS, undatedJobCutoff } from '@/lib/jobs/policy';
+import {
+  UNDATED_JOB_MAX_AGE_DAYS,
+  EXPIRED_JOB_ARCHIVE_DAYS,
+  undatedJobCutoff,
+  seenRecentlyCutoff,
+} from '@/lib/jobs/policy';
 import type { JobIngestResult, RawJob, SourceCoverage } from './types';
 
 /**
@@ -213,15 +218,35 @@ export async function runJobsPipeline(
     // 2) Adzuna publishes no closing date, so undated listings would otherwise
     // stay ACTIVE forever. Age them out instead — a listing this old is usually
     // filled, and sending someone to a closed vacancy is worse than a shorter feed.
+    //
+    // Unless the source still carries it. The age rule is a guess standing in
+    // for a closing date we don't have; a listing seen in this very run is
+    // evidence against that guess, and expiring it anyway hid jobs people could
+    // still apply to.
     const staleCutoff = undatedJobCutoff();
     const expiredByAge = await prisma.jobPost.updateMany({
       where: {
         status: 'ACTIVE',
         expiresAt: null,
         OR: [{ postedAt: { lt: staleCutoff } }, { postedAt: null, createdAt: { lt: staleCutoff } }],
+        NOT: { lastSeenAt: { gte: seenRecentlyCutoff() } },
       },
       data: { status: 'EXPIRED', closedAt },
     });
+
+    // A listing we previously aged out but have now seen again is open after
+    // all, so put it back rather than leaving it buried until the next crawl.
+    const revived = await prisma.jobPost.updateMany({
+      where: {
+        status: 'EXPIRED',
+        expiresAt: null,
+        lastSeenAt: { gte: seenAt },
+      },
+      data: { status: 'ACTIVE', closedAt: null },
+    });
+    if (revived.count > 0) {
+      log(`[revived] ${revived.count} listing(s) the source still advertises`);
+    }
 
     result.expired = expiredByDate.count + expiredByAge.count;
     log(

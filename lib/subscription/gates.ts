@@ -28,9 +28,20 @@ export async function requireSubscription(userId: string): Promise<SubscriptionT
   // Resolves to PLUS for admins; otherwise the real active subscription.
   const tier = await getEffectiveTier(userId);
   if (!tier) {
+    // A trial can only ever be started once, so telling someone who has already
+    // used theirs to "start a free trial" sends them to a button that will
+    // refuse them. Six accounts are in exactly that position today.
+    const hadSubscriptionBefore = await prisma.subscription.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
     throw new SubscriptionGateError('NO_SUBSCRIPTION', 402, {
       code: 'NO_SUBSCRIPTION',
-      message: 'Start a free trial to continue.',
+      message: hadSubscriptionBefore
+        ? 'Your plan has ended. Subscribe to continue.'
+        : 'Start a free trial to continue.',
+      trialAvailable: !hadSubscriptionBefore,
       redirectTo: '/pricing',
     });
   }

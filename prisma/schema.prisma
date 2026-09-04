@@ -67,6 +67,12 @@ model User {
   consentGivenAt  DateTime?
   consentVersion  String?   // e.g. "ZA-2026-v1" or "ZW-2026-v1"
 
+  /// Set when the person deletes their account. The row survives because
+  /// Purchase and Subscription reference it and financial records must be kept
+  /// for tax purposes; everything identifying is scrubbed at the same time, so
+  /// what remains is an anonymous stub, not an account.
+  deletedAt         DateTime?
+
   /// Lifetime count of tailors run without a paid subscription.
   ///
   /// Deliberately not a period counter like SubscriptionUsage: the free

@@ -231,10 +231,16 @@ model PasswordReset {
   tokenHash String
   expiresAt DateTime
   usedAt    DateTime?
+  /// Issue time. Rate limiting needs to count requests in a window, and
+  /// expiresAt can't stand in for it: issuing a new link marks the old one
+  /// used but leaves it unexpired, so counting by expiry conflates links that
+  /// were consumed with links that are still outstanding.
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, expiresAt])
+  @@index([userId, createdAt])
 }
 
 /**

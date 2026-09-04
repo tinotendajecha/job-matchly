@@ -24,6 +24,7 @@ function SignInPageContent() {
   const nextParam = params.get('next');
   const safeNext =
     nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null;
+  const justReset = params.get('reset') === '1';
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,6 +107,12 @@ function SignInPageContent() {
           </CardHeader>
 
           <CardContent className="space-y-6">
+            {justReset && (
+              <div className="mb-4 rounded-lg border border-primary/25 bg-primary/5 p-3 text-sm">
+                Password updated. Sign in with your new one.
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -121,7 +128,15 @@ function SignInPageContent() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Link
+                    href="/auth/forgot"
+                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <div className="relative">
                   <Input
                     id="password"

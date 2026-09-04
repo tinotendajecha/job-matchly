@@ -70,8 +70,17 @@ export default function UploadTailorWizardPage() {
         }),
       });
       const j = await r.json();
-      if (!r.ok || !j?.ok)
-        throw new Error(j?.error || "Cover letter generation failed");
+      if (!r.ok || !j?.ok) {
+        // Subscription gates answer with `message` and `code`, not `error`, so
+        // reading only `error` turned "Start a free trial to continue." into a
+        // bare "Cover letter generation failed" with no reason and no way out.
+        const err = new Error(
+          j?.message || j?.error || "Cover letter generation failed"
+        ) as Error & { code?: string; redirectTo?: string };
+        err.code = j?.code;
+        err.redirectTo = j?.redirectTo;
+        throw err;
+      }
       setCoverDocId(j.id);
       setCoverTitle(j.title);
       setCoverMarkdown(j.markdown);
@@ -86,7 +95,26 @@ export default function UploadTailorWizardPage() {
 
       toast.success("Cover letter generated!");
     } catch (e: any) {
-      toast.error(e?.message || "Could not generate cover letter");
+      const gated =
+        e?.code === "NO_SUBSCRIPTION" ||
+        e?.code === "LIMIT_REACHED" ||
+        e?.code === "UPGRADE_REQUIRED";
+      if (gated) {
+        toast.error(
+          <span>
+            {e.message}{" "}
+            <button
+              className="underline font-medium"
+              onClick={() => router.push(e.redirectTo || "/pricing")}
+            >
+              See plans
+            </button>
+          </span>,
+          { autoClose: 10000 }
+        );
+      } else {
+        toast.error(e?.message || "Could not generate cover letter");
+      }
     } finally {
       setCoverLoading(false);
     }

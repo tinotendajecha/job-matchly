@@ -779,3 +779,76 @@ export async function sendVerificationEmail(to: string, code: string) {
     }
   });
 }
+
+/**
+ * Password reset link.
+ *
+ * A plain, single-purpose email on purpose: reset messages are the ones people
+ * are most primed to treat as phishing, so it says exactly what it is, who
+ * asked, and what to do if that wasn't them.
+ */
+export async function sendPasswordResetEmail(opts: {
+  to: string;
+  name: string | null;
+  resetUrl: string;
+  ttlMinutes: number;
+}) {
+  const { to, name, resetUrl, ttlMinutes } = opts;
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM || "JobMatchly <hello@jobmatchly.site>";
+  const greeting = name?.trim() ? `Hi ${escapeHtml(name.trim().split(" ")[0])},` : "Hi,";
+
+  if (!apiKey) {
+    console.log(`[DEV] Password reset for ${to}: ${resetUrl}`);
+    return;
+  }
+
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Reset your JobMatchly password</title></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Reset your password. This link works for ${ttlMinutes} minutes.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;">
+<tr><td>
+<div style="font-size:20px;font-weight:700;color:#0f172a;margin-bottom:24px;">Job<span style="color:#65a30d;">Matchly</span></div>
+<h1 style="font-size:22px;line-height:1.3;color:#0f172a;margin:0 0 16px;">Reset your password</h1>
+<p style="font-size:15px;line-height:1.6;color:#334155;margin:0 0 16px;">${greeting}</p>
+<p style="font-size:15px;line-height:1.6;color:#334155;margin:0 0 24px;">Someone asked to reset the password for this JobMatchly account. Click below to choose a new one.</p>
+<a href="${resetUrl}" style="display:inline-block;background:#65a30d;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 26px;border-radius:10px;">Choose a new password</a>
+<p style="font-size:13px;line-height:1.6;color:#64748b;margin:24px 0 0;">This link works for ${ttlMinutes} minutes and can only be used once.</p>
+<p style="font-size:13px;line-height:1.6;color:#64748b;margin:12px 0 0;"><strong>If you didn't ask for this,</strong> ignore this email — your password stays as it is. Nobody can change it without this link.</p>
+<p style="font-size:12px;line-height:1.6;color:#94a3b8;margin:24px 0 0;word-break:break-all;">If the button doesn't work, paste this into your browser:<br/>${escapeHtml(resetUrl)}</p>
+</td></tr></table>
+</td></tr></table>
+</body></html>`;
+
+  const text = `${greeting}
+
+Someone asked to reset the password for this JobMatchly account.
+
+Choose a new password: ${resetUrl}
+
+This link works for ${ttlMinutes} minutes and can only be used once.
+
+If you didn't ask for this, ignore this email — your password stays as it is.`;
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from,
+      to,
+      subject: "Reset your JobMatchly password",
+      html,
+      text,
+    }),
+  });
+
+  if (!res.ok) {
+    // Surfaced to the caller: a reset the user never receives is the failure
+    // mode this whole flow exists to prevent.
+    throw new Error(`Resend rejected the reset email: ${res.status}`);
+  }
+}

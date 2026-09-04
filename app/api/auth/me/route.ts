@@ -29,6 +29,7 @@ export async function GET(req: Request) {
         id: u.id,
         email: u.email,
         name: u.name,
+        image: u.image,
         emailVerified: u.emailVerified,
         onboardingComplete: u.onboardingComplete,
         isAdmin: u.isAdmin,

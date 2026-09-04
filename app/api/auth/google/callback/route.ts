@@ -136,11 +136,17 @@ export async function GET(req: Request) {
         },
       });
 
-      if (!user.emailVerified) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { emailVerified: new Date() },
-        });
+      // Google is the source of truth for the photo, so take the current one.
+      // Name is only filled in when we don't already have one — someone who
+      // edited their name in our profile should not have it overwritten on
+      // their next sign-in.
+      const refresh: { emailVerified?: Date; image?: string; name?: string } = {};
+      if (!user.emailVerified) refresh.emailVerified = new Date();
+      if (profile.picture && profile.picture !== user.image) refresh.image = profile.picture;
+      if (!user.name?.trim() && profile.name) refresh.name = profile.name;
+
+      if (Object.keys(refresh).length > 0) {
+        await prisma.user.update({ where: { id: user.id }, data: refresh });
       }
     }
 

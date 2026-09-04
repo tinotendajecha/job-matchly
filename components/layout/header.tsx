@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +29,7 @@ type Me = {
   id: string;
   email: string | null;
   name: string | null;
+  image: string | null;
   isAdmin: boolean;
   market?: 'ZW' | 'ZA';
 };
@@ -167,6 +168,17 @@ export function Header({ isPublic = false }: HeaderProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                   <Avatar className="h-9 w-9 border border-border">
+                    {/* Radix falls back to the initials on its own if the image
+                        404s or is blocked, so no extra error handling here.
+                        no-referrer is required: Google's CDN 403s requests that
+                        carry a referrer from another origin. */}
+                    {me?.image && (
+                      <AvatarImage
+                        src={me.image}
+                        alt=""
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
                     <AvatarFallback className="text-xs font-bold bg-primary text-primary-foreground">
                       {initialsFrom(me?.name, me?.email)}
                     </AvatarFallback>

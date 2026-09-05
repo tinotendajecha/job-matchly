@@ -61,6 +61,8 @@ interface PublicStats {
   liveJobs: number;
   resumesTailored: number;
   careerArticles: number;
+  employers: number;
+  fieldsCovered: number;
 }
 
 const problems = [
@@ -213,11 +215,9 @@ export default function LandingPage() {
                 transition={{ duration: 0.65, delay: 0.1, ease }}
                 className="text-5xl md:text-6xl lg:text-[4.5rem] font-bold tracking-tight leading-[1.06] mb-6"
               >
-                Your resume,{' '}
-                <span className="text-primary">matched</span>
+                Find the job.
                 <br className="hidden md:block" />
-                {' '}to every job<br className="hidden md:block" />
-                {' '}you apply for.
+                {' '}Then <span className="text-primary">win</span> it.
               </motion.h1>
 
               <motion.p
@@ -226,8 +226,8 @@ export default function LandingPage() {
                 transition={{ duration: 0.65, delay: 0.2, ease }}
                 className="text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed"
               >
-                Africa&apos;s AI hiring platform. Tailor your CV to any job in under two
-                minutes, then find live vacancies matched to what you actually do.
+                Live vacancies across Zimbabwe and South Africa, matched to your field —
+                and a CV tailored to each one you apply for. Africa&apos;s AI hiring platform.
               </motion.p>
 
               <motion.div
@@ -243,7 +243,7 @@ export default function LandingPage() {
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="text-base px-8 py-6">
-                  <Link href="/templates">View Templates</Link>
+                  <Link href="/for-recruiters">I&apos;m hiring</Link>
                 </Button>
               </motion.div>
 
@@ -256,8 +256,8 @@ export default function LandingPage() {
               >
                 {[
                   { value: stats ? `${stats.liveJobs.toLocaleString()}+` : null, label: 'Live vacancies' },
-                  { value: stats ? `${stats.resumesTailored.toLocaleString()}+` : null, label: 'Resumes tailored' },
-                  { value: 'ZW & ZA', label: 'Markets covered' },
+                  { value: stats ? `${stats.employers.toLocaleString()}+` : null, label: 'Employers hiring' },
+                  { value: stats ? `${stats.fieldsCovered}` : null, label: 'Fields covered' },
                 ]
                   // Hide a stat entirely rather than show a placeholder number.
                   .filter((s) => s.value !== null)
@@ -279,6 +279,79 @@ export default function LandingPage() {
             >
               <HeroDemoCard />
             </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ THE JOBS ══
+          The single biggest omission on this page before: the product tracks
+          thousands of live vacancies and the landing page mentioned them only
+          in passing, while leading entirely on CV tailoring. */}
+      <section className="py-24 bg-card/40">
+        <div className="container px-4 mx-auto max-w-7xl">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary mb-3">
+                The jobs
+              </p>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">
+                Every vacancy in your field, in one place
+              </h2>
+              <p className="text-muted-foreground leading-relaxed mb-6">
+                We track openings across Zimbabwe and South Africa every day and sort them into
+                twelve professions. Tell us your field once and you only ever see roles that
+                actually apply to you — no scrolling past sales jobs when you write software.
+              </p>
+
+              <ul className="space-y-3 mb-8">
+                {[
+                  'Matched to your profession, not keyword soup',
+                  'Closed roles removed daily, so nothing wastes your time',
+                  'A weekly email with what is new in your field — free, always',
+                  'Tailor your CV to any listing without leaving the page',
+                ].map((line) => (
+                  <li key={line} className="flex items-start gap-3 text-sm">
+                    <Check className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-muted-foreground">{line}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Button asChild size="lg" className="text-base px-8 font-semibold">
+                <Link href="/auth/signup">
+                  Browse jobs free
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                {
+                  value: stats ? `${stats.liveJobs.toLocaleString()}+` : null,
+                  label: 'Live vacancies right now',
+                },
+                {
+                  value: stats ? `${stats.employers.toLocaleString()}+` : null,
+                  label: 'Employers tracked',
+                },
+                { value: stats ? `${stats.fieldsCovered}` : null, label: 'Professions covered' },
+                { value: 'Daily', label: 'Refreshed from source' },
+              ]
+                // Same rule as the hero: no number is better than an invented one.
+                .filter((s) => s.value !== null)
+                .map((s) => (
+                  <div
+                    key={s.label}
+                    className="rounded-2xl border border-border/60 bg-background p-6"
+                  >
+                    <div className="text-3xl font-bold font-display text-primary">{s.value}</div>
+                    <div className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                      {s.label}
+                    </div>
+                  </div>
+                ))}
+            </div>
           </div>
         </div>
       </section>

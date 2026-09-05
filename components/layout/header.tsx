@@ -131,6 +131,7 @@ export function Header({ isPublic = false }: HeaderProps) {
           {[
             { href: '/templates', label: 'Templates' },
             { href: '/pricing', label: 'Pricing' },
+            { href: '/for-recruiters', label: 'For recruiters' },
           ].map((link) => (
             <Link
               key={link.href}

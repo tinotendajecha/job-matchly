@@ -449,6 +449,29 @@ model JobShareEvent {
   @@index([visitorId])
 }
 
+/// Someone who asked to hear about the recruiter product before it exists.
+///
+/// The point of collecting these is to find out whether recruiters actually
+/// want this BEFORE building it, which is considerably cheaper than finding
+/// out afterwards.
+model RecruiterLead {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  company   String
+  /// Free text: how they hire today, what they'd want. Optional.
+  note      String?  @db.Text
+  /// ZW or ZA, from the domain they arrived on.
+  market    MarketCode?
+  /// How many people they say they hire a year, if given. A rough size signal.
+  hiresPerYear String?
+  contactedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@unique([email])
+  @@index([createdAt])
+}
+
 enum ConsentPurpose {
   /// The signup Data Protection & Consent Agreement.
   ACCOUNT_TERMS

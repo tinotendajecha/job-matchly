@@ -29,6 +29,7 @@ export function Footer() {
               {[
                 { href: '/templates', label: 'Templates' },
                 { href: '/pricing', label: 'Pricing' },
+                { href: '/for-recruiters', label: 'For recruiters' },
                 { href: '/app/coming-soon', label: 'Roadmap' },
               ].map((l) => (
                 <li key={l.href}>

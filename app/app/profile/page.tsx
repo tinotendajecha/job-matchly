@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -81,13 +82,20 @@ function initialsOf(name: string, email: string): string {
     .join('');
 }
 
-export default function ProfilePage() {
+const TABS = ['profile', 'activity', 'preferences'] as const;
+
+function ProfilePageContent() {
   const [data, setData] = useState<ProfileData | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [activity, setActivity] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  // ?tab=preferences lets an email link land on the setting it is about.
+  const requestedTab = useSearchParams().get('tab');
+  const initialTab = TABS.includes(requestedTab as (typeof TABS)[number])
+    ? (requestedTab as string)
+    : 'profile';
   const [draft, setDraft] = useState<Pick<ProfileData, 'name' | 'headline' | 'location'>>({
     name: '',
     headline: '',
@@ -151,7 +159,7 @@ export default function ProfilePage() {
               </p>
             </motion.div>
 
-            <Tabs defaultValue="profile" className="w-full">
+            <Tabs defaultValue={initialTab} className="w-full">
               <TabsList className="grid w-full grid-cols-3 max-w-md">
                 <TabsTrigger value="profile">Profile</TabsTrigger>
                 <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -424,5 +432,14 @@ export default function ProfilePage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  // useSearchParams needs a boundary or the page stops prerendering.
+  return (
+    <Suspense fallback={null}>
+      <ProfilePageContent />
+    </Suspense>
   );
 }

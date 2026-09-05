@@ -89,6 +89,10 @@ export function buildUserFilterWhere(
   if (options.emailableOnly) {
     and.push({ marketingOptOut: false });
     and.push({ email: { not: null } });
+    // A deleted account keeps a row so its purchase history stays valid, but
+    // must never be mailed. Its tombstone address ends in .invalid so the
+    // reserved-suffix rule below would catch it anyway; this is explicit.
+    and.push({ deletedAt: null });
     // Reserved/test domains (RFC 2606) are rejected by the mail provider, and a
     // single rejected address fails the whole batch it travels in — so they must
     // never reach a send. Excluded here so the previewed count matches reality.

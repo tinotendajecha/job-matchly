@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Clock, MessageSquare, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -79,13 +80,15 @@ export function CareerBriefing() {
             The best career conversations from around the web, curated for you
           </p>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/5 px-2.5 py-1 text-[11px] font-medium text-primary">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-          </span>
-          Refreshed daily
-        </span>
+        {/* The dashboard shows a handful; the rest now have a page of their
+            own, which they did not before. */}
+        <Link
+          href="/app/articles"
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline underline-offset-2"
+        >
+          See all articles
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
 
       {/* Featured story */}

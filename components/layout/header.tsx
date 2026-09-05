@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { MobileNav } from './mobile-nav';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,6 +110,8 @@ export function Header({ isPublic = false }: HeaderProps) {
     >
       <div className="container flex h-16 2xl:h-[68px] items-center justify-between px-4 sm:px-6 xl:px-10 2xl:px-14 mx-auto max-w-[1440px]">
         {/* Brand */}
+        {isAuthed && !isPublic && <MobileNav />}
+
         <Link
           href={isAuthed ? '/app/dashboard' : '/'}
           className="flex items-center gap-2.5 group"

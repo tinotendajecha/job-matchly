@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
-import { Lightbulb } from 'lucide-react';
 
 import { Header } from '@/components/layout/header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
@@ -15,10 +14,8 @@ import { QuickActions } from './components/quick-actions';
 import { FieldPicker } from '@/components/jobs/field-picker';
 import { JobsStrip } from './components/jobs-strip';
 import { CareerBriefing } from './components/career-briefing';
-import { CoachCard } from './components/coach-card';
 import { PlanCard, type SubData } from './components/plan-card';
 import { RecentActivity, type Activity } from './components/recent-activity';
-import { getDailyTip } from './data/briefing';
 
 // Fallback data
 const FALLBACK_RECENT: Activity[] = [
@@ -141,27 +138,14 @@ export default function DashboardPage() {
                 <RecentActivity activities={recentActivity} />
               </div>
 
-              {/* Right rail */}
+              {/* Right rail — one card. It previously also carried a large
+                  "Career Coach" panel whose only button went to /app/coming-soon,
+                  and a generic daily tip; both took space from things that
+                  actually work. */}
               <div className="space-y-4">
-                <CoachCard />
                 <PlanCard subData={subData} />
-
-                {/* Daily tip — rotates each day */}
-                <motion.div
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
-                  className="rounded-2xl border border-border/60 bg-card p-4"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Lightbulb className="h-3.5 w-3.5 text-primary" />
-                    <p className="text-xs font-semibold">Today’s Tip</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {getDailyTip()}
-                  </p>
-                </motion.div>
               </div>
+
             </div>
           </div>
         </main>

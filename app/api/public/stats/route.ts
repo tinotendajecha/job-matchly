@@ -24,12 +24,18 @@ function roundDown(n: number): number {
 
 export async function GET() {
   try {
-    const [liveJobs, resumesTailored, documentsCreated, careerArticles] = await Promise.all([
-      prisma.jobPost.count({ where: liveJobWhere() }),
-      prisma.document.count({ where: { kind: 'TAILORED_RESUME' } }),
-      prisma.document.count(),
-      prisma.briefingItem.count({ where: { status: 'PUBLISHED' } }),
-    ]);
+    const [liveJobs, resumesTailored, documentsCreated, careerArticles, employerRows, fieldRows] =
+      await Promise.all([
+        prisma.jobPost.count({ where: liveJobWhere() }),
+        prisma.document.count({ where: { kind: 'TAILORED_RESUME' } }),
+        prisma.document.count(),
+        prisma.briefingItem.count({ where: { status: 'PUBLISHED' } }),
+        prisma.$queryRaw<Array<{ n: bigint }>>`
+          SELECT COUNT(DISTINCT company)::bigint AS n FROM "JobPost" WHERE company IS NOT NULL`,
+        // Fields is a small, exact count — rounding 12 down to 10 would
+        // understate it for no benefit.
+        prisma.jobPost.groupBy({ by: ['bracket'], where: liveJobWhere() }),
+      ]);
 
     return NextResponse.json(
       {
@@ -38,6 +44,8 @@ export async function GET() {
         resumesTailored: roundDown(resumesTailored),
         documentsCreated: roundDown(documentsCreated),
         careerArticles: roundDown(careerArticles),
+        employers: roundDown(Number(employerRows[0]?.n ?? 0)),
+        fieldsCovered: fieldRows.filter((r) => r.bracket).length,
         markets: ['ZW', 'ZA'],
       },
       { headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' } }

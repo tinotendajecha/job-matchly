@@ -6,6 +6,7 @@ import { runJobsPipeline } from "@/data/jobs/pipeline";
 import { tagUsers } from "@/data/jobs/tagUsers";
 import { rebuildMatches } from "@/lib/jobs/match";
 import { reconcileSubscriptionStatuses } from "@/lib/subscription/service";
+import { runJobDigest } from "@/lib/jobs/digest";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +38,18 @@ export async function POST(req: Request) {
     const tagging = await tagUsers();
     const matching = await rebuildMatches();
 
-    return NextResponse.json({ ok: true, subscriptions, ingest, tagging, matching });
+    // Sent here rather than on the weekly briefing cron: alerts are only worth
+    // having while the listing is still open, and these expire in days. Runs
+    // last so it sees today's listings and freshly rebuilt matches. Own
+    // try/catch — a mail failure must not fail the ingest that just succeeded.
+    let digest = null;
+    try {
+      digest = await runJobDigest();
+    } catch (err) {
+      console.error("job digest failed", err);
+    }
+
+    return NextResponse.json({ ok: true, subscriptions, ingest, tagging, matching, digest });
   } catch (err: any) {
     console.error("jobs-ingest error", err);
     return NextResponse.json({ ok: false, error: "Job ingest failed" }, { status: 500 });

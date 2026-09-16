@@ -23,8 +23,18 @@ export interface DigestRecipient {
   jobs: DigestJob[];
 }
 
+/**
+ * Whitespace-tolerant on purpose.
+ *
+ * This was set with `echo "true" | vercel env add`, which stored "true
+".
+ * A strict === comparison then returned false on every cron run for two weeks
+ * while the job reported success, because a disabled digest and a broken one
+ * look identical from outside. Trimming costs nothing and removes the whole
+ * class of failure.
+ */
 export function digestEnabled(): boolean {
-  return process.env.JOB_DIGEST_ENABLED === 'true';
+  return (process.env.JOB_DIGEST_ENABLED ?? '').trim().toLowerCase() === 'true';
 }
 
 /**
@@ -48,6 +58,7 @@ export async function getDigestRecipients(): Promise<DigestRecipient[]> {
       id: true,
       email: true,
       name: true,
+      lastJobDigestAt: true,
       profession: { select: { bracket: true } },
       subscription: true,
       sessions: {
@@ -67,9 +78,26 @@ export async function getDigestRecipients(): Promise<DigestRecipient[]> {
     const recentlyActive = user.sessions.length > 0;
     if (!subscriber && !recentlyActive) continue;
 
-    // Only live jobs, freshest first.
+    // Only what this person has not already been sent.
+    //
+    // The digest runs daily, and match scores barely move day to day — without
+    // this filter the same five jobs would arrive every morning, which is how
+    // a useful alert becomes junk mail and takes the domain's sending
+    // reputation down with it. JobPost.createdAt is the right marker: it is
+    // when the listing entered our index, and unlike JobMatch.createdAt it
+    // survives a match rebuild.
+    //
+    // Someone who has never had a digest gets their best matches instead,
+    // since for them everything is new.
+    const sinceLast = user.lastJobDigestAt;
     const matches = await prisma.jobMatch.findMany({
-      where: { userId: user.id, job: liveJobWhere() },
+      where: {
+        userId: user.id,
+        job: {
+          ...liveJobWhere(),
+          ...(sinceLast ? { createdAt: { gt: sinceLast } } : {}),
+        },
+      },
       orderBy: [{ score: 'desc' }],
       take: JOBS_PER_DIGEST,
       include: {
@@ -79,7 +107,8 @@ export async function getDigestRecipients(): Promise<DigestRecipient[]> {
       },
     });
 
-    // Never send an empty digest.
+    // Never send an empty digest — on a daily cadence most people will have
+    // nothing new most days, and that is the correct outcome, not a failure.
     if (matches.length === 0) continue;
 
     recipients.push({
@@ -162,7 +191,7 @@ export async function runJobDigest(): Promise<DigestRunResult> {
 
   const broadcast = await prisma.emailBroadcast.create({
     data: {
-      subject: `Weekly job digest (${recipients.length} recipients)`,
+      subject: `Job digest (${recipients.length} recipients)`,
       body: 'Personalized per recipient — see EmailDelivery rows.',
       audienceFilter: { type: 'job-digest' },
       recipientCount: recipients.length,

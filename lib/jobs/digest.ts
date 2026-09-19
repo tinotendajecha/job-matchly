@@ -7,24 +7,13 @@
 import { prisma } from '@/lib/prisma';
 import { isSendableEmail } from '@/lib/admin/userFilter';
 import { isSubscriptionActive } from '@/lib/subscription/service';
-import { sendJobDigestEmail, type DigestJob } from '@/lib/mail';
+import { sendJobDigestBatch, sendJobDigestEmail, type DigestJob } from '@/lib/mail';
 import { buildUnsubscribeUrl } from '@/lib/unsubscribeToken';
 import { liveJobWhere } from './policy';
 
 const JOBS_PER_DIGEST = 5;
 
-/**
- * Gap between sends. Resend allows 10 requests a second and each digest is
- * personalised, so they go one at a time rather than as a batch — which meant
- * the loop ran flat out and tripped the limit. On 19 September that cost two of
- * sixteen recipients their email; at fifty it would have cost far more.
- *
- * 130ms is roughly 7.7/sec, comfortably under, and adds about two seconds to a
- * sixteen-person run.
- */
-const SEND_SPACING_MS = 130;
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const RECENT_ACTIVITY_DAYS = 30;
 
 export interface DigestRecipient {
@@ -214,26 +203,34 @@ export async function runJobDigest(): Promise<DigestRunResult> {
     },
   });
 
+  // One request per hundred recipients, not one per recipient. Personalised
+  // content is no obstacle: the batch endpoint carries a whole message per
+  // entry.
+  const results = await sendJobDigestBatch(
+    recipients.map((r) => ({ to: r.email, userId: r.userId, ...digestPayload(r) }))
+  );
+
   let sent = 0;
   let failed = 0;
 
-  for (const [index, recipient] of recipients.entries()) {
-    if (index > 0) await sleep(SEND_SPACING_MS);
+  for (const [index, result] of results.entries()) {
+    const recipient = recipients[index];
 
-    const r = await sendJobDigestEmail({ to: recipient.email, ...digestPayload(recipient) });
     await prisma.emailDelivery.create({
       data: {
         broadcastId: broadcast.id,
-        email: recipient.email,
+        email: result.email,
         userId: recipient.userId,
-        resendId: r?.resendId,
-        accepted: Boolean(r?.accepted),
-        error: r?.error,
+        resendId: result.resendId,
+        accepted: Boolean(result.accepted),
+        error: result.error,
       },
     });
 
-    if (r?.accepted) {
+    if (result.accepted) {
       sent++;
+      // Only stamped on success, so a failed send is retried tomorrow with the
+      // jobs it missed rather than being silently skipped.
       await prisma.user.update({
         where: { id: recipient.userId },
         data: { lastJobDigestAt: new Date() },

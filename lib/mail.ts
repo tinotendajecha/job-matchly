@@ -690,6 +690,113 @@ export async function sendBroadcastBatch(
   return results;
 }
 
+export interface DigestMessage {
+  to: string;
+  userId?: string;
+  subject: string;
+  intro: string;
+  jobs: DigestJob[];
+  name?: string | null;
+  browseUrl: string;
+  unsubscribeUrl?: string;
+}
+
+/** Resend allows 10 requests a second; a gap between batches keeps us clear. */
+const BATCH_SPACING_MS = 200;
+
+/**
+ * Sends personalised digests through Resend's batch endpoint.
+ *
+ * Each recipient gets different jobs, which is why this looked like it had to
+ * go one at a time — but the batch endpoint takes a full message per entry, so
+ * a hundred different emails still cost one request. Sending them individually
+ * meant sixteen recipients made sixteen requests and tripped the ten-a-second
+ * limit; two people lost their digest on 19 September because of it.
+ */
+export async function sendJobDigestBatch(
+  messages: DigestMessage[]
+): Promise<BroadcastRecipientResult[]> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = broadcastFrom();
+  const replyTo = broadcastReplyTo();
+
+  if (!apiKey) {
+    console.log(`[DEV] Would send ${messages.length} digest(s)`);
+    return messages.map((m) => ({
+      email: m.to,
+      userId: m.userId,
+      accepted: false,
+      error: 'RESEND_API_KEY not configured',
+    }));
+  }
+
+  const results: BroadcastRecipientResult[] = [];
+
+  for (let i = 0; i < messages.length; i += RESEND_BATCH_LIMIT) {
+    const chunk = messages.slice(i, i + RESEND_BATCH_LIMIT);
+    if (i > 0) await new Promise((r) => setTimeout(r, BATCH_SPACING_MS));
+
+    const payload = chunk.map((m) => ({
+      from,
+      to: m.to,
+      subject: m.subject,
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      html: jobDigestEmailHTML(m),
+      text: jobDigestEmailText(m),
+    }));
+
+    try {
+      const res = await fetch('https://api.resend.com/emails/batch', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const raw = await res.text().catch(() => '');
+
+      if (!res.ok) {
+        // One bad address rejects the whole batch, so fall back to individual
+        // sends rather than letting it take the other 99 with it. Paced,
+        // because that fallback is exactly the burst that caused the problem.
+        console.error(
+          `Resend digest batch failed, retrying ${chunk.length} individually: ${res.status} ${raw.slice(0, 200)}`
+        );
+        for (const [idx, m] of chunk.entries()) {
+          if (idx > 0) await new Promise((r) => setTimeout(r, 130));
+          const one = await sendJobDigestEmail(m);
+          results.push({ ...one, userId: m.userId });
+        }
+        continue;
+      }
+
+      let ids: Array<{ id?: string }> = [];
+      try {
+        ids = JSON.parse(raw)?.data ?? [];
+      } catch {
+        /* treated as missing ids below */
+      }
+
+      chunk.forEach((m, idx) => {
+        const id = ids[idx]?.id;
+        results.push({
+          email: m.to,
+          userId: m.userId,
+          resendId: id,
+          accepted: Boolean(id),
+          error: id ? undefined : 'Resend accepted the request but returned no message id',
+        });
+      });
+    } catch (e) {
+      const message = (e as Error)?.message || String(e);
+      console.error('Resend digest batch threw:', message);
+      chunk.forEach((m) =>
+        results.push({ email: m.to, userId: m.userId, accepted: false, error: message })
+      );
+    }
+  }
+
+  return results;
+}
+
 /** Current delivery state of one message, straight from Resend. */
 export async function fetchResendEvent(resendId: string): Promise<string | null> {
   const apiKey = process.env.RESEND_API_KEY;

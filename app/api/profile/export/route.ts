@@ -100,7 +100,7 @@ export async function GET() {
       exportedAt: new Date().toISOString(),
       about:
         'Everything JobMatchly holds about your account. Amounts are in minor units (cents). ' +
-        'If something here looks wrong, email hello@jobmatchly.site.',
+        'If something here looks wrong, email hello@jobmatchly.co.za.',
       account,
       profile,
       profession,

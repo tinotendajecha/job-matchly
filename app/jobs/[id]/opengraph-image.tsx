@@ -60,7 +60,7 @@ function origin(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL;
   if (explicit) return explicit.replace(/\/$/, '');
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return 'https://www.jobmatchly.site';
+  return 'https://www.jobmatchly.co.za';
 }
 
 function dedupePlace(location: string | null | undefined): string {

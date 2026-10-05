@@ -231,8 +231,8 @@ export default function ForRecruitersPage() {
                 <p className="text-sm text-muted-foreground">
                   We&apos;ll be in touch as this gets closer, and we may ask what you&apos;d want
                   from it. If you&apos;d rather talk sooner, email{' '}
-                  <a href="mailto:hello@jobmatchly.site" className="text-foreground underline underline-offset-2">
-                    hello@jobmatchly.site
+                  <a href="mailto:hello@jobmatchly.co.za" className="text-foreground underline underline-offset-2">
+                    hello@jobmatchly.co.za
                   </a>
                   .
                 </p>

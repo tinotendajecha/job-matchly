@@ -84,7 +84,7 @@ function HeroDemoCard() {
           <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
           <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
           <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
-          <span className="ml-2 text-xs text-muted-foreground font-mono">jobmatchly.site — tailoring</span>
+          <span className="ml-2 text-xs text-muted-foreground font-mono">jobmatchly.co.za — tailoring</span>
         </div>
 
         <div className="p-5 space-y-4">

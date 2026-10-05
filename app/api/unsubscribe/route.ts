@@ -57,7 +57,7 @@ export async function GET(req: Request) {
   return isJobAlerts
     ? page(
         "Job alerts turned off",
-        "You won't receive any more weekly job emails. You can still browse your matches any time at jobmatchly.site/app/jobs, and account emails like password resets are unaffected."
+        "You won't receive any more weekly job emails. You can still browse your matches any time at jobmatchly.co.za/app/jobs, and account emails like password resets are unaffected."
       )
     : page(
         "You're unsubscribed",

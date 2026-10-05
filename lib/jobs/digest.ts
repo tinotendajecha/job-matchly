@@ -135,7 +135,7 @@ export async function getDigestRecipients(): Promise<DigestRecipient[]> {
   return recipients;
 }
 
-const BROWSE_URL = 'https://www.jobmatchly.site/app/jobs';
+const BROWSE_URL = 'https://www.jobmatchly.co.za/app/jobs';
 
 export function buildDigestIntro(recipient: DigestRecipient): string {
   const n = recipient.jobs.length;

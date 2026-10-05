@@ -158,7 +158,7 @@ export default function BroadcastPage() {
   // Links to the dashboard; middleware sends unauthenticated users to sign-in
   // and then on to this page, and geo-redirects ZA visitors to the .co.za domain.
   function insertAppLink() {
-    const link = '[Return to JobMatchly](https://www.jobmatchly.site/app/dashboard)';
+    const link = '[Return to JobMatchly](https://www.jobmatchly.co.za/app/dashboard)';
     setBody((b) => (b.trim() ? `${b.replace(/\s*$/, '')}\n\n${link}\n` : `${link}\n`));
   }
 

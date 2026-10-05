@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { getMarketConfig, resolveMarket, type MarketCode } from "./config";
+import { getMarketConfig, marketFromCountry, resolveMarket, type MarketCode } from "./config";
 
 type HeaderSource =
   | Headers
@@ -33,25 +33,39 @@ export function getHostnameFromRequest(source?: HeaderSource) {
   );
 }
 
+function readHeader(source: HeaderSource, name: string): string | null {
+  if (!source) return null;
+  if (source instanceof Request) return source.headers.get(name);
+  if (source instanceof Headers) return source.get(name);
+  return readHeaderValue(
+    source.headers as Headers | Record<string, string | string[] | undefined> | undefined,
+    name
+  );
+}
+
+function marketFromCookieHeader(cookieHeader: string | null): MarketCode | null {
+  const match = (cookieHeader || "").match(/(?:^|;\s*)jm_market=(ZW|ZA)(?:;|$)/i)?.[1];
+  return match ? (match.toUpperCase() as MarketCode) : null;
+}
+
+// Both markets share one domain, so the host is the last resort, not the answer.
+// Order: middleware's x-market header (pages only; middleware skips /api), the
+// jm_market cookie it sets, the visitor's country from Vercel, then the host.
 export function getMarketFromRequest(source?: HeaderSource): MarketCode {
-  // Check x-market header first — set by middleware for page requests
-  if (source instanceof Request) {
-    const headerMarket = source.headers.get('x-market');
-    if (headerMarket === 'ZA' || headerMarket === 'ZW') return headerMarket;
-  }
-  return resolveMarket(getHostnameFromRequest(source));
+  const headerMarket = readHeader(source, "x-market");
+  if (headerMarket === "ZA" || headerMarket === "ZW") return headerMarket;
+
+  return (
+    marketFromCookieHeader(readHeader(source, "cookie")) ??
+    marketFromCountry(readHeader(source, "x-vercel-ip-country")) ??
+    resolveMarket(getHostnameFromRequest(source))
+  );
 }
 
 export function getCurrentMarket(): MarketCode {
-  const headerStore = headers();
-  const marketHeader = headerStore.get("x-market");
-  if (marketHeader === "ZW" || marketHeader === "ZA") return marketHeader;
-
-  const cookieHeader = headerStore.get("cookie") || "";
-  const cookieMarket = cookieHeader.match(/(?:^|;\s*)jm_market=(ZW|ZA)(?:;|$)/i)?.[1];
-  if (cookieMarket === "ZW" || cookieMarket === "ZA") return cookieMarket;
-
-  return resolveMarket(headerStore.get("x-forwarded-host") || headerStore.get("host"));
+  // Copy into a plain Headers so the instanceof checks above hold for Next's
+  // read-only header store.
+  return getMarketFromRequest(new Headers(headers()));
 }
 
 export function getCurrentMarketConfig() {

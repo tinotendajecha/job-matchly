@@ -29,9 +29,9 @@ const CONTENT = {
   ZW: {
     marketLabel: 'Zimbabwe',
     marketBadge: 'ZW · Zimbabwe',
-    websiteUrl: 'https://jobmatchly.site',
-    websiteLabel: 'jobmatchly.site',
-    supportEmail: 'support@jobmatchly.site',
+    websiteUrl: 'https://jobmatchly.co.za',
+    websiteLabel: 'jobmatchly.co.za',
+    supportEmail: 'support@jobmatchly.co.za',
     lawRef:
       "Zimbabwe's Data Protection Act, South Africa's Protection of Personal Information Act (POPIA) (as the platform is operated by a South African registered entity), and where applicable the European Union General Data Protection Regulation (GDPR) and other applicable employment and data protection regulations.",
     lawDetail:

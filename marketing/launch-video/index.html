@@ -1,0 +1,962 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>JobMatchly Launch Film</title>
+<!--
+  JobMatchly launch video composition (1920×1080, 30fps).
+
+  Every frame is a pure function of time: render.mjs calls window.renderAt(t)
+  and screenshots the stage, so the output is identical on every run. Open the
+  page in a browser to preview; append ?t=12.5 to freeze on a moment, or
+  ?play to loop it in real time.
+
+  The product screens are rebuilt from the real wizard in
+  app/app/upload-tailor (StepOne / StepTwo / StepThree / WizardStepper): same
+  copy, same Tailwind tokens, same Lucide icons, same state sequence.
+-->
+<style>
+  @font-face {
+    font-family: 'Bricolage Grotesque Variable';
+    src: url('../../node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2') format('woff2-variations');
+    font-weight: 200 800;
+  }
+  @font-face {
+    font-family: 'DM Sans Variable';
+    src: url('../../node_modules/@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2') format('woff2-variations');
+    font-weight: 100 1000;
+  }
+
+  /* Dark theme tokens, copied from app/globals.css (.dark). */
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 60 9% 97.8%;
+    --card: 240 6% 7%;
+    --primary: 84 100% 62%;
+    --secondary: 240 4% 12%;
+    --secondary-foreground: 240 5% 80%;
+    --muted: 240 4% 12%;
+    --muted-foreground: 240 4% 55%;
+    --accent: 240 4% 18%;
+    --border: 240 5% 14%;
+    --input: 240 5% 14%;
+    --radius: 12px;
+    --display: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+    --body: 'DM Sans Variable', system-ui, sans-serif;
+    --logo-1: #2D7A5C;
+    --logo-2: #1f5a42;
+    --logo-3: #4DB88F;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: hsl(var(--background)); }
+  body { font-family: var(--body); color: hsl(var(--foreground)); -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { font-family: var(--display); }
+  svg.i { display: block; flex-shrink: 0; }
+  [data-i] { display: inline-flex; align-items: center; justify-content: center; }
+  .spin { display: inline-flex; transform-origin: 50% 50%; }
+
+  #stage { position: absolute; inset: 0; overflow: hidden; background: hsl(var(--background)); }
+
+  /* ── Background ── */
+  .bg-grid {
+    position: absolute; inset: -80px;
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.6) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.6) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse 60% 55% at 50% 45%, #000 30%, transparent 100%);
+  }
+  .glow { position: absolute; border-radius: 50%; pointer-events: none; }
+  #glow-a { width: 1100px; height: 620px; left: 410px; top: -330px; background: hsl(var(--primary) / 0.13); filter: blur(140px); }
+  #glow-b { width: 900px; height: 700px; left: 1240px; top: 620px; background: rgba(45, 122, 92, 0.22); filter: blur(160px); }
+  #glow-c { width: 760px; height: 420px; left: 580px; top: 330px; background: hsl(var(--primary) / 0.10); filter: blur(130px); opacity: 0; }
+  #vignette { position: absolute; inset: 0; pointer-events: none; z-index: 4;
+    background: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 55%, rgba(0,0,0,0.55) 100%); }
+  #grain { position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: 0.035; mix-blend-mode: overlay; }
+
+  /* ── Logo mark (geometry from public/jobmatchly-logo.svg) ── */
+  .mark { display: block; overflow: visible; }
+
+  /* ── Intro ── */
+  #intro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #intro-brand { display: flex; align-items: center; gap: 22px; margin-bottom: 56px; }
+  #intro-word { font-family: var(--display); font-weight: 700; font-size: 64px; letter-spacing: -0.03em; }
+  #intro-head { text-align: center; font-family: var(--display); font-weight: 700; font-size: 92px; line-height: 1.04; letter-spacing: -0.035em; }
+  #intro-head .line { display: block; }
+  .w { display: inline-block; will-change: transform, opacity, filter; }
+  .grad { background: linear-gradient(135deg, hsl(var(--primary)), hsl(84 100% 75%)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+  /* ── Camera + browser window ── */
+  #camera { position: absolute; inset: 0; perspective: 2400px; perspective-origin: 50% 45%; }
+  #win {
+    position: absolute; left: 320px; top: 120px; width: 1280px; height: 840px;
+    border-radius: 16px; overflow: hidden; transform-origin: 50% 50%;
+    background: hsl(var(--background));
+    border: 1px solid hsl(240 5% 20%);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.6), 0 50px 120px -20px rgba(0,0,0,0.85), 0 0 90px -30px hsl(var(--primary) / 0.25);
+  }
+  .chrome { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 16px; background: hsl(240 6% 9%); border-bottom: 1px solid hsl(var(--border)); }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .url { margin-left: 18px; flex: 0 0 440px; height: 24px; border-radius: 7px; background: hsl(240 5% 13%); display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 12.5px; color: hsl(var(--muted-foreground)); }
+  .url b { color: hsl(var(--foreground) / 0.85); font-weight: 500; }
+  #viewport { position: absolute; left: 0; top: 40px; width: 1280px; height: 800px; overflow: hidden; background: hsl(var(--background)); }
+
+  /* ── App (mirrors Tailwind classes used by the wizard) ── */
+  .hdr { position: absolute; top: 0; left: 0; right: 0; height: 64px; z-index: 5; border-bottom: 1px solid hsl(var(--border) / 0.6); background: hsl(var(--background) / 0.95); backdrop-filter: blur(24px); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 16px; letter-spacing: -0.02em; }
+  .nav { display: flex; gap: 8px; }
+  .nav span { padding: 8px 20px; font-size: 14px; font-weight: 500; color: hsl(var(--muted-foreground)); }
+  .right { display: flex; align-items: center; gap: 8px; }
+  .iconbtn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; color: hsl(var(--foreground)); }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; border: 1px solid hsl(var(--border)); background: hsl(var(--primary)); color: #000; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+
+  #page { position: absolute; left: 0; right: 0; top: 64px; will-change: transform; }
+  .container { width: 1152px; margin: 0 auto; padding: 32px 16px; }
+  .page-title { text-align: center; font-size: 30px; line-height: 36px; font-weight: 700; letter-spacing: -0.025em; margin-bottom: 32px; }
+
+  .card { border-radius: var(--radius); border: 1px solid hsl(var(--border)); background: hsl(var(--card)); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .card-h { padding: 24px 24px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .card-t { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: 600; letter-spacing: -0.015em; line-height: 1; }
+  .card-c { padding: 0 24px 24px; }
+  .muted { color: hsl(var(--muted-foreground)); }
+  .text-sm { font-size: 14px; line-height: 20px; }
+  .text-xs { font-size: 12px; line-height: 16px; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0; height: 40px; padding: 0 16px; border-radius: 10px; font-size: 14px; font-weight: 500; white-space: nowrap; border: 1px solid transparent; }
+  .btn.sm { height: 36px; padding: 0 12px; }
+  .btn.primary { background: hsl(var(--primary)); color: #000; }
+  .btn.outline { border-color: hsl(var(--input)); background: hsl(var(--background)); color: hsl(var(--foreground)); }
+  .btn.ghost { background: transparent; color: hsl(var(--foreground)); }
+  .btn.disabled { opacity: 0.5; }
+  .mr2 { margin-right: 8px; } .ml2 { margin-left: 8px; } .mr15 { margin-right: 6px; }
+
+  /* Wizard stepper */
+  .stepper .row { padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .pills { display: flex; gap: 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px; font-size: 12px; line-height: 16px; font-weight: 500; border: 1px solid hsl(var(--border)); background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); }
+  .pill.loading { background: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); border-color: hsl(var(--primary) / 0.3); }
+  .pill.done { background: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); border-color: hsl(var(--primary) / 0.2); }
+  .pill .idle { width: 16px; height: 16px; border-radius: 50%; background: hsl(var(--muted)); border: 2px solid hsl(var(--border)); }
+  .pill .ico { width: 16px; height: 16px; position: relative; }
+  .pill .ico > * { position: absolute; inset: 0; }
+
+  .steps { position: relative; margin-top: 24px; }
+  .step { position: absolute; left: 0; right: 0; top: 0; }
+
+  /* Step 1 */
+  .drop { position: relative; border: 2px dashed hsl(var(--muted-foreground) / 0.25); border-radius: var(--radius); padding: 32px; text-align: center; }
+  .drop h3 { font-family: var(--display); font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .overlay { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; border-radius: var(--radius); background: hsl(var(--background) / 0.7); backdrop-filter: blur(4px); }
+  .overlay .lbl { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: hsl(var(--muted-foreground)); }
+  .parsed { display: flex; align-items: center; gap: 12px; border-radius: var(--radius); padding: 16px; background: rgba(5, 46, 22, 0.2); }
+  .fileicon { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: #14532d; color: #16a34a; flex-shrink: 0; }
+  .navrow { margin-top: 24px; display: flex; justify-content: space-between; }
+
+  /* Step 2 */
+  .tabs { height: 40px; border-radius: 10px; background: hsl(var(--muted)); padding: 4px; display: flex; gap: 8px; color: hsl(var(--muted-foreground)); }
+  .tab { display: inline-flex; align-items: center; border-radius: 8px; padding: 6px 12px; font-size: 14px; font-weight: 500; }
+  .tab.active { background: hsl(var(--background)); color: hsl(var(--foreground)); box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+  .tip { border-radius: var(--radius); border: 1px solid hsl(var(--border)); background: hsl(var(--muted) / 0.5); padding: 16px; display: flex; gap: 12px; align-items: flex-start; }
+  .ta { position: relative; margin-top: 16px; }
+  .textarea { height: 208px; border-radius: 10px; border: 1px solid hsl(var(--input)); background: hsl(var(--background)); padding: 8px 12px; font-size: 16px; line-height: 24px; overflow: hidden; }
+  .textarea .ph { color: hsl(var(--muted-foreground)); position: absolute; }
+  .textarea .jd { white-space: pre-wrap; color: hsl(var(--foreground)); }
+  .focusring { position: absolute; inset: -4px; border-radius: 13px; box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--primary)); pointer-events: none; opacity: 0; top: -2px; left: -2px; right: -2px; bottom: -2px; }
+  .counter { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: hsl(var(--muted-foreground)); }
+
+  /* Step 3 */
+  .tabs3 { justify-content: flex-start; }
+  .toolbar { border-bottom: 1px solid hsl(var(--border)); background: hsl(var(--card) / 0.8); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .toolbar .l { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+  .toolbar .r { display: flex; gap: 8px; }
+  .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; background: hsl(var(--secondary)); color: hsl(var(--secondary-foreground)); }
+  .split { display: inline-flex; }
+  .split .main { border-top-right-radius: 0; border-bottom-right-radius: 0; padding-right: 12px; }
+  .split .fmt { margin-left: 8px; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 500; background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+  .split .caret { margin-left: -1px; border-top-left-radius: 0; border-bottom-left-radius: 0; padding: 0 8px; }
+  .preview { background: hsl(240 5% 9.5%); padding: 28px 0 60px; height: 1100px; overflow: hidden; }
+
+  /* Classic template (app/app/upload-tailor/templates/Classic.tsx) rendered as the exported page */
+  .paper { width: 760px; margin: 0 auto; background: #fff; color: #18181b; padding: 44px 54px 50px; border-radius: 4px; box-shadow: 0 20px 50px -10px rgba(0,0,0,0.6); }
+  .paper h1 { font-size: 34px; font-weight: 600; letter-spacing: -0.025em; color: #0f2a43; margin-bottom: 2px; line-height: 1.15; }
+  .paper .ttl { font-size: 15px; font-weight: 500; color: #3f3f46; }
+  .paper .contact { font-size: 13px; color: #52525b; margin-top: 2px; }
+  .paper h2 { font-size: 19px; font-weight: 600; color: #12467F; border-bottom: 1px solid #e4e4e7; padding-bottom: 4px; margin: 20px 0 10px; }
+  .paper h2.xp { font-size: 21px; color: #0e6ba8; }
+  .paper p, .paper li { font-size: 14px; line-height: 23px; color: rgba(24,24,27,0.9); }
+  .paper strong { color: #0e6ba8; font-weight: 600; }
+  .paper ul { padding-left: 20px; margin: 4px 0 10px; }
+  .paper li { margin-bottom: 4px; }
+  .paper .blk { will-change: transform, opacity; }
+
+  .cover-empty { text-align: center; padding: 0 24px 24px; }
+  .letter { white-space: pre-wrap; font-family: var(--body); font-size: 14px; line-height: 24px; border: 1px solid hsl(var(--border)); border-radius: 6px; padding: 16px; background: hsl(var(--muted)); margin: 0 24px 24px; }
+  .letter .ln { display: block; min-height: 24px; }
+
+  /* react-toastify, with the overrides from app/globals.css */
+  .toast { position: absolute; right: 16px; width: 320px; min-height: 64px; z-index: 20; display: flex; align-items: center; gap: 10px; padding: 8px 12px 8px 12px; border-radius: var(--radius); border: 1px solid hsl(var(--primary) / 0.3); background: hsl(var(--card)); color: hsl(var(--foreground)); font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.45); overflow: hidden; }
+  .toast .x { position: absolute; top: 8px; right: 10px; color: hsl(var(--muted-foreground)); font-size: 13px; }
+  .toast .bar { position: absolute; left: 0; bottom: 0; height: 5px; width: 100%; background: hsl(var(--primary)); transform-origin: left; }
+
+  #cursor { position: absolute; left: 0; top: 0; z-index: 30; width: 28px; height: 28px; transform-origin: 3px 2px; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5)); }
+  #ripple { position: absolute; z-index: 29; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; border: 2px solid hsl(var(--primary)); opacity: 0; }
+
+  /* Floating Changes Summary card (same card as StepThree) */
+  #changes { position: absolute; left: 1238px; top: 200px; width: 560px; }
+  #changes .card-t { font-size: 24px; }
+  #changes ul { padding-left: 20px; }
+  #changes li { font-size: 15px; line-height: 26px; margin-bottom: 6px; color: hsl(var(--foreground) / 0.92); }
+
+  /* Captions */
+  #scrim { z-index: 3; position: absolute; left: 0; right: 0; bottom: 0; height: 380px; pointer-events: none;
+    background: linear-gradient(to bottom, hsl(var(--background) / 0) 0%, hsl(var(--background) / 0.82) 55%, hsl(var(--background) / 0.96) 100%); }
+  #caps { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+  #end { z-index: 5; }
+  .cap { position: absolute; left: 120px; bottom: 96px; }
+  .cap .eb { display: flex; align-items: center; gap: 14px; font-size: 17px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: hsl(var(--primary)); margin-bottom: 16px; }
+  .cap .eb .n { font-variant-numeric: tabular-nums; }
+  .cap .eb .rule { width: 36px; height: 2px; background: hsl(var(--primary) / 0.6); }
+  .cap .hl { font-family: var(--display); font-weight: 600; font-size: 58px; line-height: 1.05; letter-spacing: -0.03em; white-space: nowrap; }
+
+  /* End card */
+  #end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #end-brand { display: flex; align-items: center; gap: 30px; }
+  #end-word { font-family: var(--display); font-weight: 700; font-size: 132px; letter-spacing: -0.045em; line-height: 1; }
+  #end-tag { margin-top: 40px; font-family: var(--display); font-weight: 500; font-size: 50px; letter-spacing: -0.02em; color: hsl(var(--foreground) / 0.72); }
+  #end-url { margin-top: 56px; display: flex; align-items: center; gap: 0; padding: 16px 30px; border-radius: 999px; border: 1px solid hsl(var(--primary) / 0.35); background: hsl(var(--primary) / 0.07); font-size: 28px; font-weight: 500; letter-spacing: -0.01em; }
+  #end-url .proto { color: hsl(var(--muted-foreground)); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="bg-grid" id="grid"></div>
+  <div class="glow" id="glow-a"></div>
+  <div class="glow" id="glow-b"></div>
+  <div class="glow" id="glow-c"></div>
+
+  <!-- Scene 1 — hook -->
+  <div id="intro">
+    <div id="intro-brand">
+      <svg class="mark" id="intro-mark" viewBox="0 0 100 100" width="92" height="92">
+        <path class="m1" d="M 14 84 L 14 56 L 42 28 L 56 28 L 30 54 L 30 84 Z" fill="#2D7A5C"/>
+        <path class="m2" d="M 46 84 L 46 56 L 64 38 L 64 84 L 54 84 L 54 62 L 54 84 Z" fill="#1f5a42"/>
+        <path class="m3" d="M 56 54 L 80 30 L 72 30 L 72 22 L 88 22 L 88 38 L 80 38 L 80 30 Z" fill="#4DB88F"/>
+      </svg>
+      <div id="intro-word">JobMatchly</div>
+    </div>
+    <h1 id="intro-head">
+      <span class="line" id="ih1"></span>
+      <span class="line" id="ih2"></span>
+    </h1>
+  </div>
+
+  <!-- Scenes 2–4 — the product -->
+  <div id="camera">
+    <div id="win">
+      <div class="chrome">
+        <span class="dot" style="background:#ff5f57"></span>
+        <span class="dot" style="background:#febc2e"></span>
+        <span class="dot" style="background:#28c840"></span>
+        <div class="url"><span data-i="lock"></span><b>jobmatchly.co.za</b>/app/upload-tailor</div>
+      </div>
+      <div id="viewport">
+        <div id="page">
+          <div class="container">
+            <h1 class="page-title">Tailor your resume in 3 easy steps</h1>
+
+            <!-- WizardStepper -->
+            <div class="card stepper" id="stepper">
+              <div class="row">
+                <div class="pills" id="pills">
+                  <span class="pill" data-step="parse"><span class="ico"></span>Parsing</span>
+                  <span class="pill" data-step="normalize"><span class="ico"></span>Normalizing</span>
+                  <span class="pill" data-step="analyze"><span class="ico"></span>Analyzing</span>
+                  <span class="pill" data-step="tailor"><span class="ico"></span>Tailoring</span>
+                  <span class="pill" data-step="export"><span class="ico"></span>Exporting</span>
+                </div>
+                <span class="btn ghost sm text-sm" style="gap:8px"><span data-i="rotate-ccw" data-s="14"></span><span id="reset-lbl">Start Over</span></span>
+              </div>
+            </div>
+
+            <div class="steps">
+              <!-- STEP 1 — StepOne.tsx -->
+              <section class="step card" id="step1">
+                <div class="card-h">
+                  <h3 class="card-t"><span data-i="upload" data-s="20"></span><span style="font-size:24px">Upload your resume 📄</span></h3>
+                  <p class="muted text-sm">We currently support <strong>TXT</strong>, <strong>DOCX</strong> and <strong>PDF</strong>.</p>
+                </div>
+                <div class="card-c">
+                  <div class="drop" id="drop">
+                    <span data-i="file-text" data-s="48" class="muted" style="display:block;margin:0 auto 16px;width:48px"></span>
+                    <h3>Drop your resume here or tap to choose</h3>
+                    <p class="muted text-sm" style="margin-bottom:16px">We will parse it and prep it for tailoring.</p>
+                    <span class="btn outline sm" id="choose">Choose File</span>
+                    <div class="overlay" id="parse-ov"><span class="lbl"><span class="spin" data-i="loader-2" data-s="16"></span>Parsing your resume…</span></div>
+                  </div>
+                  <div class="parsed" id="parsed">
+                    <div class="fileicon"><span data-i="file-text" data-s="20"></span></div>
+                    <div style="flex:1;min-width:0">
+                      <p style="font-weight:500">Thandi_Nkosi_CV.pdf</p>
+                      <p class="muted text-xs">Parsed successfully</p>
+                    </div>
+                    <span class="btn ghost sm">Replace</span>
+                  </div>
+                  <div class="navrow">
+                    <span class="btn outline disabled"><span data-i="chevron-left" data-s="16" class="mr2"></span>Back</span>
+                    <span class="btn primary" id="next1">Next: Job Description<span data-i="chevron-right" data-s="16" class="ml2"></span></span>
+                  </div>
+                </div>
+              </section>
+
+              <!-- STEP 2 — StepTwo.tsx -->
+              <section class="step card" id="step2">
+                <div class="card-h">
+                  <h3 class="card-t"><span data-i="target" data-s="20"></span><span style="font-size:20px">Add the job description</span></h3>
+                  <p class="muted text-sm">Paste the JD text, or use the Image (OCR) tab to extract from a screenshot.</p>
+                </div>
+                <div class="card-c">
+                  <div class="tabs"><span class="tab active">Paste Text</span><span class="tab">Image (OCR)</span></div>
+                  <div style="padding-top:16px">
+                    <div class="tip">
+                      <span data-i="lightbulb" data-s="20" style="color:hsl(var(--primary));margin-top:2px"></span>
+                      <div class="text-sm"><p style="font-weight:500">Tip</p><p class="muted">If your JD is an <strong>image</strong> or <strong>PDF</strong>, try the Image (OCR) tab to auto-extract.</p></div>
+                    </div>
+                    <div class="ta" id="ta">
+                      <div class="textarea" id="textarea">
+                        <span class="ph" id="ta-ph">Paste the job description here…</span>
+                        <div class="jd" id="jd"></div>
+                      </div>
+                      <div class="focusring" id="ta-ring"></div>
+                      <div class="overlay" id="jd-ov"><span class="lbl"><span class="spin" data-i="loader-2" data-s="16"></span><span id="jd-ov-lbl">Cleaning JD…</span></span></div>
+                    </div>
+                    <div class="counter"><span id="chars">0 characters</span><span class="btn ghost sm" style="font-size:14px">Back to Resume</span></div>
+                  </div>
+                  <div class="navrow">
+                    <span class="btn outline" id="back2"><span data-i="chevron-left" data-s="16" class="mr2"></span>Back</span>
+                    <span class="btn primary" id="tailor"><span id="tailor-spin" class="spin mr2" data-i="loader-2" data-s="16"></span><span id="tailor-lbl">Tailor my resume</span></span>
+                  </div>
+                </div>
+              </section>
+
+              <!-- STEP 3 — StepThree.tsx -->
+              <section class="step" id="step3">
+                <div class="tabs tabs3"><span class="tab active" id="tab-resume">Tailored Resume</span><span class="tab" id="tab-cover">Cover Letter</span></div>
+                <div style="position:relative;margin-top:24px">
+                  <!-- Resume tab -->
+                  <div class="card" id="resume-card" style="overflow:hidden">
+                    <div class="toolbar">
+                      <div class="l">Tailored Resume Preview <span class="badge">Ready to download</span></div>
+                      <div class="r">
+                        <span class="btn outline sm"><span data-i="chevron-left" data-s="16" class="mr15"></span>Back to JD</span>
+                        <span class="btn outline sm"><span data-i="palette" data-s="16" class="mr15"></span>Template</span>
+                        <span class="btn outline sm"><span data-i="file-edit" data-s="16" class="mr15"></span>Open in Editor</span>
+                        <span class="split">
+                          <span class="btn primary sm main" id="dl"><span id="dl-ico" data-i="download" data-s="16" class="mr2"></span><span id="dl-spin" class="spin mr2" data-i="loader-2" data-s="16"></span>Download<span class="fmt">PDF</span></span>
+                          <span class="btn outline sm caret"><span data-i="chevron-down" data-s="16"></span></span>
+                        </span>
+                      </div>
+                    </div>
+                    <div class="preview">
+                      <div class="paper" id="paper">
+                        <div class="blk"><h1>Thandi Nkosi</h1><p class="ttl">Data Analyst</p><p class="contact">Johannesburg, South Africa · +27 82 555 0147 · thandi.nkosi@example.com</p></div>
+                        <div class="blk"><h2>Professional Summary</h2><p>Data analyst with 4+ years turning customer and loan data into credit decisions. Builds <strong>Power BI</strong> dashboards and <strong>SQL</strong> models for financial services teams, and explains the numbers clearly to non-technical stakeholders.</p></div>
+                        <div class="blk"><h2>Skills</h2><p>SQL · Power BI · Python (pandas) · Credit Risk Analytics · Data Modelling · Excel · Stakeholder Reporting</p></div>
+                        <div class="blk"><h2 class="xp">Experience</h2>
+                          <p><strong>Data Analyst — Karoo Retail Group, Johannesburg (2022 – Present)</strong></p>
+                          <ul>
+                            <li>Built automated Power BI dashboards for 14 regional managers, cutting weekly reporting time by 60%</li>
+                            <li>Modelled customer credit data in SQL across 3 source systems, improving arrears forecast accuracy by 18%</li>
+                            <li>Presented monthly credit risk insights to finance leadership, flagging R2.1M in overdue accounts</li>
+                          </ul>
+                          <p><strong>Junior Analyst — Mzansi Insights, Pretoria (2020 – 2022)</strong></p>
+                          <ul>
+                            <li>Cleaned and analysed survey data for 30+ client projects using Python (pandas) and Excel</li>
+                          </ul>
+                        </div>
+                        <div class="blk"><h2>Education</h2><p>BCom Information Systems — University of Pretoria, Pretoria (2019)</p></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Cover Letter tab -->
+                  <div class="card" id="cover-card" style="overflow:hidden;position:absolute;left:0;right:0;top:0">
+                    <div class="toolbar">
+                      <div class="l">Cover Letter Preview</div>
+                      <div class="r">
+                        <span class="btn outline sm"><span data-i="chevron-left" data-s="16" class="mr15"></span>Back to JD</span>
+                        <span class="btn outline sm"><span data-i="clipboard" data-s="16" class="mr15"></span>Copy Markdown</span>
+                        <span class="btn outline sm"><span data-i="file-edit" data-s="16" class="mr15"></span>Open in Editor</span>
+                        <span class="split">
+                          <span class="btn primary sm main"><span data-i="download" data-s="16" class="mr2"></span>Download<span class="fmt">PDF</span></span>
+                          <span class="btn outline sm caret"><span data-i="chevron-down" data-s="16"></span></span>
+                        </span>
+                      </div>
+                    </div>
+                    <div id="cover-empty" class="cover-empty">
+                      <p class="muted text-sm" style="margin-top:28px">Create a cover letter matched to this job.</p>
+                      <span class="btn primary" id="gen" style="margin-top:28px">Generate Cover Letter</span>
+                      <div class="muted" id="gen-status" style="padding:16px;margin-top:12px"><span id="gen-idle">Your generated cover letter will appear here after you click <b style="font-weight:600">Generate Cover Letter</b>.</span><span id="gen-busy"><span class="spin mr2" data-i="loader-2" data-s="16"></span>Generating cover letter…</span></div>
+                    </div>
+                    <div id="letter-wrap" style="padding-top:24px"><pre class="letter" id="letter"></pre></div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+
+        <header class="hdr">
+          <div class="brand">
+            <svg class="mark" viewBox="0 0 100 100" width="38" height="38">
+              <path d="M 14 84 L 14 56 L 42 28 L 56 28 L 30 54 L 30 84 Z" fill="#2D7A5C"/>
+              <path d="M 46 84 L 46 56 L 64 38 L 64 84 L 54 84 L 54 62 L 54 84 Z" fill="#1f5a42"/>
+              <path d="M 56 54 L 80 30 L 72 30 L 72 22 L 88 22 L 88 38 L 80 38 L 80 30 Z" fill="#4DB88F"/>
+            </svg>
+            JobMatchly
+          </div>
+          <nav class="nav"><span>Templates</span><span>Pricing</span><span>For recruiters</span></nav>
+          <div class="right"><span class="iconbtn"><span data-i="sun" data-s="16"></span></span><span class="avatar">TN</span></div>
+        </header>
+
+        <div class="toast" id="toast-0"></div>
+        <div class="toast" id="toast-1"></div>
+        <div class="toast" id="toast-2"></div>
+
+        <div id="ripple"></div>
+        <svg id="cursor" viewBox="0 0 28 28">
+          <path d="M4 2.5 L4 22 L9.2 17.4 L12.6 25 L16 23.5 L12.7 16 L19.6 16 Z" fill="#fff" stroke="#000" stroke-width="1.4" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Changes Summary card, lifted out of the page for the payoff -->
+  <div class="card" id="changes">
+    <div class="card-h" style="padding-bottom:8px"><h3 class="card-t"><span data-i="external-link" data-s="20"></span>Changes Summary</h3></div>
+    <div class="card-c" style="padding-top:8px">
+      <ul>
+        <li class="chg">Reframed the summary around credit risk and financial services data</li>
+        <li class="chg">Moved SQL and Power BI to the front of Skills to mirror the job description</li>
+        <li class="chg">Rewrote experience bullets to lead with dashboards, SQL modelling and measurable impact</li>
+        <li class="chg">Highlighted presenting insights to stakeholders, as the role requires</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="scrim"></div>
+  <div id="caps"></div>
+
+  <!-- Scene 5 — end card -->
+  <div id="end">
+    <div id="end-brand">
+      <svg class="mark" id="end-mark" viewBox="0 0 100 100" width="150" height="150">
+        <path class="m1" d="M 14 84 L 14 56 L 42 28 L 56 28 L 30 54 L 30 84 Z" fill="#2D7A5C"/>
+        <path class="m2" d="M 46 84 L 46 56 L 64 38 L 64 84 L 54 84 L 54 62 L 54 84 Z" fill="#1f5a42"/>
+        <path class="m3" d="M 56 54 L 80 30 L 72 30 L 72 22 L 88 22 L 88 38 L 80 38 L 80 30 Z" fill="#4DB88F"/>
+      </svg>
+      <div id="end-word">JobMatchly</div>
+    </div>
+    <div id="end-tag"></div>
+    <div id="end-url"><span class="proto">https://</span><span>jobmatchly.co.za</span></div>
+  </div>
+
+  <div id="vignette"></div>
+  <svg id="grain" width="1920" height="1080"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0"/></filter><rect width="100%" height="100%" filter="url(#n)"/></svg>
+</div>
+
+<script src="icons.js"></script>
+<script>
+/* ─────────────────────────── Setup ─────────────────────────── */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const ICONS = Object.assign({}, window.ICONS, {
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  clipboard: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
+});
+const icon = (name, size = 16) =>
+  `<svg class="i" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+for (const el of $$('[data-i]')) el.innerHTML = icon(el.dataset.i, +(el.dataset.s || 12));
+
+// Split text into word spans so each word can be animated.
+function words(el, text, cls = '') {
+  el.innerHTML = text.split(' ').map((w) => `<span class="w ${cls}">${w}</span>`).join(' ');
+  return $$('.w', el);
+}
+const ih1 = words($('#ih1'), 'Your next job starts with');
+const ih2 = words($('#ih2'), 'a better application.', 'grad');
+$('#end-tag').innerHTML = '<span class="w">Build.</span> <span class="w">Tailor.</span> <span class="w grad" style="font-weight:600">Get Hired.</span>';
+const endTag = $$('#end-tag .w');
+
+// Captions: one per product beat.
+const CAPS = [
+  { t0: 3.55, t1: 6.75, n: '01', eb: 'Upload', hl: 'Start with the CV you already have.' },
+  { t0: 6.95, t1: 9.45, n: '02', eb: 'Job description', hl: 'Paste the job you want.' },
+  { t0: 9.65, t1: 12.55, n: '03', eb: 'Tailor', hl: 'One click. Rewritten for the role.' },
+  { t0: 12.8, t1: 15.35, n: '04', eb: 'Review', hl: 'See exactly what changed.' },
+  { t0: 15.55, t1: 19.0, n: '05', eb: 'Apply', hl: 'Download it — plus a matching cover letter.' },
+];
+for (const c of CAPS) {
+  const el = document.createElement('div');
+  el.className = 'cap';
+  el.innerHTML = `<div class="eb"><span class="n">${c.n}</span><span class="rule"></span><span>${c.eb}</span></div><div class="hl"></div>`;
+  $('#caps').appendChild(el);
+  c.el = el;
+  c.eb$ = $('.eb', el);
+  c.words = words($('.hl', el), c.hl);
+}
+
+const JD = `Data Analyst — Umoya Financial Services, Johannesburg
+
+Join our credit risk team. You'll build dashboards in Power BI, write SQL to model customer and loan data, and present insights to stakeholders.
+
+Requirements:
+• 3+ years in a data or BI role
+• Strong SQL and Power BI skills
+• Python (pandas) for analysis
+• Credit risk or financial services experience`;
+$('#jd').textContent = JD;
+
+const LETTER = `Dear Hiring Manager,
+
+I'm excited to apply for the Data Analyst role at Umoya Financial Services. For the past four years I've turned customer and credit data into decisions — most recently building Power BI dashboards and SQL models at Karoo Retail Group that cut weekly reporting time by 60% and improved arrears forecasting by 18%.
+
+Your focus on credit risk is exactly where I do my best work. I enjoy presenting insights to non-technical stakeholders, and I'd welcome the chance to bring that to your team.
+
+Kind regards,
+Thandi Nkosi`;
+$('#letter').innerHTML = LETTER.split('\n').map((l) => `<span class="ln">${l || ' '}</span>`).join('');
+const letterLines = $$('#letter .ln');
+
+/* ─────────────────────────── Math ─────────────────────────── */
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, u) => a + (b - a) * u;
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const smooth = (u) => u * u * u * (u * (u * 6 - 15) + 10);
+const outCubic = (u) => 1 - Math.pow(1 - u, 3);
+const outExpo = (u) => (u >= 1 ? 1 : 1 - Math.pow(2, -10 * u));
+const inOutCubic = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+// Critically damped settle with a whisper of overshoot, for UI entering.
+const outBack = (u, k = 1.2) => 1 + (k + 1) * Math.pow(u - 1, 3) + k * Math.pow(u - 1, 2);
+const on = (t, a, b = Infinity) => t >= a && t < b;
+
+// Keyframe track: [[time, {props}], ...] eased segment by segment.
+function track(keys, t, ease = smooth) {
+  if (t <= keys[0][0]) return { ...keys[0][1] };
+  for (let i = 0; i < keys.length - 1; i++) {
+    const [ta, a] = keys[i], [tb, b] = keys[i + 1];
+    if (t <= tb) {
+      const u = ease(prog(t, ta, tb));
+      const o = {};
+      for (const k in a) o[k] = lerp(a[k], b[k] ?? a[k], u);
+      return o;
+    }
+  }
+  return { ...keys[keys.length - 1][1] };
+}
+
+// Word-by-word rise with blur. Returns nothing; writes styles.
+function riseWords(ws, t, t0, { stagger = 0.06, dur = 0.7, dy = 34, blur = 10, out = Infinity, outDur = 0.45 } = {}) {
+  ws.forEach((w, i) => {
+    const u = outExpo(prog(t, t0 + i * stagger, t0 + i * stagger + dur));
+    const v = out === Infinity ? 0 : smooth(prog(t, out, out + outDur));
+    const o = u * (1 - v);
+    w.style.opacity = o;
+    w.style.transform = `translateY(${(1 - u) * dy - v * 18}px)`;
+    w.style.filter = `blur(${(1 - u) * blur + v * 6}px)`;
+  });
+}
+
+/* ─────────────────────────── Layout probes ─────────────────────────── */
+// Positions are measured once, in viewport coordinates at scroll 0, so the
+// cursor and camera always land on the real element rather than a guess.
+const VP = $('#viewport');
+function box(el) {
+  const r = el.getBoundingClientRect(), v = VP.getBoundingClientRect();
+  return { x: r.left - v.left, y: r.top - v.top, w: r.width, h: r.height, cx: r.left - v.left + r.width / 2, cy: r.top - v.top + r.height / 2 };
+}
+let P = {};
+function measure() {
+  $('#win').style.transform = 'none';
+  $('#page').style.transform = 'none';
+  setDisplay({ parsed: false, cover: false, generated: false });
+  P.choose = box($('#choose'));
+  P.drop = box($('#drop'));
+  setDisplay({ parsed: true, cover: false, generated: false });
+  P.next1 = box($('#next1'));
+  P.textarea = box($('#textarea'));
+  P.tailor = box($('#tailor'));
+  P.pills = box($('#pills'));
+  P.stepper = box($('#stepper'));
+  P.dl = box($('#dl'));
+  P.tabCover = box($('#tab-cover'));
+  P.paper = box($('#paper'));
+  setDisplay({ parsed: true, cover: true, generated: false });
+  P.gen = box($('#gen'));
+  setDisplay({ parsed: true, cover: true, generated: true });
+  P.letter = box($('#letter'));
+}
+function setDisplay({ parsed, cover, generated }) {
+  $('#drop').style.display = parsed ? 'none' : 'block';
+  $('#parsed').style.display = parsed ? 'flex' : 'none';
+  $('#resume-card').style.visibility = cover ? 'hidden' : 'visible';
+  $('#cover-card').style.visibility = cover ? 'visible' : 'hidden';
+  $('#cover-empty').style.display = generated ? 'none' : 'block';
+  $('#letter-wrap').style.display = generated ? 'block' : 'none';
+}
+
+/* ─────────────────────────── Timeline ─────────────────────────── */
+const DURATION = 24.5;
+
+// Page scroll inside the app (the viewer scrolling, as a real user would).
+function scrollAt(t) {
+  return track([[6.95, { y: 0 }], [7.5, { y: 92 }], [13.55, { y: 92 }], [15.0, { y: 370 }], [15.25, { y: 370 }], [15.7, { y: 92 }]], t, inOutCubic).y;
+}
+
+// Wizard state, mirroring the store transitions in StepOne/StepTwo/StepThree.
+const T = {
+  chooseClick: 4.85, parseDone: 5.85, next1Click: 6.72, step2: 6.78,
+  taClick: 7.62, paste: 7.8, tailorClick: 9.55, normDone: 10.35, analyzeDone: 11.2,
+  tailorDone: 12.1, step3: 12.14, dlClick: 15.95, dlDone: 16.35, coverClick: 16.75,
+  genClick: 17.2, genDone: 17.8,
+};
+function stepStatus(t) {
+  const s = (a, b) => (t < a ? 'idle' : t < b ? 'loading' : 'done');
+  return {
+    parse: s(T.chooseClick + 0.1, T.parseDone),
+    normalize: s(T.tailorClick, T.normDone),
+    analyze: s(T.normDone, T.analyzeDone),
+    tailor: s(T.analyzeDone, T.tailorDone),
+    export: s(T.dlClick, T.dlDone),
+  };
+}
+
+// Cursor waypoints, in viewport coordinates. Targets are resolved lazily so
+// they account for page scroll at the moment the cursor arrives.
+function cursorKeys() {
+  const at = (b, t, dx = 0, dy = 0) => ({ x: b.cx + dx, y: b.cy + dy - (b === P.pills || b === P.stepper ? 0 : scrollAt(t)) });
+  return [
+    [3.9, { x: 1340, y: 760 }],
+    [4.75, at(P.choose, 4.75, 8, 4)],
+    [5.35, at(P.choose, 5.35, 18, 26)],
+    [6.62, at(P.next1, 6.62, -30, 6)],
+    [7.0, at(P.next1, 7.0, -10, 34)],
+    [7.55, at(P.textarea, 7.55, 120, 10)],
+    [8.3, at(P.textarea, 8.3, 150, 40)],
+    [9.45, at(P.tailor, 9.45, 8, 5)],
+    [10.4, at(P.tailor, 10.4, 60, 70)],
+    [13.2, at(P.tailor, 13.2, 80, 90)],
+    [15.85, at(P.dl, 15.85, -14, 6)],
+    [16.2, at(P.dl, 16.2, -10, 30)],
+    [16.65, at(P.tabCover, 16.65, 6, 5)],
+    [17.1, at(P.gen, 17.1, 10, 6)],
+    [17.55, at(P.gen, 17.55, 60, 70)],
+    [19.2, at(P.gen, 19.2, 80, 90)],
+  ];
+}
+const CLICKS = [T.chooseClick, T.next1Click, T.taClick, T.tailorClick, T.dlClick, T.coverClick, T.genClick];
+
+// Human-ish pointer motion: minimum-jerk timing with a gentle arc.
+function cursorAt(t, keys) {
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 0; i < keys.length - 1; i++) {
+    const [ta, a] = keys[i], [tb, b] = keys[i + 1];
+    if (t <= tb) {
+      const u = smooth(prog(t, ta, tb));
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
+      const arc = Math.sin(Math.PI * u) * Math.min(60, d * 0.12);
+      return { x: lerp(a.x, b.x, u) + (-dy / d) * arc, y: lerp(a.y, b.y, u) + (dx / d) * arc };
+    }
+  }
+  return keys[keys.length - 1][1];
+}
+
+// Camera: which point of the window (window-local, origin at its centre) sits
+// where on screen, at what scale and tilt.
+const W2 = (b, dx = 0, dy = 0) => ({ fx: b.cx - 640 + dx, fy: b.cy + 40 - 420 + dy });
+function cameraKeys() {
+  const pose = (sx, sy, f, s, rx, ry, o = 1) => ({ sx, sy, fx: f.fx, fy: f.fy, s, rx, ry, o });
+  const C = { fx: 0, fy: 0 };
+  const dz = W2(P.drop, 0, 20);
+  const ta = W2(P.textarea, 0, 40 - 92);
+  const btn = W2({ cx: (P.textarea.cx + P.tailor.cx) / 2, cy: P.tailor.cy - 70 }, 0, -92);
+  const pills = W2(P.stepper, 0, -92);
+  const top3 = { fx: 0, fy: 30 };
+  const paper = { fx: 0, fy: 110 };
+  const tb = W2({ cx: (P.dl.cx + P.tabCover.cx) / 2 + 60, cy: P.dl.cy + 110 }, 0, -92);
+  const letter = W2(P.letter, 0, -110 - 92);
+  return [
+    [3.0, pose(960, 1330, C, 0.7, 30, 0, 0)],
+    [4.05, pose(1000, 470, C, 0.8, 7, -9)],
+    [4.55, pose(1000, 470, C, 0.82, 6, -8)],
+    [5.35, pose(990, 470, dz, 0.94, 4, -6)],
+    [6.1, pose(990, 470, dz, 0.96, 4, -6)],
+    [6.9, pose(1000, 450, { fx: 0, fy: 20 }, 0.84, 4, -7)],
+    [7.7, pose(990, 420, ta, 0.98, 3, -5)],
+    [8.55, pose(990, 420, ta, 1.0, 3, -5)],
+    [9.3, pose(980, 430, btn, 1.0, 1, -2)],
+    [9.75, pose(980, 430, btn, 1.01, 1, -2)],
+    [10.55, pose(960, 420, pills, 1.2, 0, 0)],
+    [11.85, pose(960, 420, pills, 1.26, 0, 0)],
+    [12.65, pose(960, 440, top3, 0.86, 0, 0)],
+    [13.25, pose(960, 440, top3, 0.87, 0, 0)],
+    [14.2, pose(700, 470, paper, 1.0, 0, 5)],
+    [15.3, pose(700, 470, paper, 1.03, 0, 5)],
+    [15.8, pose(960, 430, tb, 1.0, 0, 0)],
+    [16.6, pose(960, 430, tb, 1.0, 0, 0)],
+    [17.5, pose(960, 420, letter, 1.02, 0, 0)],
+    [18.85, pose(960, 420, letter, 1.06, 0, 0)],
+    [19.85, pose(960, 330, letter, 0.8, -8, 0, 0)],
+  ];
+}
+
+let CK, CAMK;
+const toasts = [
+  { el: $('#toast-0'), t0: T.parseDone + 0.05, text: 'Resume parsed successfully! ✅' },
+  { el: $('#toast-1'), t0: T.tailorDone + 0.05, text: 'Tailored and ready! ✨' },
+  { el: $('#toast-2'), t0: T.dlDone + 0.05, text: 'PDF downloaded successfully.' },
+];
+const TOAST_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" style="flex-shrink:0"><path fill="#fff" d="M12 0a12 12 0 1012 12A12.014 12.014 0 0012 0zm6.927 8.2l-6.845 9.289a1.011 1.011 0 01-1.43.188l-4.888-3.908a1 1 0 111.25-1.562l4.076 3.261 6.227-8.451a1 1 0 111.61 1.183z"/></svg>';
+for (const to of toasts) to.el.innerHTML = `${TOAST_ICON}<span>${to.text}</span><span class="x">✕</span><div class="bar"></div>`;
+
+function setPill(el, status, t) {
+  const ico = $('.ico', el);
+  if (el.dataset.st !== status) {
+    el.dataset.st = status;
+    el.className = `pill ${status === 'idle' ? '' : status}`;
+    ico.innerHTML = status === 'loading' ? `<span class="spin">${icon('loader-2', 16)}</span>`
+      : status === 'done' ? `<span style="color:hsl(var(--primary))">${icon('check-circle', 16)}</span>`
+      : '<span class="idle"></span>';
+  }
+}
+
+/* ─────────────────────────── Render one frame ─────────────────────────── */
+function renderAt(t) {
+  // Background drift.
+  $('#grid').style.transform = `translate(${Math.sin(t * 0.25) * 14}px, ${t * -3}px)`;
+  $('#glow-a').style.transform = `translate(${Math.sin(t * 0.3) * 60}px, ${Math.cos(t * 0.23) * 30}px)`;
+  $('#glow-b').style.transform = `translate(${Math.cos(t * 0.2) * -50}px, ${Math.sin(t * 0.27) * 40}px)`;
+  const endIn = smooth(prog(t, 19.35, 20.6));
+  $('#glow-c').style.opacity = endIn;
+  $('#glow-c').style.transform = `scale(${0.8 + endIn * 0.25})`;
+  $('#stage').style.opacity = smooth(prog(t, 0, 0.45));
+
+  /* Scene 1 — hook */
+  const introOut = smooth(prog(t, 2.72, 3.3));
+  const intro = $('#intro');
+  intro.style.display = t < 3.4 ? 'flex' : 'none';
+  intro.style.transform = `translateY(${-introOut * 120}px) scale(${1 - introOut * 0.06})`;
+  intro.style.opacity = 1 - introOut;
+  intro.style.filter = `blur(${introOut * 10}px)`;
+  drawMark($('#intro-mark'), t, 0.2);
+  const iw = outExpo(prog(t, 0.55, 1.35));
+  $('#intro-word').style.opacity = iw;
+  $('#intro-word').style.transform = `translateX(${(1 - iw) * -26}px)`;
+  $('#intro-word').style.clipPath = `inset(0 ${(1 - iw) * 100}% 0 0)`;
+  riseWords(ih1, t, 1.05, { stagger: 0.07 });
+  riseWords(ih2, t, 1.45, { stagger: 0.09 });
+
+  /* Scenes 2–4 — the product */
+  const cam = track(CAMK, t);
+  const drift = { x: Math.sin(t * 0.6) * 4, y: Math.cos(t * 0.5) * 3, r: Math.sin(t * 0.45) * 0.5 };
+  const win = $('#win');
+  const winVisible = t > 2.95 && t < 20.0;
+  win.style.display = winVisible ? 'block' : 'none';
+  if (winVisible) {
+    win.style.opacity = cam.o;
+    win.style.filter = t > 19.2 ? `blur(${smooth(prog(t, 19.2, 19.85)) * 12}px)` : 'none';
+    win.style.transform =
+      `translate(${cam.sx - 960 + drift.x}px, ${cam.sy - 540 + drift.y}px) ` +
+      `rotateX(${cam.rx + drift.r}deg) rotateY(${cam.ry - drift.r}deg) scale(${cam.s}) translate(${-cam.fx}px, ${-cam.fy}px)`;
+  }
+
+  const sc = scrollAt(t);
+  $('#page').style.transform = `translateY(${-sc}px)`;
+
+  // Wizard steps.
+  const st = stepStatus(t);
+  $$('#pills .pill').forEach((el) => setPill(el, st[el.dataset.step], t));
+  const busy = Object.values(st).includes('loading');
+  $('#reset-lbl').textContent = busy ? 'Cancel & Reset' : 'Start Over';
+
+  const step = t < T.step2 ? 1 : t < T.step3 ? 2 : 3;
+  const enter = (t0) => { const u = outCubic(prog(t, t0, t0 + 0.4)); return { o: u, y: (1 - u) * 12 }; };
+  for (const n of [1, 2, 3]) {
+    const el = $(`#step${n}`);
+    const e = enter(n === 1 ? 3.0 : n === 2 ? T.step2 : T.step3);
+    el.style.display = step === n ? 'block' : 'none';
+    el.style.opacity = e.o;
+    el.style.transform = `translateY(${e.y}px)`;
+  }
+
+  // Step 1 — choose file, parse.
+  const parsed = t >= T.parseDone;
+  const onCover = t >= T.coverClick;
+  setDisplay({ parsed, cover: onCover, generated: t >= T.genDone });
+  const hoverDrop = on(t, 4.45, T.chooseClick + 0.1);
+  $('#drop').style.borderColor = hoverDrop ? 'hsl(84 100% 62% / 0.5)' : '';
+  $('#drop').style.transform = `scale(${hoverDrop ? 1 + 0.01 * smooth(prog(t, 4.45, 4.7)) : 1})`;
+  $('#choose').style.background = on(t, 4.6, T.chooseClick + 0.1) ? 'hsl(var(--accent))' : '';
+  $('#parse-ov').style.display = st.parse === 'loading' ? 'grid' : 'none';
+  $('#next1').style.background = on(t, 6.5, T.next1Click + 0.05) ? 'hsl(84 100% 62% / 0.9)' : '';
+  if (parsed) {
+    const u = outCubic(prog(t, T.parseDone, T.parseDone + 0.35));
+    $('#parsed').style.opacity = u;
+    $('#parsed').style.transform = `translateY(${(1 - u) * 6}px)`;
+  }
+
+  // Step 2 — paste the JD, run the pipeline.
+  const focused = t >= T.taClick;
+  $('#ta-ring').style.opacity = focused && st.normalize === 'idle' ? smooth(prog(t, T.taClick, T.taClick + 0.15)) : 0;
+  const pasted = t >= T.paste;
+  $('#ta-ph').style.display = pasted ? 'none' : 'block';
+  const pu = smooth(prog(t, T.paste, T.paste + 0.28));
+  $('#jd').style.opacity = pu;
+  $('#jd').style.clipPath = `inset(0 0 ${(1 - pu) * 100}% 0)`;
+  $('#chars').textContent = `${pasted ? JD.length : 0} characters`;
+  const tailoringBusy = st.analyze === 'loading' || st.tailor === 'loading';
+  const tailorDisabled = !pasted || st.normalize === 'loading';
+  const tb = $('#tailor');
+  tb.style.opacity = tailorDisabled ? 0.5 : tailoringBusy ? 0.6 : 1;
+  tb.style.background = on(t, 9.2, T.tailorClick + 0.05) ? 'hsl(84 100% 62% / 0.9)' : '';
+  $('#tailor-spin').style.display = tailoringBusy ? 'inline-flex' : 'none';
+  $('#tailor-lbl').textContent = tailoringBusy ? 'Tailoring your resume…' : 'Tailor my resume';
+  $('#back2').style.opacity = st.normalize === 'loading' || tailoringBusy ? 0.5 : 1;
+  const jdBusy = st.normalize === 'loading' || tailoringBusy;
+  $('#jd-ov').style.display = jdBusy && step === 2 ? 'grid' : 'none';
+  $('#jd-ov-lbl').textContent = st.analyze === 'loading' ? 'Analyzing your resume & JD…' : st.tailor === 'loading' ? 'Tailoring your resume…' : 'Cleaning JD…';
+
+  // Step 3 — the tailored resume arrives section by section.
+  $$('#paper .blk').forEach((b, i) => {
+    const u = outCubic(prog(t, T.step3 + 0.25 + i * 0.13, T.step3 + 0.75 + i * 0.13));
+    b.style.opacity = u;
+    b.style.transform = `translateY(${(1 - u) * 14}px)`;
+  });
+  $('#dl').style.background = on(t, 15.7, T.dlClick + 0.05) ? 'hsl(84 100% 62% / 0.9)' : '';
+  const dlBusy = on(t, T.dlClick, T.dlDone);
+  $('#dl-ico').style.display = dlBusy ? 'none' : 'inline-flex';
+  $('#dl-spin').style.display = dlBusy ? 'inline-flex' : 'none';
+  $('#tab-resume').className = `tab ${onCover ? '' : 'active'}`;
+  $('#tab-cover').className = `tab ${onCover ? 'active' : ''}`;
+  if (onCover) {
+    const e = outCubic(prog(t, T.coverClick, T.coverClick + 0.25));
+    $('#cover-card').style.opacity = e;
+  }
+  const genBusy = on(t, T.genClick, T.genDone);
+  $('#gen').style.opacity = genBusy ? 0.5 : 1;
+  $('#gen-idle').style.display = genBusy ? 'none' : 'inline';
+  $('#gen-busy').style.display = genBusy ? 'inline' : 'none';
+  letterLines.forEach((l, i) => {
+    const u = outCubic(prog(t, T.genDone + i * 0.045, T.genDone + 0.35 + i * 0.045));
+    l.style.opacity = u;
+    l.style.transform = `translateY(${(1 - u) * 6}px)`;
+  });
+
+  // Spinners (animate-spin: one turn per second).
+  for (const s of $$('.spin')) s.style.transform = `rotate(${(t * 360) % 360}deg)`;
+
+  // Toasts slide in from the right, auto-close after 3s like react-toastify.
+  let stack = 0;
+  for (const to of toasts) {
+    const inU = outBack(prog(t, to.t0, to.t0 + 0.45), 0.9);
+    const outU = smooth(prog(t, to.t0 + 2.6, to.t0 + 2.95));
+    const vis = t >= to.t0 && outU < 1;
+    to.el.style.display = vis ? 'flex' : 'none';
+    if (!vis) continue;
+    to.el.style.top = `${16 + stack}px`;
+    to.el.style.transform = `translateX(${(1 - inU) * 360 + outU * 360}px)`;
+    to.el.style.opacity = 1 - outU;
+    $('.bar', to.el).style.transform = `scaleX(${1 - prog(t, to.t0, to.t0 + 3)})`;
+    stack += 76;
+  }
+
+  // Cursor.
+  const c = cursorAt(t, CK);
+  let press = 0;
+  for (const ct of CLICKS) press = Math.max(press, 1 - Math.abs(t - ct) / 0.09);
+  const cur = $('#cursor');
+  const cVis = clamp(prog(t, 3.9, 4.1) * (1 - prog(t, 18.9, 19.2)));
+  cur.style.opacity = cVis;
+  cur.style.transform = `translate(${c.x - 3}px, ${c.y - 2}px) scale(${1 - 0.14 * clamp(press)})`;
+  const rp = $('#ripple');
+  let rip = null;
+  for (const ct of CLICKS) if (t >= ct && t < ct + 0.5) rip = prog(t, ct, ct + 0.5);
+  rp.style.opacity = rip === null ? 0 : (1 - rip) * 0.9;
+  rp.style.transform = `translate(${c.x}px, ${c.y}px) scale(${0.3 + outCubic(rip ?? 0) * 1.1})`;
+
+  // Changes Summary card lifts out beside the resume.
+  const ch = $('#changes');
+  const chIn = outExpo(prog(t, 13.75, 14.5)), chOut = smooth(prog(t, 15.2, 15.6));
+  ch.style.display = chIn > 0 && chOut < 1 ? 'block' : 'none';
+  ch.style.opacity = chIn * (1 - chOut);
+  ch.style.transform = `translate(${(1 - chIn) * 80 + chOut * 40}px, ${Math.sin(t * 0.8) * 4}px) perspective(1600px) rotateY(${(1 - chIn) * -14}deg)`;
+  $$('.chg', ch).forEach((li, i) => {
+    const u = outCubic(prog(t, 14.05 + i * 0.12, 14.5 + i * 0.12));
+    li.style.opacity = u;
+    li.style.transform = `translateX(${(1 - u) * 14}px)`;
+  });
+
+  // Captions.
+  let capVis = 0;
+  for (const cp of CAPS) {
+    const vis = t >= cp.t0 - 0.05 && t < cp.t1 + 0.5;
+    cp.el.style.display = vis ? 'block' : 'none';
+    if (!vis) continue;
+    const e = outExpo(prog(t, cp.t0, cp.t0 + 0.6));
+    const x = smooth(prog(t, cp.t1, cp.t1 + 0.4));
+    cp.eb$.style.opacity = e * (1 - x);
+    cp.eb$.style.transform = `translateY(${(1 - e) * 12 - x * 10}px)`;
+    riseWords(cp.words, t, cp.t0 + 0.08, { stagger: 0.045, dur: 0.6, dy: 26, blur: 8, out: cp.t1, outDur: 0.4 });
+    capVis = Math.max(capVis, e * (1 - x));
+  }
+  $('#scrim').style.opacity = smooth(prog(t, 3.3, 3.9)) * (1 - smooth(prog(t, 19.0, 19.6)));
+
+  /* Scene 5 — end card */
+  const end = $('#end');
+  end.style.display = t > 19.3 ? 'flex' : 'none';
+  drawMark($('#end-mark'), t, 19.55);
+  const ew = outExpo(prog(t, 19.95, 20.9));
+  $('#end-word').style.opacity = ew;
+  $('#end-word').style.clipPath = `inset(-10% ${(1 - ew) * 100}% -10% 0)`;
+  $('#end-word').style.transform = `translateX(${(1 - ew) * -30}px)`;
+  const settle = outCubic(prog(t, 19.55, 24.5));
+  $('#end-brand').style.transform = `scale(${0.97 + settle * 0.03})`;
+  riseWords(endTag, t, 20.55, { stagger: 0.16, dur: 0.75, dy: 22, blur: 8 });
+  const eu = outExpo(prog(t, 21.35, 22.1));
+  $('#end-url').style.opacity = eu;
+  $('#end-url').style.transform = `translateY(${(1 - eu) * 16}px)`;
+}
+
+// The logo's three strokes slide into place along the mark's own diagonal.
+function drawMark(svg, t, t0) {
+  $$('path', svg).forEach((p, i) => {
+    const u = outExpo(prog(t, t0 + i * 0.14, t0 + i * 0.14 + 0.8));
+    const d = (1 - u) * 26;
+    p.style.opacity = clamp(u * 1.4);
+    p.style.transform = `translate(${-d}px, ${d}px)`;
+  });
+}
+
+/* ─────────────────────────── Boot ─────────────────────────── */
+window.DURATION = DURATION;
+window.renderAt = renderAt;
+window.__ready = (async () => {
+  await document.fonts.load('700 40px "Bricolage Grotesque Variable"');
+  await document.fonts.load('400 16px "DM Sans Variable"');
+  await document.fonts.ready;
+  measure();
+  CK = cursorKeys();
+  CAMK = cameraKeys();
+  const q = new URLSearchParams(location.search);
+  if (q.has('play')) {
+    const start = performance.now();
+    const loop = () => { renderAt(((performance.now() - start) / 1000) % DURATION); requestAnimationFrame(loop); };
+    loop();
+  } else {
+    renderAt(+(q.get('t') || 0));
+  }
+  return true;
+})();
+</script>
+</body>
+</html>

@@ -1,12 +1,12 @@
 // middleware.ts
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { resolveMarket, type MarketCode } from '@/lib/market/config';
+import { marketFromCountry, normalizeMarketCode, resolveMarket, type MarketCode } from '@/lib/market/config';
 
 const MARKET_COOKIE = 'jm_market';
 const VISITOR_COOKIE = 'jm_vid';
-const ZA_DOMAIN = 'jobmatchly.co.za';
-const ZW_DOMAIN = 'jobmatchly.site';
+const CANONICAL_ORIGIN = 'https://www.jobmatchly.co.za';
+const RETIRED_DOMAIN = 'jobmatchly.site';
 
 function isSkippablePath(pathname: string) {
   return (
@@ -24,30 +24,25 @@ function getHostname(req: NextRequest): string {
     .toLowerCase();
 }
 
-function isLocalOrPreview(hostname: string): boolean {
-  return (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '::1' ||
-    hostname.endsWith('.vercel.app')
-  );
+// jobmatchly.site was dropped; anything still reaching it goes to the one
+// domain we keep, same path and query.
+function retiredDomainRedirect(req: NextRequest, hostname: string): string | null {
+  if (hostname !== RETIRED_DOMAIN && !hostname.endsWith(`.${RETIRED_DOMAIN}`)) return null;
+  return `${CANONICAL_ORIGIN}${req.nextUrl.pathname}${req.nextUrl.search}`;
 }
 
-// Vercel provides req.geo.country for the visitor's ISO country code.
-// Redirect visitors to the correct market domain when they land on the wrong one.
-// On localhost / Vercel preview URLs we skip this so dev/testing is unaffected.
-function getGeoRedirectUrl(req: NextRequest, pathname: string, hostname: string): string | null {
-  if (isLocalOrPreview(hostname)) return null;
-
-  const geoCountry = (req as any).geo?.country as string | undefined;
-  if (!geoCountry) return null;
-
-  const onZA = hostname === ZA_DOMAIN || hostname.endsWith(`.${ZA_DOMAIN}`);
-  const onZW = hostname === ZW_DOMAIN || hostname.endsWith(`.${ZW_DOMAIN}`);
-
-  if (geoCountry === 'ZA' && !onZA) return `https://${ZA_DOMAIN}${pathname}`;
-  if (geoCountry === 'ZW' && !onZW) return `https://${ZW_DOMAIN}${pathname}`;
-  return null;
+// Both markets live on jobmatchly.co.za, so the host no longer says which one a
+// visitor belongs to. The market already chosen this session (the cookie) wins,
+// so it can't flip mid-checkout; otherwise the visitor's country decides;
+// otherwise the host (ZA in production, DEFAULT_MARKET locally).
+function resolveRequestMarket(req: NextRequest, hostname: string): MarketCode {
+  const geoCountry =
+    req.headers.get('x-vercel-ip-country') || ((req as any).geo?.country as string | undefined);
+  return (
+    normalizeMarketCode(req.cookies.get(MARKET_COOKIE)?.value) ??
+    marketFromCountry(geoCountry) ??
+    resolveMarket(hostname)
+  );
 }
 
 // Anonymous visitor id for page-view counts. Minted server-side so it exists
@@ -75,12 +70,10 @@ export function middleware(req: NextRequest) {
   const hostname = getHostname(req);
   const hasSession = !!req.cookies.get('session_token')?.value;
 
-  // Geo-redirect to correct market domain in production
-  const geoRedirect = getGeoRedirectUrl(req, pathname, hostname);
-  if (geoRedirect) return withVisitorCookie(NextResponse.redirect(geoRedirect), req);
+  const retired = retiredDomainRedirect(req, hostname);
+  if (retired) return NextResponse.redirect(retired, 308);
 
-  // Market is determined entirely by hostname (or DEFAULT_MARKET on localhost)
-  const market: MarketCode = resolveMarket(hostname);
+  const market: MarketCode = resolveRequestMarket(req, hostname);
 
   // Pass market downstream via header so server components and API routes can read it
   const rewriteHeaders = new Headers(req.headers);

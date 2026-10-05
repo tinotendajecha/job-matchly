@@ -12,13 +12,13 @@ import type { MarketCode } from '@prisma/client';
  *
  * A share link is pasted into WhatsApp and lives longer than the session that
  * made it, so it can never be relative and never point at a preview
- * deployment. Market decides the domain: a Zimbabwean job shared from the ZW
- * site should keep sending people there.
+ * deployment. Both markets share one domain since jobmatchly.site was
+ * dropped; the market parameter is kept so callers needn't change.
  */
-export function shareBaseUrl(market?: MarketCode | null): string {
+export function shareBaseUrl(_market?: MarketCode | null): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL;
   if (explicit) return explicit.replace(/\/$/, '');
-  return market === 'ZA' ? 'https://jobmatchly.co.za' : 'https://www.jobmatchly.site';
+  return 'https://www.jobmatchly.co.za';
 }
 
 export function shareUrlFor(jobId: string, market?: MarketCode | null): string {

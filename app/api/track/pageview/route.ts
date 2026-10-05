@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { resolveMarket } from "@/lib/market/config";
+import { getMarketFromRequest } from "@/lib/market/request";
 import { normalizePath, referrerHost } from "@/lib/analytics/normalizePath";
 import { isBot, classifyDevice } from "@/lib/analytics/botFilter";
 import { rateLimit, underGlobalCap } from "@/lib/analytics/rateLimit";
@@ -24,7 +24,7 @@ const VISITOR_COOKIE = "jm_vid";
 const MAX_BODY_BYTES = 2048;
 const PER_VISITOR_PER_MINUTE = 60;
 
-const ALLOWED_HOST_SUFFIXES = ["jobmatchly.site", "jobmatchly.co.za", "vercel.app", "localhost"];
+const ALLOWED_HOST_SUFFIXES = ["jobmatchly.co.za", "vercel.app", "localhost"];
 
 function originAllowed(request: NextRequest): boolean {
   const source = request.headers.get("origin") || request.headers.get("referer");
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         referrerHost: referrerHost(parsed.data.referrer, host),
         device: classifyDevice(userAgent),
         country: request.headers.get("x-vercel-ip-country")?.slice(0, 2) || null,
-        market: resolveMarket(host),
+        market: getMarketFromRequest(request),
         dayKey: new Date().toISOString().slice(0, 10),
       },
     });

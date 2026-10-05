@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import type { MarketCode, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
-import { resolveMarket } from '@/lib/market/config';
+import { getMarketFromRequest } from '@/lib/market/request';
 import { liveJobWhere } from '@/lib/jobs/policy';
 
 export const runtime = 'nodejs';
@@ -13,17 +13,11 @@ const DEFAULT_LIMIT = 9;
 const MAX_LIMIT = 24;
 
 /**
- * Which country's jobs to show by default.
- *
- * Middleware doesn't run on /api, so there's no x-market header here. The
- * jm_market cookie it sets is the most reliable signal; the host is the
- * fallback (jobmatchly.site -> ZW, jobmatchly.co.za -> ZA).
+ * Which country's jobs to show by default. Middleware doesn't run on /api, so
+ * this reads the jm_market cookie it sets, then the visitor's country.
  */
 function defaultMarket(req: Request): MarketCode {
-  const cookie = req.headers.get('cookie') || '';
-  const fromCookie = cookie.match(/(?:^|;\s*)jm_market=(ZW|ZA)(?:;|$)/i)?.[1];
-  if (fromCookie === 'ZW' || fromCookie === 'ZA') return fromCookie;
-  return resolveMarket(req.headers.get('x-forwarded-host') || req.headers.get('host'));
+  return getMarketFromRequest(req);
 }
 
 type JobRow = {

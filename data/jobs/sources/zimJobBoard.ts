@@ -22,7 +22,7 @@ import {
 import type { JobSource } from '@prisma/client';
 import type { RawJob, SourceCoverage } from '../types';
 
-const USER_AGENT = 'Mozilla/5.0 (compatible; JobMatchlyBot/1.0; +https://jobmatchly.site)';
+const USER_AGENT = 'Mozilla/5.0 (compatible; JobMatchlyBot/1.0; +https://jobmatchly.co.za)';
 
 export interface BoardConfig {
   /** Origin, no trailing slash. */

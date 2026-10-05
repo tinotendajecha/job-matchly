@@ -1,0 +1,6 @@
+out/stills/
+out/concat.txt
+out/sheet*.png
+out/clip*.mp4
+out/.segments-*/
+out/*.log

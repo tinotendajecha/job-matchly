@@ -22,6 +22,6 @@ export function verifyUnsubscribeToken(userId: string, token: string): boolean {
 }
 
 export function buildUnsubscribeUrl(userId: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || "https://www.jobmatchly.site";
+  const base = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || "https://www.jobmatchly.co.za";
   return `${base.replace(/\/+$/, "")}/api/unsubscribe?uid=${encodeURIComponent(userId)}&token=${makeUnsubscribeToken(userId)}`;
 }

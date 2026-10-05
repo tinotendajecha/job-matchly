@@ -902,7 +902,7 @@ export async function sendPasswordResetEmail(opts: {
 }) {
   const { to, name, resetUrl, ttlMinutes } = opts;
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "JobMatchly <hello@jobmatchly.site>";
+  const from = process.env.EMAIL_FROM || "JobMatchly <hello@jobmatchly.co.za>";
   const greeting = name?.trim() ? `Hi ${escapeHtml(name.trim().split(" ")[0])},` : "Hi,";
 
   if (!apiKey) {

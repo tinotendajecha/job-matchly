@@ -60,11 +60,19 @@ export function resolveMarket(hostname?: string | null): MarketCode {
     return "ZA";
   }
 
-  if (normalizedHost === "jobmatchly.site" || normalizedHost.endsWith(".jobmatchly.site")) {
-    return "ZW";
-  }
-
   return getDefaultMarket();
+}
+
+/**
+ * Both markets are served from jobmatchly.co.za (jobmatchly.site was dropped),
+ * so the host can no longer tell a Zimbabwean visitor from a South African one.
+ * The visitor's country does. Anything other than ZW or ZA returns null and the
+ * caller falls back to the host, which resolves to ZA in production.
+ */
+export function marketFromCountry(country?: string | null): MarketCode | null {
+  const normalized = String(country || "").trim().toUpperCase();
+  if (normalized === "ZW" || normalized === "ZA") return normalized;
+  return null;
 }
 
 export function getMarketConfig(market: MarketCode): MarketConfig {
